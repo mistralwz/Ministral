@@ -5,7 +5,7 @@ import {
     extractTokensFromUri,
     tokenExpiry,
     decodeToken,
-    wait, getProxyManager
+    wait
 } from "../misc/util.js";
 import config from "../misc/config.js";
 import {client} from "../discord/bot.js";

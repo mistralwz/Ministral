@@ -43,13 +43,29 @@ const tlsSigAlgs = [
     'rsa_pkcs1_sha1',
 ]
 
+// Persistent keep-alive agents per hostname — eliminates repeated TLS handshakes (B1)
+const keepAliveAgents = {};
+const getKeepAliveAgent = (hostname) => {
+    if (!keepAliveAgents[hostname]) {
+        keepAliveAgents[hostname] = new https.Agent({
+            keepAlive: true,
+            maxSockets: 10,
+            ciphers: tlsCiphers.join(':'),
+            sigalgs: tlsSigAlgs.join(':'),
+            minVersion: "TLSv1.3",
+        });
+    }
+    return keepAliveAgents[hostname];
+};
+
 // all my homies hate node-fetch
 export const fetch = (url, options={}) => {
     if(config.logUrls) console.log("Fetching url " + url.substring(0, 200) + (url.length > 200 ? "..." : ""));
 
     return new Promise((resolve, reject) => {
+        const hostname = new URL(url).hostname;
         const req = https.request(url, {
-            agent: options.proxy,
+            agent: options.proxy || getKeepAliveAgent(hostname),
             method: options.method || "GET",
             headers: {
                 cookie: "dummy=cookie", // set dummy cookie, helps with cloudflare 1020
@@ -685,14 +701,6 @@ export const getChannelGuildId = async (channelId) => {
         const channel = client.channels.cache.get(channelId);
         return channel && channel.guildId;
     }
-}
-
-export const valNamesToDiscordNames = (names) => {
-    const obj = {};
-    for(const [valLang, name] of Object.entries(names)) {
-        if(valToDiscLang[valLang]) obj[valToDiscLang[valLang]] = name;
-    }
-    return obj;
 }
 
 export const canEditInteraction = (interaction) => Date.now() - interaction.createdTimestamp < 14.8 * 60 * 1000;

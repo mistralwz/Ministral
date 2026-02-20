@@ -40,10 +40,6 @@ export const loadConfig = (filename="config.json", saveAfterLoad=true) => {
         console.error("If you don't want to see this notification again, set HDevTokenAlert to false in config.json");
     }
 
-    // backwards compatibility
-    loadedConfig.fetchSkinPrices = loadedConfig.showSkinPrices;
-    loadedConfig.fetchSkinRarities = loadedConfig.showSkinRarities;
-
     // to see what these keys do, check here:
     // https://github.com/giorgi-o/SkinPeek/wiki/SkinPeek-Admin-Guide#the-option-list
 
@@ -56,8 +52,6 @@ export const loadConfig = (filename="config.json", saveAfterLoad=true) => {
     applyConfig(loadedConfig, "localiseText", true);
     applyConfig(loadedConfig, "localiseSkinNames", true);
     applyConfig(loadedConfig, "linkItemImage", true);
-    applyConfig(loadedConfig, "videoViewerWithSite", true);
-    applyConfig(loadedConfig, "imageViewerWithSite", false);
     applyConfig(loadedConfig, "useEmojisFromServer", "");
     applyConfig(loadedConfig, "refreshSkins", "10 0 0 * * *");
     applyConfig(loadedConfig, "checkGameVersion", "*/15 * * * *");
@@ -75,17 +69,17 @@ export const loadConfig = (filename="config.json", saveAfterLoad=true) => {
     applyConfig(loadedConfig, "loginRetryTimeout", 10 * 60 * 1000);
     applyConfig(loadedConfig, "authFailureStrikes", 2);
     applyConfig(loadedConfig, "maxAccountsPerUser", 5);
-    applyConfig(loadedConfig, "userDataCacheExpiration", 168);
     applyConfig(loadedConfig, "autoRefreshTokens", true);
     applyConfig(loadedConfig, "tokenRefreshBufferMinutes", 5);
     applyConfig(loadedConfig, "rateLimitBackoff", 60);
     applyConfig(loadedConfig, "rateLimitCap", 10 * 60);
     applyConfig(loadedConfig, "useMultiqueue", false);
-    applyConfig(loadedConfig, "useRedis", false);
+    applyConfig(loadedConfig, "useRedis", true);
     applyConfig(loadedConfig, "redisHost", "127.0.0.1");
     applyConfig(loadedConfig, "redisPort", 6379);
     applyConfig(loadedConfig, "redisPassword", "");
     applyConfig(loadedConfig, "redisDb", 0);
+    applyConfig(loadedConfig, "maxActiveProxies", 10);
     applyConfig(loadedConfig, "trackStoreStats", true);
     applyConfig(loadedConfig, "statsExpirationDays", 14);
     applyConfig(loadedConfig, "statsPerPage", 8);
@@ -97,7 +91,6 @@ export const loadConfig = (filename="config.json", saveAfterLoad=true) => {
     applyConfig(loadedConfig, "notice", "");
     applyConfig(loadedConfig, "onlyShowNoticeOnce", true);
     applyConfig(loadedConfig, "maintenanceMode", false);
-    applyConfig(loadedConfig, "githubToken", "");
     applyConfig(loadedConfig, "logToChannel", "");
     applyConfig(loadedConfig, "logFrequency", "*/10 * * * * *");
     applyConfig(loadedConfig, "logUrls", false);

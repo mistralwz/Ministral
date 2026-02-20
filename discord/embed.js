@@ -895,13 +895,13 @@ export const botInfoEmbed = (interaction, client, guildCount, userCount, registe
             inline: true
         },
         {
-            name: ":dog2:",
+            name: ":service_dog:",
             value: s(interaction).info.INFO_WOOF,
             inline: true
         },
         {
             name: s(interaction).info.INFO_SOURCE,
-            value: "[Fork o' SkinPeek](https://github.com/mistralwz/Ministral)!",
+            value: "[**`mistralwz/Ministral`**](https://github.com/mistralwz/Ministral)",
             inline: true
         }
     ];
