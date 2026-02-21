@@ -562,9 +562,20 @@ export const extractTokensFromUri = (uri) => {
     return [accessToken, idToken]
 }
 
+const tokenCache = new Map();
+const MAX_TOKEN_CACHE_SIZE = 256;
+
 export const decodeToken = (token) => {
+    const cached = tokenCache.get(token);
+    if(cached) return cached;
+
     const encodedPayload = token.split('.')[1];
-    return JSON.parse(atob(encodedPayload));
+    const decoded = JSON.parse(atob(encodedPayload));
+
+    if(tokenCache.size >= MAX_TOKEN_CACHE_SIZE) tokenCache.clear();
+    tokenCache.set(token, decoded);
+
+    return decoded;
 }
 
 export const tokenExpiry = (token) => {
