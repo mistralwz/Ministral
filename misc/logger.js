@@ -15,7 +15,7 @@ export const localError = (...args) => oldError(shardString(), ...args);
 export const loadLogger = () => {
     console.log = (...args) => {
         oldLog(shardString(), ...args);
-        if(config.logToChannel) messagesToLog.push(shardString() + escapeMarkdown(args.join(" ")));
+        if(config.logToChannel && (config.verboseLogging || config.logUrls)) messagesToLog.push(shardString() + escapeMarkdown(args.join(" ")));
     }
 
     console.error = (...args) => {

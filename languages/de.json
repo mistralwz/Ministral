@@ -39,6 +39,7 @@
       "DUPLICATE_ALERT": "Du hast schon eine Benachrichtigung für **{s}** in <#{c}>!",
       "GHOST_ALERT": "Diese Benachrichtigung existiert nicht mehr!",
       "ALERT_NO_PERMS": "**Ich habe nicht die notwendigen Berechtigungen!** Habe ich die richtige Rolle?\nStelle sicher, dass ich in diesem Kanal `Kanal anzeigen`, `Nachrichten senden`, `Links einbetten` und `Externe Emojis verwenden` kann.",
+      "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Seltenheits-Icons sind ausgeblendet, weil dieser Server für @everyone die Berechtigung \"Externe Emojis verwenden\" deaktiviert hat und keine lokalen Kopien gefunden wurden. Bitte bitte einen Server-Administrator, sie zu aktivieren, oder füge die Seltenheits-Emojis manuell zu diesem Server hinzu.",
       "GENERIC_NO_PERMS": "**Ich habe nicht die erforderlichen Berechtigungen, um das in diesem Kanal zu tun!** Habe ich die richtige Rolle?\nStelle sicher, dass ich `Kanal anzeigen`, `Nachrichten senden`, `Links einbetten` und `Externe Emojis verwenden` in diesem Kanal kann.",
       "NO_NMARKET": "**Aktuell gibt es keinen Night Market! Bereite dich schonmal auf den nächsten vor!**",
       "NO_NMARKET_WITH_DATE": "**Aktuell gibt es keinen Night Market!** Der nächste wird <t:{t}:R> sein.",

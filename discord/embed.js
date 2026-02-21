@@ -22,7 +22,7 @@ import {getStatsFor} from "../misc/stats.js";
 import {getUser} from "../valorant/auth.js";
 import {readUserJson, removeDupeAccounts, saveUser} from "../valorant/accountSwitcher.js";
 import {getSetting, humanifyValue, settingIsVisible, settingName} from "../misc/settings.js";
-import {VPEmoji} from "./emoji.js";
+import {VPEmoji, rarityEmojisAvailable} from "./emoji.js";
 import {getNextNightMarketTimestamp} from "../valorant/shop.js";
 import {isThereANM} from "../valorant/shopManager.js";
 
@@ -122,6 +122,10 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
     if((VPemoji && !VPemoji.startsWith("<:")) || missingExternalPerms) {
         embeds.push(basicEmbed(s(interaction).error.ALERT_NO_PERMS));
     } // previous check was: if(VPemoji && !VPemoji.startsWith("<:"))
+
+    if(!rarityEmojisAvailable(interaction.channel)) {
+        embeds.push(basicEmbed(s(interaction).error.RARITY_EMOJIS_UNAVAILABLE));
+    }
 
     // show notice if there is one
     if(config.notice && valorantUser) {
@@ -391,6 +395,10 @@ export const renderNightMarket = async (market, interaction, valorantUser, emoji
     const missingExternalPerms = interaction.guild && config.useEmojisFromServer && config.useEmojisFromServer !== interaction.guildId && !interaction.channel.permissionsFor(interaction.guild.members.me).has(PermissionsBitField.Flags.UseExternalEmojis);
     if((emoji && !emoji.startsWith("<:")) || missingExternalPerms) {
         embeds.push(basicEmbed(s(interaction).error.ALERT_NO_PERMS));
+    }
+
+    if(!rarityEmojisAvailable(interaction.channel)) {
+        embeds.push(basicEmbed(s(interaction).error.RARITY_EMOJIS_UNAVAILABLE));
     }
 
     const components = switchAccountButtons(interaction, "nm", true);

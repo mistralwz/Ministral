@@ -69,6 +69,29 @@ export const DEFAULT_VALORANT_LANG = 'en-US';
 
 const languages = {};
 
+class LocalizedString extends String {
+    f(args, interactionOrId=null, hideName=true) {
+        return formatString(this.toString(), args, interactionOrId, hideName);
+    }
+}
+
+const asLocalized = (value) => {
+    if(typeof value === 'string') return new LocalizedString(value);
+    return value;
+}
+
+const buildCategoryProxy = (categoryStrings = {}, fallbackCategory = null) => new Proxy(categoryStrings, {
+    get: (target, prop) => {
+        if(prop in target) return asLocalized(target[prop]);
+
+        if(fallbackCategory && prop in fallbackCategory) {
+            return asLocalized(fallbackCategory[prop]);
+        }
+
+        return prop;
+    }
+});
+
 const importLanguage = (language) => {
     let languageStrings;
     try {
@@ -78,34 +101,26 @@ const importLanguage = (language) => {
         return;
     }
 
-    if(language === DEFAULT_LANG) {
-        languages[language] = languageStrings;
-        return;
-    }
-
     const languageHandler = {};
     for(const category in languageStrings) {
         if(typeof languageStrings[category] !== 'object') continue;
-        languageHandler[category] = new Proxy(languageStrings[category], {
-            get: (target, prop) => {
-                if(prop in target) return target[prop];
-                return languages[DEFAULT_LANG][category][prop] || prop;
-            }
-        });
+        const fallbackCategory = language === DEFAULT_LANG ? null : languages[DEFAULT_LANG][category];
+        languageHandler[category] = buildCategoryProxy(languageStrings[category], fallbackCategory);
     }
 
-    for(const category in languages[DEFAULT_LANG]) {
-        if(!languageHandler[category]) languageHandler[category] = languages[DEFAULT_LANG][category];
+    if(language !== DEFAULT_LANG) {
+        for(const category in languages[DEFAULT_LANG]) {
+            if(!languageHandler[category]) languageHandler[category] = languages[DEFAULT_LANG][category];
+        }
     }
 
     languages[language] = languageHandler;
 }
 importLanguage(DEFAULT_LANG);
 
-// format a string
-String.prototype.f = function(args, interactionOrId=null, hideName=true) {
+export const formatString = (template, args, interactionOrId=null, hideName=true) => {
     args = hideUsername(args, interactionOrId, hideName);
-    let str = this;
+    let str = template;
     for(let i in args)
         str = str.replace(`{${i}}`, args[i]);
     return str;

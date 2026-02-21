@@ -24,6 +24,20 @@ export const KCEmoji = async (interaction, channel=interaction.channel) => emoji
 
 export const rarityEmoji = async (channel, name, icon) => emojiToString(await getOrCreateEmoji(channel, `${name}Rarity`, icon));
 
+/**
+ * Returns true if rarity emojis can be rendered in the given channel.
+ * This is the case when:
+ *   - External emojis are permitted (@everyone has UseExternalEmojis), OR
+ *   - The guild already has locally-uploaded rarity emojis (same-name emojis previously added).
+ */
+export const rarityEmojisAvailable = (channel) => {
+    if(externalEmojisAllowed(channel)) return true;
+    // External emojis are blocked — check if any rarity emoji already lives in this guild
+    const guild = channel && channel.guild;
+    if(!guild) return true;
+    return guild.emojis.cache.some(e => e.name && e.name.endsWith("Rarity") && e.available);
+};
+
 const getOrCreateEmoji = async (channel, name, filenameOrUrl) => {
     if(!name || !filenameOrUrl) return;
 

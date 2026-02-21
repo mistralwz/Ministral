@@ -94,6 +94,7 @@ export const loadConfig = (filename="config.json", saveAfterLoad=true) => {
     applyConfig(loadedConfig, "logToChannel", "");
     applyConfig(loadedConfig, "logFrequency", "*/10 * * * * *");
     applyConfig(loadedConfig, "logUrls", false);
+    applyConfig(loadedConfig, "verboseLogging", false);
 
     if (saveAfterLoad) {
         try {

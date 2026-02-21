@@ -38,6 +38,8 @@
     "DUPLICATE_ALERT": "May alerto ka na para sa **{s}** in <#{c}>!",
     "GHOST_ALERT": "Wala na ang alerto na yan",
     "ALERT_NO_PERMS": "**Wala akong kinakailangang pahintulot!** May tamang role ba ako?\nSiguraduhin na maaari kong `Tingnan ang channel`, `Magpadala ng mensahe`, `I-embed ang mga link` at `Gumamit ng external emojis` sa channel na ito.",
+    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Nakabaon ang mga rarity icon dahil dinisable ng server na ito ang **Use External Emojis** para sa @everyone at walang lokal na kopya na nakita. Hilingin sa admin na i-enable ito, o idagdag nang mano-mano ang rarity emojis sa server na ito.",
+    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Nakabaon ang mga rarity icon dahil dinisable ng server na ito ang **Use External Emojis** para sa @everyone at walang lokal na kopya na nakita. Hilingin sa admin na i-enable ito, o idagdag nang mano-mano ang rarity emojis sa server na ito.",
     "GENERIC_NO_PERMS": "**Wala akong mga pahintulot para gawin iyan sa channel na ito!** Tama ba ang aking role?\nSiguraduhin na pwede akong maka- `View Channel`, `Send Messages`, `Embed Links` and `Use External Emojis` sa channel na ito.",
     "NO_NMARKET": "**Walang Night Market ngayon!**",
     "NO_NMARKET_WITH_DATE": "**Walang Night Market ngayon!** Ang susunod ay <t:{t}:R>.",

@@ -48,5 +48,6 @@
   "maintenanceMode": false,
   "logToChannel": "",
   "logFrequency": "*/10 * * * * *",
-  "logUrls": false
+  "logUrls": false,
+  "verboseLogging": false
 }

@@ -39,6 +39,7 @@
     "DUPLICATE_ALERT": "Você já possui um alerta **{s}** em <#{c}>!",
     "GHOST_ALERT": "O alerta não existe mais!",
     "ALERT_NO_PERMS": "**Eu não tenho as permissões necessárias!** Tenho o cargo correto?\nCertifique-se de que eu posso `Visualizar canal`, `Enviar mensagens`, `Incorporar links` e `Usar emojis externos` neste canal.",
+    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Os ícones de raridade estão ocultos porque este servidor desativou **Usar emojis externos** para @everyone e não foram encontradas cópias locais. Peça a um administrador para ativar ou adicione os emojis de raridade manualmente neste servidor.",
     "GENERIC_NO_PERMS": "**Eu não tenho permissões necessárias para fazer isso neste canal!** Eu tenho a permissão correta?\nVerifique se eu possuo `View Channel`, `Send Messages`, `Embed Links` e `Use External Emojis` neste canal.",
     "NO_NMARKET": "**Não existe mercado noturno atualmente!**",
     "NO_NMARKET_WITH_DATE": "**Não existe mercado noturno atualmente!** O próximo será <t:{t}:R>.",
