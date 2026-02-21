@@ -142,15 +142,15 @@ const processAuthResponse = async (id, authData, redirect, user=null) => {
         if(existingAccount.auth) user.auth.ent = existingAccount.auth.ent;
     }
 
-    // get username
-    const userInfo = await getUserInfo(user);
+    const [userInfo, entitlements, region] = await Promise.all([
+        getUserInfo(user),
+        user.auth.ent ? Promise.resolve(user.auth.ent) : getEntitlements(user),
+        user.region ? Promise.resolve(user.region) : getRegion(user)
+    ]);
+
     user.username = userInfo.username;
-
-    // get entitlements token
-    if(!user.auth.ent) user.auth.ent = await getEntitlements(user);
-
-    // get region
-    if(!user.region) user.region = await getRegion(user);
+    user.auth.ent = entitlements;
+    user.region = region;
 
     user.lastFetchedData = Date.now();
 
@@ -492,22 +492,19 @@ export const redeemWebAuthUrl = async (id, callbackUrl) => {
             if (existingAccount.auth) user.auth.ent = existingAccount.auth.ent;
         }
 
-        // Get username from userinfo
-        const userInfo = await getUserInfo(user);
+        const [userInfo, entitlements, region] = await Promise.all([
+            getUserInfo(user),
+            user.auth.ent ? Promise.resolve(user.auth.ent) : getEntitlements(user),
+            user.region ? Promise.resolve(user.region) : getRegion(user)
+        ]);
+
         if (!userInfo || !userInfo.username) {
             return { success: false, error: "Could not fetch user info. The token may be invalid or expired." };
         }
+
         user.username = userInfo.username;
-
-        // Get entitlements token
-        if (!user.auth.ent) {
-            user.auth.ent = await getEntitlements(user);
-        }
-
-        // Get region
-        if (!user.region) {
-            user.region = await getRegion(user);
-        }
+        user.auth.ent = entitlements;
+        user.region = region;
 
         if (refresh_token) {
             console.log(`[redeemWebAuthUrl] Code flow login successful for ${user.username} (has refresh token - auto-refresh enabled)`);
