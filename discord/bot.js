@@ -428,8 +428,6 @@ const commands = [
 // Commands with integration_types and contexts for global deployment (guild + user installs)
 const globalCommands = commands.map(cmd => ({ ...cmd, integration_types: [0, 1], contexts: [0, 1, 2] }));
 
-// Commands for user-install-only deployment
-const userInstallCommands = commands.map(cmd => ({ ...cmd, integration_types: [1], contexts: [1, 2] }));
 
 client.on("messageCreate", async (message) => {
     try {
@@ -466,12 +464,6 @@ client.on("messageCreate", async (message) => {
             await client.application.commands.set(globalCommands).then(() => console.log("Commands deployed globally (guild + user installs)!"));
 
             await message.reply("Deployed globally (guild + user installs)!");
-        } else if (content === "!deploy user") {
-            console.log("Deploying commands for user installs only...");
-
-            await client.application.commands.set(userInstallCommands).then(() => console.log("Commands deployed for user installs only!"));
-
-            await message.reply("Deployed for user installs only!");
         } else if (content.startsWith("!undeploy")) {
             console.log("Undeploying commands...");
 
