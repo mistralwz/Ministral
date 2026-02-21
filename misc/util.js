@@ -58,6 +58,9 @@ const getKeepAliveAgent = (hostname) => {
     return keepAliveAgents[hostname];
 };
 
+const channelGuildCache = new Map();
+const CHANNEL_GUILD_CACHE_TTL_MS = 10 * 60 * 1000;
+
 // all my homies hate node-fetch
 export const fetch = (url, options={}) => {
     if(config.logUrls) console.log("Fetching url " + url.substring(0, 200) + (url.length > 200 ? "..." : ""));
@@ -701,17 +704,24 @@ export const fetchChannel = async (channelId) => {
 }
 
 export const getChannelGuildId = async (channelId) => {
+    const cached = channelGuildCache.get(channelId);
+    if(cached && Date.now() - cached.at < CHANNEL_GUILD_CACHE_TTL_MS) return cached.guildId;
+
+    let guildId;
     if(client.shard) {
         const f = client => {
             const channel = client.channels.get(channelId);
             if(channel) return channel.guildId;
         };
         const results = await client.shard.broadcastEval(f);
-        return results.find(result => result);
+        guildId = results.find(result => result);
     } else {
         const channel = client.channels.cache.get(channelId);
-        return channel && channel.guildId;
+        guildId = channel && channel.guildId;
     }
+
+    if(guildId) channelGuildCache.set(channelId, { guildId, at: Date.now() });
+    return guildId;
 }
 
 export const canEditInteraction = (interaction) => Date.now() - interaction.createdTimestamp < 14.8 * 60 * 1000;

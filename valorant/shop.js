@@ -26,7 +26,7 @@ export const getShop = async (id, account = null) => {
     if (!authSuccess.success) return authSuccess;
 
     const user = getUser(id, account);
-    console.log(`Fetching shop for ${user.username}...`);
+    if(config.logUrls) console.log(`Fetching shop for ${user.username}...`);
 
     // https://github.com/techchrism/valorant-api-docs/blob/trunk/docs/Store/GET%20Store_GetStorefrontV2.md
     const req = await fetch(`https://pd.${userRegion(user)}.a.pvp.net/store/v3/storefront/${user.puuid}`, {

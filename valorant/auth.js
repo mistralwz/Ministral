@@ -82,7 +82,7 @@ export const invalidateUserCache = (id) => {
 
 export const getUserList = () => {
     const userIds = getAllUserIds();
-    console.log(`[getUserList] Retrieved ${userIds.length} users from database`);
+    if(config.logUrls) console.log(`[getUserList] Retrieved ${userIds.length} users from database`);
     return userIds;
 }
 
@@ -99,21 +99,21 @@ export const authUser = async (id, account=null) => {
     if(!config.autoRefreshTokens) {
         // No auto-refresh: only check if token is still valid (not expired)
         if(timeRemaining > 0) {
-            console.log(`[authUser] Token valid for ${minutesRemaining} more minutes (auto-refresh disabled) (${user.username})`);
+            if(config.logUrls) console.log(`[authUser] Token valid for ${minutesRemaining} more minutes (auto-refresh disabled) (${user.username})`);
             return {success: true};
         }
-        console.log(`[authUser] Token expired, cannot proceed (auto-refresh disabled) (${user.username})`);
+        if(config.logUrls) console.log(`[authUser] Token expired, cannot proceed (auto-refresh disabled) (${user.username})`);
         return {success: false};
     }
     
     // Auto-refresh enabled: refresh if below buffer threshold
     const bufferMs = (config.tokenRefreshBufferMinutes || 5) * 60 * 1000;
     if(timeRemaining > bufferMs) {
-        console.log(`[authUser] Token valid for ${minutesRemaining} more minutes (${user.username})`);
+        if(config.logUrls) console.log(`[authUser] Token valid for ${minutesRemaining} more minutes (${user.username})`);
         return {success: true};
     }
 
-    console.log(`[authUser] Token expires in ${minutesRemaining} minutes, refreshing now (${user.username})`);
+    if(config.logUrls) console.log(`[authUser] Token expires in ${minutesRemaining} minutes, refreshing now (${user.username})`);
     return await refreshToken(id, account);
 }
 
@@ -240,7 +240,7 @@ export const redeemCookies = async (id, cookies) => {
 }
 
 export const refreshToken = async (id, account=null) => {
-    console.log(`Refreshing token for ${id}...`)
+    if(config.logUrls) console.log(`Refreshing token for ${id}...`)
     let response = {success: false}
 
     let user = getUser(id, account);
@@ -248,7 +248,7 @@ export const refreshToken = async (id, account=null) => {
 
     // 1. Try refresh_token first (from code flow / offline_access)
     if(user.auth.refresh_token) {
-        console.log(`[refreshToken] User has refresh_token, attempting refresh`);
+        if(config.logUrls) console.log(`[refreshToken] User has refresh_token, attempting refresh`);
         try {
             const tokenData = await refreshWithRefreshToken(user.auth.refresh_token);
             if(tokenData && tokenData.access_token) {
@@ -267,10 +267,10 @@ export const refreshToken = async (id, account=null) => {
                 
                 const newExpiry = tokenExpiry(user.auth.rso);
                 const expiresIn = Math.floor((newExpiry - Date.now()) / 60000);
-                console.log(`[refreshToken] Refresh token success for ${user.username} — new token expires in ${expiresIn} minutes`);
+                if(config.logUrls) console.log(`[refreshToken] Refresh token success for ${user.username} — new token expires in ${expiresIn} minutes`);
                 return {success: true};
             } else {
-                console.log(`[refreshToken] Refresh token failed, token may be revoked`);
+                if(config.logUrls) console.log(`[refreshToken] Refresh token failed, token may be revoked`);
                 user.auth.refresh_token = null; // clear invalid refresh token
             }
         } catch(e) {
@@ -281,11 +281,11 @@ export const refreshToken = async (id, account=null) => {
 
     // 2. Fall back to cookie-based refresh
     if(user.auth.cookies) {
-        console.log(`[refreshToken] User has cookies, attempting cookie refresh`);
+        if(config.logUrls) console.log(`[refreshToken] User has cookies, attempting cookie refresh`);
         response = await queueCookiesLogin(id, stringifyCookies(user.auth.cookies));
         if(response.inQueue) response = await waitForAuthQueueResponse(response);
     } else {
-        console.log(`[refreshToken] User has no cookies or refresh_token, cannot refresh`);
+        if(config.logUrls) console.log(`[refreshToken] User has no cookies or refresh_token, cannot refresh`);
     }
 
     if(!response.success && !response.rateLimit) deleteUserAuth(user);
