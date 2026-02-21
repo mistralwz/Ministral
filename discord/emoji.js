@@ -18,6 +18,10 @@ const lastEmojiFetch = {};
 // a cache for emoji objects (note: due to sharding, might just be JSON representations of the emoji)
 const emojiCache = {};
 
+// negative cache: maps emoji name -> expiry timestamp for emojis confirmed not to exist
+const negativeCache = {};
+const NEGATIVE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const VPEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, VPEmojiName, VPEmojiFilename)) || s(interaction).info.PRICE;
 export const RadEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, RadEmojiName, RadEmojiFilename));
 export const KCEmoji = async (interaction, channel=interaction.channel) => emojiToString(await getOrCreateEmoji(channel, KCEmojiName, KCEmojiFilename));
@@ -70,10 +74,15 @@ const getOrCreateEmoji = async (channel, name, filenameOrUrl) => {
             if(emoji && emoji.available) return addEmojiToCache(emoji);
         }
 
+        // Skip broadcastEval if we recently confirmed this emoji doesn't exist
+        if(negativeCache[name] && Date.now() < negativeCache[name]) return null;
+
         if(client.shard) {
             const results = await channel.client.shard.broadcastEval(findEmoji, { context: { name } });
             const emoji = results.find(e => e);
             if(emoji) return addEmojiToCache(emoji);
+            // Cache the miss to avoid repeated broadcastEval for emojis that genuinely don't exist
+            negativeCache[name] = Date.now() + NEGATIVE_CACHE_TTL;
         }
     }
 
@@ -136,8 +145,31 @@ const updateEmojiCache = async (guild) => {
 }
 
 const addEmojiToCache = (emoji) => {
-    if(emoji) emojiCache[emoji.name] = emoji;
+    if(emoji) {
+        emojiCache[emoji.name] = emoji;
+        // Clear any negative cache entry now that we have the real emoji
+        delete negativeCache[emoji.name];
+    }
     return emoji;
+}
+
+/**
+ * Pre-warm the emoji cache at bot startup using the configured emoji server.
+ * This prevents the first interaction on each shard from doing a broadcastEval.
+ */
+export const warmEmojiCache = async () => {
+    if(!config.useEmojisFromServer) return;
+    try {
+        const emojiGuild = await client.guilds.fetch(config.useEmojisFromServer);
+        if(!emojiGuild) return;
+        await updateEmojiCache(emojiGuild);
+        for(const emoji of emojiGuild.emojis.cache.values()) {
+            if(emoji.available) addEmojiToCache(emoji);
+        }
+        console.log(`Warmed emoji cache with ${Object.keys(emojiCache).length} emojis from ${emojiGuild.name}`);
+    } catch(e) {
+        console.error(`Failed to warm emoji cache: ${e.message}`);
+    }
 }
 
 const findEmoji = (c, { name }) => {

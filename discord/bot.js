@@ -53,7 +53,7 @@ import {
     removeAlert,
     testAlerts
 } from "./alerts.js";
-import { RadEmoji, VPEmoji, KCEmoji } from "./emoji.js";
+import { RadEmoji, VPEmoji, KCEmoji, warmEmojiCache } from "./emoji.js";
 import { queueCookiesLogin, startAuthQueue, } from "../valorant/authQueue.js";
 import { waitForAuthQueueResponse } from "./authManager.js";
 import { renderBattlepassProgress } from "../valorant/battlepass.js";
@@ -139,6 +139,8 @@ client.on("clientReady", async () => {
     
     console.log("Loading skins...");
     fetchData().then(() => console.log("Skins loaded!"));
+
+    warmEmojiCache().then(() => {}).catch(e => console.error(`Emoji cache warm failed: ${e.message}`));
     
     initProxyManager().then(() => {
         if (getProxyManager().enabled) {

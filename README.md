@@ -107,6 +107,7 @@ This is currently outdated and unmaintained.
 - [The dev discord server](https://discord.gg/a9yzrw3KAm), join here!
 - [jursen](https://github.com/Kyedae), [Keny](https://github.com/pandakeny) for their countless bug reports, suggestions and feedback
 - [mizto](https://miz.to/) for the absolutely amazing designs! 🎨
+
 And of course... thank you [Giorgio](https://github.com/giorgi-o/) for creating & maintaining [the original SkinPeek](https://github.com/giorgi-o/) repo for over 3 years!
 
 ## Translations
