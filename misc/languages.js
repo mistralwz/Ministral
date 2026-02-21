@@ -69,16 +69,10 @@ export const DEFAULT_VALORANT_LANG = 'en-US';
 
 const languages = {};
 
-class LocalizedString extends String {
-    f(args, interactionOrId=null, hideName=true) {
-        return formatString(this.toString(), args, interactionOrId, hideName);
-    }
-}
-
-const asLocalized = (value) => {
-    if(typeof value === 'string') return new LocalizedString(value);
-    return value;
-}
+// asLocalized returns a plain string primitive so Discord.js component
+// builders (which check typeof === 'string') always accept the value.
+// .f() template formatting is available via String.prototype.f (see below).
+const asLocalized = (value) => typeof value === 'string' ? value : String(value);
 
 const buildCategoryProxy = (categoryStrings = {}, fallbackCategory = null) => new Proxy(categoryStrings, {
     get: (target, prop) => {
@@ -124,6 +118,20 @@ export const formatString = (template, args, interactionOrId=null, hideName=true
     for(let i in args)
         str = str.replace(`{${i}}`, args[i]);
     return str;
+}
+
+// Attach .f() to String.prototype so that locale strings returned as
+// plain primitives (typeof === 'string') still support .f({key: val})
+// template formatting throughout the codebase.
+if(!String.prototype.f) {
+    Object.defineProperty(String.prototype, 'f', {
+        value: function(args, interactionOrId=null, hideName=true) {
+            return formatString(this.toString(), args, interactionOrId, hideName);
+        },
+        writable: true,
+        configurable: true,
+        enumerable: false,
+    });
 }
 
 // get the strings for a language
