@@ -54,23 +54,25 @@ const formatPlayerRow = async (player, channel, isCompetitive = false) => {
         ? "**?**"
         : `**${player.accountLevel}**`;
 
-    // Agent emoji — resolved dynamically from valorant-api.com icon URL
+    // Agent emoji — resolved dynamically from valorant-api.com icon URL.
+    // For incognito players riotId IS the agent name, so we suppress the text
+    // fallback to avoid "Vyse  `Vyse`" when the emoji hasn't uploaded yet.
     const agentEmojiStr = player.agentName && player.agentIcon
-        ? (emojiToString(await agentEmoji(channel, player.agentName, player.agentIcon)) ?? `\`${player.agentName}\``)
-        : `\`${player.agentName ?? "—"}\``;
+        ? (emojiToString(await agentEmoji(channel, player.agentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${player.agentName}\``))
+        : (player.incognito ? "" : `\`${player.agentName ?? "—"}\``);
 
-    // Current rank emoji — resolved dynamically
-    const currentRankEmojiStr = player.currentTier > 0 && player.currentTierIcon
+    // Current rank emoji — tier 0 (Unranked) now has an icon too
+    const currentRankEmojiStr = player.currentTierIcon
         ? (emojiToString(await rankEmoji(channel, player.currentTier, player.currentTierIcon)) ?? "")
         : "";
 
     const rankPart = player.currentTier > 0
         ? `${currentRankEmojiStr} **${player.currentRR} RR**`.trim()
-        : "`Unranked`";
+        : currentRankEmojiStr || "`Unranked`";
 
-    // Peak rank — shown in all modes with act label when available
+    // Peak rank — shown in all modes; text fallback when emoji is unavailable
     const peakRankEmojiStr = player.peakTier > 0 && player.peakTierIcon
-        ? (emojiToString(await rankEmoji(channel, player.peakTier, player.peakTierIcon)) ?? "")
+        ? (emojiToString(await rankEmoji(channel, player.peakTier, player.peakTierIcon)) ?? `\`${player.peakTierName}\``)
         : null;
     const peakPart = peakRankEmojiStr
         ? `${peakRankEmojiStr}${player.peakActLabel ? ` (${player.peakActLabel})` : ""}`
@@ -95,13 +97,14 @@ const formatPlayerRow = async (player, channel, isCompetitive = false) => {
 
 /**
  * Build embed fields for a list of players, grouped 5 per field.
+ * @param {string} [headerName] Optional name for the first field (defaults to zero-width space).
  */
-const buildPlayerFields = async (players, channel, isCompetitive) => {
+const buildPlayerFields = async (players, channel, isCompetitive, headerName = "\u200b") => {
     const rows = await Promise.all(players.map(p => formatPlayerRow(p, channel, isCompetitive)));
     const fields = [];
     for (let i = 0; i < rows.length; i += 5) {
         fields.push({
-            name:   "\u200b",
+            name:   i === 0 ? headerName : "\u200b",
             value:  rows.slice(i, i + 5).join("\n"),
             inline: false,
         });
@@ -141,12 +144,15 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeIn
         );
         embed.description = lines.join("\n");
     } else {
-        // Two-team layout — ally fields immediately followed by enemy fields, no divider
-        const [allyFields, enemyFields] = await Promise.all([
-            buildPlayerFields(allyPlayers,  channel, isCompetitive),
-            buildPlayerFields(enemyPlayers, channel, isCompetitive),
+        // Two-team layout: ally players in description, enemy players in fields
+        const [allyLines, enemyFields] = await Promise.all([
+            Promise.all(allyPlayers.map(p => formatPlayerRow(p, channel, isCompetitive))),
+            enemyPlayers.length > 0
+                ? buildPlayerFields(enemyPlayers, channel, isCompetitive)
+                : Promise.resolve([]),
         ]);
-        embed.fields = [...allyFields, ...enemyFields];
+        embed.description = allyLines.join("\n");
+        if (enemyFields.length > 0) embed.fields = enemyFields;
     }
 
     return embed;

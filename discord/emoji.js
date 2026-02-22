@@ -48,7 +48,7 @@ export const agentEmoji = async (channel, agentName, iconUrl) => {
  * @param {string}  iconUrl  URL from valorant-api.com
  */
 export const rankEmoji = async (channel, tier, iconUrl) => {
-    if (!tier || !iconUrl) return null;
+    if (tier == null || !iconUrl) return null;
     return getOrCreateEmoji(channel, `Rank_${tier}`, iconUrl);
 };
 
@@ -130,6 +130,11 @@ const emojiInGuild = (guild, name) => {
 
 const createEmoji = async (guild, name, filenameOrUrl) => {
     if(!guild || !name || !filenameOrUrl) return;
+    // guild.members.me is null when the guild was fetched via REST on a shard that
+    // doesn't own it — fetch the bot's own member so the permission check is accurate.
+    if(!guild.members.me) {
+        try { await guild.members.fetchMe(); } catch(e) {}
+    }
     if(!canCreateEmojis(guild)) {
         console.log(`Don't have permission to create emoji ${name} in guild ${guild.name}!`);
         console.log(`Make sure the bot has 'Manage Emojis and Stickers' permission in that server.`);

@@ -105,8 +105,7 @@ export const resolveAgent = async (uuid) => {
 /** Resolve tier number (0-27) → {name, color, icon} */
 export const resolveTier = async (tier) => {
     await loadCompetitiveTiers();
-    if (!tier || tier === 0) return { name: "Unranked", color: "#000000", icon: null };
-    return competitiveTiersCache[tier] ?? { name: "Unranked", color: "#000000", icon: null };
+    return competitiveTiersCache[tier ?? 0] ?? { name: "Unranked", color: "#000000", icon: null };
 };
 
 // ──────────────────────────────────────────────
@@ -257,6 +256,8 @@ const QUEUE_ICONS = {
     snowball:     "https://media.valorant-api.com/gamemodes/57038d6d-49b1-3a74-c5ef-3395d9f23a97/displayicon.png",
     swiftplay:    "https://media.valorant-api.com/gamemodes/5d0f264b-4ebe-cc63-c147-809e1374484b/displayicon.png",
     hurm:         "https://media.valorant-api.com/gamemodes/e086db66-47fd-e791-ca81-06a645ac7661/displayicon.png",
+    custom:       "https://media.valorant-api.com/gamemodes/e2dc3878-4fe5-d132-28f8-3d8c259efcc6/displayicon.png",
+    "":           "https://media.valorant-api.com/gamemodes/e2dc3878-4fe5-d132-28f8-3d8c259efcc6/displayicon.png",
 };
 
 export const resolveQueueIcon = (queueId) =>
@@ -620,10 +621,11 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
 
         return {
             ...p,
-            // Identity: incognito players show their agent name once it's
-            // locked; "Player N" is only the fallback for pre-game (no agent yet).
+            // Identity: incognito players show their locked agent name so the row
+            // reads "<agent_emoji>  `AgentName`". "Player N" is the fallback when
+            // the agent is not yet known (pre-game, agent not locked).
             riotId:    p.incognito
-                ? (agentInfo.name !== "Unknown" && p.agentId ? agentInfo.name : `Player ${idx + 1}`)
+                ? (p.agentId && agentInfo.name !== "Unknown Agent" ? agentInfo.name : `Player ${idx + 1}`)
                 : (name ?? p.puuid.slice(0, 8)),
             // Agent
             agentName: p.agentId  ? agentInfo.name : null,
