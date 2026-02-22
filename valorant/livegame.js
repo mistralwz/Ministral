@@ -128,13 +128,17 @@ const MAP_NAMES = {
 };
 
 export const resolveMapName = (mapId) =>
-    MAP_NAMES[mapId] ?? (mapId?.split("/").pop() ?? "Unknown Map");
+    // API displayName takes priority — covers new maps (Corrode, etc.) automatically
+    (mapNamesCache && mapNamesCache[mapId])
+        ?? MAP_NAMES[mapId]
+        ?? (mapId?.split("/").pop() ?? "Unknown Map");
 
 // ──────────────────────────────────────────────
-// Map image cache (splash URL per map path)
+// Map data cache — image + display name per mapUrl
 // ──────────────────────────────────────────────
 
 let mapImagesCache = null;
+let mapNamesCache  = null;  // populated alongside images
 
 const loadMapImages = async () => {
     if (mapImagesCache) return;
@@ -142,20 +146,65 @@ const loadMapImages = async () => {
         const req  = await fetch("https://valorant-api.com/v1/maps");
         const json = JSON.parse(req.body);
         mapImagesCache = {};
+        mapNamesCache  = {};
         for (const m of json.data) {
             if (m.mapUrl) {
-                mapImagesCache[m.mapUrl] = m.splash ?? m.listViewIconTall ?? null;
+                // listViewIcon is the compact square thumbnail used in list
+                // views — much smaller than splash or listViewIconTall.
+                mapImagesCache[m.mapUrl] = m.listViewIcon ?? m.splash ?? null;
+                if (m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
             }
         }
     } catch (e) {
         console.error("[livegame] Failed to load map images:", e);
         mapImagesCache = {};
+        mapNamesCache  = {};
     }
 };
 
 export const resolveMapImage = async (mapId) => {
     await loadMapImages();
     return mapImagesCache[mapId] ?? null;
+};
+
+// ──────────────────────────────────────────────
+// Seasons cache — act UUID → label ("E5A3", "V25A1", …)
+// ──────────────────────────────────────────────
+
+let seasonsCache = null;
+
+/**
+ * Derive a short act label from the season's assetPath.
+ *   Season_Episode5_Act3_DataAsset   → "E5A3"
+ *   Season_EpisodeV25-1_Act1_DataAsset → "V25A1"
+ *   Season_EpisodeV26-2_Act4_DataAsset → "V26A4"
+ */
+const actLabelFromPath = (assetPath = "") => {
+    let m = assetPath.match(/Season_Episode(\d+)_Act(\d+)/);
+    if (m) return `E${m[1]}A${m[2]}`;
+    m = assetPath.match(/Season_EpisodeV(\d+)-\d+_Act(\d+)/);
+    if (m) return `V${m[1]}A${m[2]}`;
+    return null;
+};
+
+const loadSeasons = async () => {
+    if (seasonsCache) return seasonsCache;
+    seasonsCache = new Map();
+    try {
+        const req = await fetch("https://valorant-api.com/v1/seasons");
+        if (req.statusCode === 200) {
+            const { data } = JSON.parse(req.body);
+            for (const s of data) {
+                if (s.type === "EAresSeasonType::Act") {
+                    const label = actLabelFromPath(s.assetPath);
+                    if (label) seasonsCache.set(s.uuid, label);
+                }
+            }
+        }
+    } catch (e) {
+        console.error("[livegame] loadSeasons failed:", e);
+    }
+    return seasonsCache;
 };
 
 // ──────────────────────────────────────────────
@@ -235,12 +284,15 @@ export const parseMMRData = (mmrJson) => {
         if (!currentTier) currentTier = seasonal[latest.SeasonID].CompetitiveTier ?? 0;
     }
 
-    // Peak rank — scan all seasons
+    // Peak rank — scan all seasons, remember which season achieved it
     let peakTier = 0;
+    let peakSeasonId = null;
     let wins = 0, games = 0;
-    for (const info of Object.values(seasonal)) {
-        if ((info.CompetitiveTier ?? 0) > peakTier) peakTier = info.CompetitiveTier;
-        // Sum the most recent season for win-rate (just show current season's stats)
+    for (const [seasonId, info] of Object.entries(seasonal)) {
+        if ((info.CompetitiveTier ?? 0) > peakTier) {
+            peakTier = info.CompetitiveTier;
+            peakSeasonId = seasonId;
+        }
     }
 
     // Get wins/games from the season of the latest update
@@ -251,7 +303,7 @@ export const parseMMRData = (mmrJson) => {
 
     const winRate = games > 0 ? Math.round((wins / games) * 100) : null;
 
-    return { currentTier, currentRR, peakTier, wins, games, winRate };
+    return { currentTier, currentRR, peakTier, peakSeasonId, wins, games, winRate };
 };
 
 // ──────────────────────────────────────────────
@@ -488,10 +540,11 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const puuids  = rawPlayers.map(p => p.puuid);
     const isComp  = queueId === "competitive";
 
-    // Start all parallel fetches
-    const [mmrMap, nameMap] = await Promise.all([
+    // Start all parallel fetches (including season labels)
+    const [mmrMap, nameMap, seasonMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids.filter(p => !rawPlayers.find(rp => rp.puuid === p)?.incognito)),
+        loadSeasons(),
     ]);
 
     // Competitive updates — one request per player, run in parallel
@@ -520,13 +573,17 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             resolveTier(mmr?.peakTier    ?? 0),
         ]);
 
-        // Level: use PlayerIdentity value if available, otherwise not shown
-        const level = (!p.isHideAccountLevel && p.accountLevel) ? p.accountLevel : null;
+        // Level: always carry through; levelHidden flag lets the embed show "?"
+        const level = p.accountLevel ?? null;
+        const levelHidden = p.isHideAccountLevel ?? false;
 
         return {
             ...p,
-            // Identity
-            riotId:    p.incognito ? `Player ${idx + 1}` : (name ?? p.puuid.slice(0, 8)),
+            // Identity: incognito players show their agent name once it's
+            // locked; "Player N" is only the fallback for pre-game (no agent yet).
+            riotId:    p.incognito
+                ? (agentInfo.name !== "Unknown" && p.agentId ? agentInfo.name : `Player ${idx + 1}`)
+                : (name ?? p.puuid.slice(0, 8)),
             // Agent
             agentName: p.agentId  ? agentInfo.name : null,
             agentIcon: p.agentId  ? agentInfo.icon : null,
@@ -539,12 +596,14 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             peakTier:        mmr?.peakTier      ?? 0,
             peakTierName:    peakTierInfo.name,
             peakTierIcon:    peakTierInfo.icon,
+            peakActLabel:    seasonMap.get(mmr?.peakSeasonId ?? "") ?? null,
             // Win stats
             wins:      mmr?.wins    ?? 0,
             games:     mmr?.games   ?? 0,
             winRate:   mmr?.winRate ?? null,
             // Level
             accountLevel: level,
+            levelHidden,
             // Recent competitive match results ([] if not competitive)
             recentMatches: compUpdatesMap.get(p.puuid) ?? [],
         };
@@ -574,7 +633,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
  */
 export const fetchLiveGame = async (id, account = null) => {
     // 1. Ensure static caches are ready before the parallel API calls
-    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapImages()]);
+    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapImages(), loadSeasons()]);
 
     // 2. Try in-game
     const inGame = await getInGameData(id, account);

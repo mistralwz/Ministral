@@ -104,6 +104,7 @@ This is currently outdated and unmaintained.
 - [Valorant-API](https://dash.valorant-api.com/) for the skin names and images
 - [muckelba](https://github.com/muckelba) for writing the battlepass calculator
 - [warriorzz](https://github.com/warriorzz) for setting up the Docker
+- [zayKenyon](https://github.com/zayKenyon/VALORANT-rank-yoinker) for VALORANT-rank-yoinker, which inspired the Live Game feature
 - [The dev discord server](https://discord.gg/a9yzrw3KAm), join here!
 - [jursen](https://github.com/Kyedae), [Keny](https://github.com/pandakeny) for their countless bug reports, suggestions and feedback
 - [mizto](https://miz.to/) for the absolutely amazing designs! 🎨

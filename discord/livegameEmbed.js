@@ -99,39 +99,54 @@ const UNRATED_EMOJI = "<:unrated:862004031248924693>";
 
 /**
  * Render one player as a single compact line, placed in the field VALUE.
- * Format (competitive):
- *   <agent>  `RiotId`・<rank> **42 RR**・**46%WR** (13)・🟢🔴🟢
- * Unranked:
- *   <agent>  `RiotId`・<:unrated:…>・**46%WR** (13)
+ *
+ * Format (all modes):
+ *   **level**┊<agent>  `RiotId`・<rank> **42 RR**・<peak> (E5A3)
+ *
+ * Competitive also appends:
+ *   ・**46%WR** (13)・🟢🔴🟢
+ *
+ * Level is always shown — **?** when hidden or unavailable.
+ * Peak rank is always shown when the player has competitive history.
  *
  * @param {object}  player
- * @param {boolean} isCompetitive  Show recent match dots when true
+ * @param {boolean} isCompetitive  Show WR + match dots when true
  */
 const formatPlayerRow = (player, isCompetitive = false) => {
+    // Level — always shown; "?" when hidden or unavailable
+    const levelStr = (player.levelHidden || player.accountLevel == null)
+        ? "**?**"
+        : `**${player.accountLevel}**`;
+
     const agentEmoji = player.agentName
         ? (AGENT_EMOJIS[player.agentName] ?? `\`${player.agentName}\``)
         : `\`—\``;
 
-    // Rank segment
+    // Current rank
     const rankPart = player.currentTier > 0
         ? `${RANK_EMOJIS[player.currentTier] ?? ""} **${player.currentRR} RR**`
         : UNRATED_EMOJI;
 
-    // Win-rate segment
-    const wrPart = player.winRate !== null
-        ? `**${player.winRate}%WR** (${player.games})`
+    // Peak rank — shown in all modes with act label when available
+    const peakEmoji = player.peakTier > 0 ? (RANK_EMOJIS[player.peakTier] ?? "") : null;
+    const peakPart  = peakEmoji
+        ? `${peakEmoji}${player.peakActLabel ? ` (${player.peakActLabel})` : ""}`
         : null;
 
-    // Recent match dots — most recent first, green = W, red = L
-    const recentPart = isCompetitive && player.recentMatches?.length
-        ? player.recentMatches.map(m => m.win ? "🟢" : "🔴").join("")
-        : null;
+    // Competitive-only: win-rate and last 3 match dots
+    const compParts = [];
+    if (isCompetitive) {
+        if (player.winRate !== null)
+            compParts.push(`**${player.winRate}%WR** (${player.games})`);
+        if (player.recentMatches?.length)
+            compParts.push(player.recentMatches.map(m => m.win ? "🟢" : "🔴").join(""));
+    }
 
     return [
-        `${agentEmoji}  \`${player.riotId}\``,
+        `${levelStr}┊${agentEmoji}  \`${player.riotId}\``,
         rankPart,
-        wrPart,
-        recentPart,
+        peakPart,
+        ...compParts,
     ].filter(Boolean).join("・");
 };
 
