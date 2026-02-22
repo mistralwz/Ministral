@@ -29,6 +29,30 @@ export const KCEmoji = async (interaction, channel=interaction.channel) => emoji
 export const rarityEmoji = async (channel, name, icon) => emojiToString(await getOrCreateEmoji(channel, `${name}Rarity`, icon));
 
 /**
+ * Resolve (and auto-upload) an agent portrait emoji.
+ * @param {Channel} channel   The interaction channel (for permission checks)
+ * @param {string}  agentName Display name, e.g. "KAY/O"
+ * @param {string}  iconUrl   URL from valorant-api.com
+ */
+export const agentEmoji = async (channel, agentName, iconUrl) => {
+    if (!agentName || !iconUrl) return null;
+    // Discord emoji names: 2-32 chars, [a-zA-Z0-9_] only
+    const emojiName = ("Agent_" + agentName.replace(/[^a-zA-Z0-9]/g, "_")).slice(0, 32);
+    return getOrCreateEmoji(channel, emojiName, iconUrl);
+};
+
+/**
+ * Resolve (and auto-upload) a competitive rank emoji.
+ * @param {Channel} channel  The interaction channel
+ * @param {number}  tier     Valorant tier number (3–27)
+ * @param {string}  iconUrl  URL from valorant-api.com
+ */
+export const rankEmoji = async (channel, tier, iconUrl) => {
+    if (!tier || !iconUrl) return null;
+    return getOrCreateEmoji(channel, `Rank_${tier}`, iconUrl);
+};
+
+/**
  * Returns true if rarity emojis can be rendered in the given channel.
  * This is the case when:
  *   - External emojis are permitted (@everyone has UseExternalEmojis), OR

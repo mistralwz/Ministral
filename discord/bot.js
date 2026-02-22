@@ -95,6 +95,57 @@ import { getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import { fetchLiveGame } from "../valorant/livegame.js";
 import { renderLiveGame, renderLiveGameError } from "./livegameEmbed.js";
+
+// ─── Pre-game → in-game transition poller ─────────────────────────────────
+// Maps userId → { timer: Timeout, retries: number }
+const liveGamePollers = new Map();
+const POLLER_INTERVAL_MS = 90_000;  // 90 seconds
+const POLLER_MAX_RETRIES = 3;       // ~270 s total
+
+/**
+ * Cancel any running pre-game poller for this user.
+ */
+const cancelLiveGamePoller = (userId) => {
+    const existing = liveGamePollers.get(userId);
+    if (existing) {
+        clearTimeout(existing.timer);
+        liveGamePollers.delete(userId);
+    }
+};
+
+/**
+ * Start (or restart) the pre-game poller.
+ * Edits `reply` in-place once the match transitions to in-game.
+ *
+ * @param {string}     userId
+ * @param {Interaction} interaction  Original deferred interaction (for editReply)
+ * @param {number}     retriesLeft
+ */
+const startLiveGamePoller = (userId, interaction, retriesLeft = POLLER_MAX_RETRIES) => {
+    cancelLiveGamePoller(userId);
+    if (retriesLeft <= 0) return;
+
+    const timer = setTimeout(async () => {
+        liveGamePollers.delete(userId);
+        try {
+            const data = await fetchLiveGame(userId);
+            if (!data.success || data.state === "not_in_game") return; // stop
+
+            const payload = await renderLiveGame(data, userId, !interaction.guild, interaction.channel);
+            await interaction.editReply(payload);
+
+            if (data.state === "pregame") {
+                // Still in agent select — wait another cycle
+                startLiveGamePoller(userId, interaction, retriesLeft - 1);
+            }
+            // state === "ingame" → full embed sent, stop polling
+        } catch (e) {
+            console.error(`[livegame poller] error for ${userId}:`, e);
+        }
+    }, POLLER_INTERVAL_MS);
+
+    liveGamePollers.set(userId, { timer, retries: retriesLeft });
+};
 import { spawn } from "child_process";
 import * as fs from "fs";
 
@@ -471,7 +522,17 @@ client.on("messageCreate", async (message) => {
 
             await client.application.commands.set(globalCommands).then(() => console.log("Commands deployed globally (guild + user installs)!"));
 
-            await message.reply("Deployed globally (guild + user installs)!");
+            // Also clear guild-specific commands in the current guild if any exist —
+            // guild commands shadow global ones, so a stale guild list hides new globals.
+            if (message.guild) {
+                const guildCmds = await message.guild.commands.fetch();
+                if (guildCmds.size > 0) {
+                    await message.guild.commands.set([]);
+                    console.log(`Cleared ${guildCmds.size} stale guild command(s) in ${message.guild.name} so global commands are visible.`);
+                }
+            }
+
+            await message.reply("Deployed globally (guild + user installs)!" + (message.guild ? "\nAlso cleared stale guild commands in this server — global commands are now visible here." : ""));
         } else if (content.startsWith("!undeploy")) {
             console.log("Undeploying commands...");
 
@@ -1281,12 +1342,20 @@ client.on("interactionCreate", async (interaction) => {
 
                     await defer(interaction);
 
+                    // Cancel any previous poller for this user
+                    cancelLiveGamePoller(interaction.user.id);
+
                     const liveGameData = await fetchLiveGame(interaction.user.id);
 
                     if (!liveGameData.success) {
                         await interaction.followUp(renderLiveGameError(liveGameData, interaction.user.id));
                     } else {
-                        await interaction.followUp(renderLiveGame(liveGameData, interaction.user.id, !interaction.guild));
+                        await interaction.followUp(await renderLiveGame(liveGameData, interaction.user.id, !interaction.guild, interaction.channel));
+
+                        // If in agent select, start poller to auto-upgrade to in-game embed
+                        if (liveGameData.state === "pregame") {
+                            startLiveGamePoller(interaction.user.id, interaction);
+                        }
                     }
 
                     console.log(`Handled /livegame for ${interaction.user.tag} — state: ${liveGameData.state ?? "error"}`);
@@ -1721,14 +1790,22 @@ client.on("interactionCreate", async (interaction) => {
                     flags: [MessageFlags.Ephemeral]
                 });
 
+                // Cancel any running poller — we're about to refresh manually
+                cancelLiveGamePoller(interaction.user.id);
+
                 await interaction.deferUpdate();
 
                 const liveGameData = await fetchLiveGame(interaction.user.id);
                 const payload = liveGameData.success
-                    ? renderLiveGame(liveGameData, interaction.user.id, !interaction.guild)
+                    ? await renderLiveGame(liveGameData, interaction.user.id, !interaction.guild, interaction.channel)
                     : renderLiveGameError(liveGameData, interaction.user.id);
 
                 await interaction.editReply(payload);
+
+                // Restart poller if still in agent select
+                if (liveGameData.success && liveGameData.state === "pregame") {
+                    startLiveGamePoller(interaction.user.id, interaction);
+                }
             }
         } catch (e) {
             await handleError(e, interaction);

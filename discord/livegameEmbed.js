@@ -16,6 +16,8 @@
 
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { s } from "../misc/languages.js";
+import { agentEmoji, rankEmoji } from "./emoji.js";
+import { emojiToString } from "../misc/util.js";
 
 // ─── Colours ────────────────────────────────────────────────────────────────
 const COLOR_PREGAME = 0xFFB300;  // amber  — agent select
@@ -27,74 +29,6 @@ const STATE_LABEL = {
     ingame:      "🔴 In-Game",
     not_in_game: "⬜ Not in a match",
 };
-
-// ─── Emoji maps ──────────────────────────────────────────────────────────────
-
-/** Agent display-name → Discord custom emoji string */
-const AGENT_EMOJIS = {
-    "Astra":     "<:Agent_Astra:818987103022743562>",
-    "Breach":    "<:Agent_Breach:1188264724681466016>",
-    "Brimstone": "<:Agent_Brimstone:1188264726115913769>",
-    "Chamber":   "<:Agent_Chamber:1166782015870341200>",
-    "Clove":     "<:Agent_Clove:1221946587920732272>",
-    "Cypher":    "<:Agent_Cypher:1188264919825645619>",
-    "Deadlock":  "<:Agent_Deadlock:1123637948844359791>",
-    "Fade":      "<:Agent_Fade:1112816425879486534>",
-    "Gekko":     "<:Agent_Gekko:1166782019850739763>",
-    "Harbor":    "<:Agent_Harbor:1112816419860652122>",
-    "Jett":      "<:Agent_Jett:1188264922614865970>",
-    "KAY/O":     "<:Agent_KAYO:1188264923730550867>",
-    "Killjoy":   "<:Agent_Killjoy:1188264927631257662>",
-    "Neon":      "<:Agent_Neon:1188264929346715678>",
-    "Omen":      "<:Agent_Omen:1188264932584738826>",
-    "Phoenix":   "<:Agent_Phoenix:1188264934207913984>",
-    "Raze":      "<:Agent_Raze:1188264937110392883>",
-    "Reyna":     "<:Agent_Reyna:1188264938943283270>",
-    "Sage":      "<:Agent_Sage:1188264941657002005>",
-    "Skye":      "<:Agent_Skye:1166782165376303164>",
-    "Sova":      "<:Agent_Sova:1188264943280197692>",
-    "Tejo":      "<:Agent_Tejo:1353619441417715887>",
-    "Veto":      "<:Agent_Veto:1457742882617168070>",
-    "Viper":     "<:Agent_Viper:1188264946203635753>",
-    "Vyse":      "<:Agent_Vyse:1280172841102213220>",
-    "Waylay":    "<:Agent_Waylay:1346197177009176648>",
-    "Yoru":      "<:Agent_Yoru:1188264947885559888>",
-};
-
-/**
- * Competitive tier number → Discord custom emoji string.
- * Tier numbers follow the Valorant API (3–5 Iron, 6–8 Bronze, … 27 Radiant).
- */
-const RANK_EMOJIS = {
-     3: "<:iron1:862004162098102272>",
-     4: "<:iron2:862004185036488715>",
-     5: "<:iron3:862004206718025738>",
-     6: "<:bronze1:862004343054008331>",
-     7: "<:bronze2:862004376272109608>",
-     8: "<:bronze3:862004410775371777>",
-     9: "<:silver1:862004807896268832>",
-    10: "<:silver2:862004860655501342>",
-    11: "<:silver3:862004895708086302>",
-    12: "<:gold1:862004921763364874>",
-    13: "<:gold2:862004943708094525>",
-    14: "<:gold3:862004966636781608>",
-    15: "<:plat1:862005172687470622>",
-    16: "<:plat2:862005201301143573>",
-    17: "<:plat3:862005224645853185>",
-    18: "<:dia1:862005255628652554>",
-    19: "<:dia2:862005278207508551>",
-    20: "<:dia3:862005298193891378>",
-    21: "<:ascendant1:987519801868025886>",
-    22: "<:ascendant2:987519799590522920>",
-    23: "<:ascendant3:987519800521662525>",
-    24: "<:immortal1:862005437264429056>",
-    25: "<:immortal2:862005462580985856>",
-    26: "<:immortal3:862005493840478208>",
-    27: "<:radiant:862005538392506408>",
-};
-
-/** Unranked players get this emoji instead of a rank badge */
-const UNRATED_EMOJI = "<:unrated:862004031248924693>";
 
 // ─── Player row renderer ─────────────────────────────────────────────────────
 
@@ -111,27 +45,35 @@ const UNRATED_EMOJI = "<:unrated:862004031248924693>";
  * Peak rank is always shown when the player has competitive history.
  *
  * @param {object}  player
- * @param {boolean} isCompetitive  Show WR + match dots when true
+ * @param {Channel} channel       Discord channel (for emoji resolution)
+ * @param {boolean} isCompetitive Show WR + match dots when true
  */
-const formatPlayerRow = (player, isCompetitive = false) => {
+const formatPlayerRow = async (player, channel, isCompetitive = false) => {
     // Level — always shown; "?" when hidden or unavailable
     const levelStr = (player.levelHidden || player.accountLevel == null)
         ? "**?**"
         : `**${player.accountLevel}**`;
 
-    const agentEmoji = player.agentName
-        ? (AGENT_EMOJIS[player.agentName] ?? `\`${player.agentName}\``)
-        : `\`—\``;
+    // Agent emoji — resolved dynamically from valorant-api.com icon URL
+    const agentEmojiStr = player.agentName && player.agentIcon
+        ? (emojiToString(await agentEmoji(channel, player.agentName, player.agentIcon)) ?? `\`${player.agentName}\``)
+        : `\`${player.agentName ?? "—"}\``;
 
-    // Current rank
+    // Current rank emoji — resolved dynamically
+    const currentRankEmojiStr = player.currentTier > 0 && player.currentTierIcon
+        ? (emojiToString(await rankEmoji(channel, player.currentTier, player.currentTierIcon)) ?? "")
+        : "";
+
     const rankPart = player.currentTier > 0
-        ? `${RANK_EMOJIS[player.currentTier] ?? ""} **${player.currentRR} RR**`
-        : UNRATED_EMOJI;
+        ? `${currentRankEmojiStr} **${player.currentRR} RR**`.trim()
+        : "`Unranked`";
 
     // Peak rank — shown in all modes with act label when available
-    const peakEmoji = player.peakTier > 0 ? (RANK_EMOJIS[player.peakTier] ?? "") : null;
-    const peakPart  = peakEmoji
-        ? `${peakEmoji}${player.peakActLabel ? ` (${player.peakActLabel})` : ""}`
+    const peakRankEmojiStr = player.peakTier > 0 && player.peakTierIcon
+        ? (emojiToString(await rankEmoji(channel, player.peakTier, player.peakTierIcon)) ?? "")
+        : null;
+    const peakPart = peakRankEmojiStr
+        ? `${peakRankEmojiStr}${player.peakActLabel ? ` (${player.peakActLabel})` : ""}`
         : null;
 
     // Competitive-only: win-rate and last 3 match dots
@@ -144,7 +86,7 @@ const formatPlayerRow = (player, isCompetitive = false) => {
     }
 
     return [
-        `${levelStr}┊${agentEmoji}  \`${player.riotId}\``,
+        `${levelStr}┊${agentEmojiStr}  \`${player.riotId}\``,
         rankPart,
         peakPart,
         ...compParts,
@@ -155,12 +97,12 @@ const formatPlayerRow = (player, isCompetitive = false) => {
  * Build embed fields for a list of players.
  * Each player occupies its own field (empty name + player line as value).
  */
-const buildPlayerFields = (players, isCompetitive) =>
-    players.map(p => ({
+const buildPlayerFields = async (players, channel, isCompetitive) =>
+    Promise.all(players.map(async p => ({
         name:   "\u200b",
-        value:  formatPlayerRow(p, isCompetitive),
+        value:  await formatPlayerRow(p, channel, isCompetitive),
         inline: false,
-    }));
+    })));
 
 // ─── Single embed builder ─────────────────────────────────────────────────────
 
@@ -170,7 +112,7 @@ const buildPlayerFields = (players, isCompetitive) =>
  * • Two-team modes  → ally player fields, then a divider, then enemy fields.
  * • Single-team modes (deathmatch, …) → all players listed in `description`.
  */
-const buildGameEmbed = (data, allyPlayers, enemyPlayers, localeInput = null) => {
+const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeInput = null) => {
     const stateLabel   = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame    = data.state === "pregame";
     const isCompetitive = data.queueId === "competitive";
@@ -187,13 +129,16 @@ const buildGameEmbed = (data, allyPlayers, enemyPlayers, localeInput = null) => 
 
     if (data.isSingleTeam) {
         // Free-for-all: description block, one player per line
-        embed.description = [...allyPlayers, ...enemyPlayers]
-            .map(p => formatPlayerRow(p, isCompetitive))
-            .join("\n");
+        const lines = await Promise.all(
+            [...allyPlayers, ...enemyPlayers].map(p => formatPlayerRow(p, channel, isCompetitive))
+        );
+        embed.description = lines.join("\n");
     } else {
         // Two-team layout via fields
-        const allyFields  = buildPlayerFields(allyPlayers,  isCompetitive);
-        const enemyFields = buildPlayerFields(enemyPlayers, isCompetitive);
+        const [allyFields, enemyFields] = await Promise.all([
+            buildPlayerFields(allyPlayers,  channel, isCompetitive),
+            buildPlayerFields(enemyPlayers, channel, isCompetitive),
+        ]);
 
         embed.fields = [
             ...allyFields,
@@ -230,9 +175,10 @@ export const liveGameRefreshRow = (userId) =>
  * @param {object}  liveGameData  Return value of fetchLiveGame()
  * @param {string}  userId        Discord user ID (for the Refresh button)
  * @param {boolean} isDM          True when sending to a DM channel
+ * @param {Channel} channel       Discord channel (for emoji resolution)
  * @returns Discord message payload { embeds, components }
  */
-export const renderLiveGame = (liveGameData, userId, _isDM = false) => {
+export const renderLiveGame = async (liveGameData, userId, _isDM = false, channel = null) => {
     const { state, allyPlayers = [], enemyPlayers = [] } = liveGameData;
 
     if (state === "not_in_game") {
@@ -247,7 +193,7 @@ export const renderLiveGame = (liveGameData, userId, _isDM = false) => {
         };
     }
 
-    const embed = buildGameEmbed(liveGameData, allyPlayers, enemyPlayers, userId);
+    const embed = await buildGameEmbed(liveGameData, allyPlayers, enemyPlayers, channel, userId);
 
     return {
         embeds:     [embed],
