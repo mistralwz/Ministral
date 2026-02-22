@@ -686,7 +686,10 @@ export const removeAlertButton = (id, uuid, buttonText) => new ButtonBuilder().s
 export const removeAlertActionRow = (id, uuid, buttonText) => new ActionRowBuilder().addComponents(removeAlertButton(id, uuid, buttonText));
 
 export const externalEmojisAllowed = (channel) => !channel || !channel.guild || channel.permissionsFor(channel.guild.roles.everyone).has(PermissionsBitField.Flags.UseExternalEmojis);
-export const canCreateEmojis = (guild) => guild && guild.members.me && guild.members.me.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers);
+export const canCreateEmojis = (guild) => guild && guild.members.me && (
+    guild.members.me.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers) ||
+    guild.members.me.permissions.has(PermissionsBitField.Flags.CreateGuildExpressions)
+);
 export const emojiToString = (emoji) => emoji && `<:${emoji.name}:${emoji.id}>`;
 
 export const canSendMessages = (channel) => {

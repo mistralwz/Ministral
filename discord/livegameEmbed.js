@@ -94,15 +94,20 @@ const formatPlayerRow = async (player, channel, isCompetitive = false) => {
 };
 
 /**
- * Build embed fields for a list of players.
- * Each player occupies its own field (empty name + player line as value).
+ * Build embed fields for a list of players, grouped 5 per field.
  */
-const buildPlayerFields = async (players, channel, isCompetitive) =>
-    Promise.all(players.map(async p => ({
-        name:   "\u200b",
-        value:  await formatPlayerRow(p, channel, isCompetitive),
-        inline: false,
-    })));
+const buildPlayerFields = async (players, channel, isCompetitive) => {
+    const rows = await Promise.all(players.map(p => formatPlayerRow(p, channel, isCompetitive)));
+    const fields = [];
+    for (let i = 0; i < rows.length; i += 5) {
+        fields.push({
+            name:   "\u200b",
+            value:  rows.slice(i, i + 5).join("\n"),
+            inline: false,
+        });
+    }
+    return fields;
+};
 
 // ─── Single embed builder ─────────────────────────────────────────────────────
 
@@ -113,17 +118,19 @@ const buildPlayerFields = async (players, channel, isCompetitive) =>
  * • Single-team modes (deathmatch, …) → all players listed in `description`.
  */
 const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeInput = null) => {
-    const stateLabel   = STATE_LABEL[data.state] ?? "Live Game";
-    const isPreGame    = data.state === "pregame";
+    const stateLabel    = STATE_LABEL[data.state] ?? "Live Game";
+    const isPreGame     = data.state === "pregame";
     const isCompetitive = data.queueId === "competitive";
-    const color        = isPreGame ? COLOR_PREGAME : COLOR_ALLY;
+    const color         = isPreGame ? COLOR_PREGAME : COLOR_ALLY;
 
     const embed = {
-        title:     s(localeInput).livegame.EMBED_TITLE.f({ mapName: data.mapName }),
+        author: {
+            name:     `Live Game・${data.mapName}`,
+            icon_url: data.queueIcon ?? undefined,
+        },
         color,
-        thumbnail: data.queueIcon ? { url: data.queueIcon } : undefined,
-        image:     data.mapImage  ? { url: data.mapImage }  : undefined,
-        footer:    { text: s(localeInput).livegame.EMBED_FOOTER.f({ stateLabel, queueName: data.queueName }) },
+        image:  data.mapImage ? { url: data.mapImage } : undefined,
+        footer: { text: s(localeInput).livegame.EMBED_FOOTER.f({ stateLabel, queueName: data.queueName }) },
         timestamp: new Date().toISOString(),
     };
 
@@ -134,19 +141,12 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeIn
         );
         embed.description = lines.join("\n");
     } else {
-        // Two-team layout via fields
+        // Two-team layout — ally fields immediately followed by enemy fields, no divider
         const [allyFields, enemyFields] = await Promise.all([
             buildPlayerFields(allyPlayers,  channel, isCompetitive),
             buildPlayerFields(enemyPlayers, channel, isCompetitive),
         ]);
-
-        embed.fields = [
-            ...allyFields,
-            ...(enemyFields.length ? [
-                { name: s(localeInput).livegame.ENEMY_TEAM_DIVIDER, value: "\u200b", inline: false },
-                ...enemyFields,
-            ] : []),
-        ];
+        embed.fields = [...allyFields, ...enemyFields];
     }
 
     return embed;
