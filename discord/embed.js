@@ -950,7 +950,7 @@ export const botInfoEmbed = (interaction, client, guildCount, userCount, registe
 }
 const competitiveMatchEmbed = (interaction, matchData) => {
     const embedTitle = `${s(interaction).match.COMPETITIVE}┊${matchData.metadata.map}・<t:${matchData.metadata.game_start+matchData.metadata.game_length}:R>`;
-    const roundDesc = `[**${matchData.metadata.pt_round_won}** : **${matchData.metadata.et_round_won}**]`;
+    const roundDesc = `[**${matchData.metadata.pt_round_won ?? "?"}** : **${matchData.metadata.et_round_won ?? "?"}**]`;
     const hsPercentDesc = `**${s(interaction).match.PERCENT.f({v:matchData.player.hs_percent})}** ${s(interaction).match.HS_PERCENT}`;
     const adsDesc = `**${matchData.player.average_damage_round}** ${s(interaction).match.AVERAGE_DAMAGE_ROUND}`;
     const acsDesc = `**${matchData.player.average_combat_score}** ${s(interaction).match.AVERAGE_COMBAT_SCORE}`;
@@ -960,11 +960,11 @@ const competitiveMatchEmbed = (interaction, matchData) => {
         green: 7654512
     }
     let embedColor;
-    if (matchData.teams.red.has_won === true) {
+    if (matchData.teams.red?.has_won === true) {
         if (matchData.player.team === "Red") {
             embedColor = colors.green;
         } else embedColor = colors.red;
-    } else if (matchData.teams.blue.has_won === true) {
+    } else if (matchData.teams.blue?.has_won === true) {
         if (matchData.player.team === "Blue") {
             embedColor = colors.green;
         } else embedColor = colors.red;
@@ -972,7 +972,8 @@ const competitiveMatchEmbed = (interaction, matchData) => {
         embedColor = colors.grey;
     }
 
-    const mapDesc = `**${"`"+matchData.player.mmr+"`"}**`;
+    const mmrValue = matchData.player.mmr !== undefined ? matchData.player.mmr : "N/A";
+    const mapDesc = `**${"`"+mmrValue+"`"}**`;
     const embedDescription = `${mapDesc}・${roundDesc}・${hsPercentDesc}・${adsDesc}・${acsDesc}`;
     const embed = {
         "title": embedTitle,
@@ -1000,8 +1001,8 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
         "description": `${s(interaction).info.PROFILE_PEAK_RANK} ┊ **${account.mmr.highest_rank?.patched_tier}**`,
         "color": 16632621, //TODO color according to account level
         "author": {
-            "name": interaction.user.username + ` • ${account.mmr.current_data.ranking_in_tier} RR`,
-            "icon_url": account.mmr.current_data.images.large
+            "name": interaction.user.username + ` • ${account.mmr.current_data?.ranking_in_tier ?? 0} RR`,
+            "icon_url": account.mmr.current_data?.images?.large
         },
         "thumbnail": {
             "url": account.account.card?.small
@@ -1025,8 +1026,8 @@ export const renderProfile = async (interaction, data1, targetId=interaction.use
         "description": `${s(interaction).info.PROFILE_PEAK_RANK} ┊ **${data.mmr.highest_rank?.patched_tier}**`,
         "color": 16632621, //TODO color according to account level
         "author": {
-            "name": interaction.user.username + ` • ${data.mmr.current_data.ranking_in_tier} RR`,
-            "icon_url": data.mmr.current_data.images.large
+            "name": interaction.user.username + ` • ${data.mmr.current_data?.ranking_in_tier ?? 0} RR`,
+            "icon_url": data.mmr.current_data?.images?.large
         },
         "thumbnail": {
             "url": data.account.card?.small

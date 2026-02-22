@@ -53,7 +53,7 @@ export const getAccountInfo = async (user, interaction) => {
         progress(user, 'mmr', true);
     }, 1000);
     let err = accountData.error || mmrData.error
-    if(err) return {success: false, error: err[0].message};
+    if(err) return {success: false, error: Array.isArray(err) ? err[0].message : err};
     
 
     const mmr = {current_data: mmrData.data.current_data, highest_rank: mmrData.data.highest_rank};
@@ -75,14 +75,14 @@ export const fetchMatchHistory = async (interaction, user, mode="competitive") =
     const matchHistory = await getVAPI().getMatchesByPUUID({puuid: user.puuid, region: user.region, filter: mode});
     console.log(`Checked match history for ${user.id} R:${matchHistory?.ratelimits?.remaining} Reset: in ${matchHistory?.ratelimits?.reset} seconds`)
     setTimeout(() => {progress(user, 'matches', true);}, 5000);
-    if(matchHistory.error) return {success: false, error: matchHistory.error[0].message};
+    if(matchHistory.error) return {success: false, error: Array.isArray(matchHistory.error) ? matchHistory.error[0].message : matchHistory.error};
     else if(matchHistory.data.length === 0) return {success: false, error: s(interaction).error.NO_MATCH_DATA.f({m: mode})}
     let mmrHistory;
     if(mode === "competitive") {
         mmrHistory = await getVAPI().getMMRHistoryByPUUID({puuid: user.puuid, region: user.region})
         console.log(`Checked MMRHistory for ${user.id} R:${mmrHistory?.ratelimits?.remaining} Reset: in ${mmrHistory?.ratelimits?.reset} seconds`)
         setTimeout(() => {progress(user, 'mmrHistory', true);}, 1000);
-        if(mmrHistory.error) return {success: false, error: mmrHistory.error[0].message};
+        if(mmrHistory.error) return {success: false, error: Array.isArray(mmrHistory.error) ? mmrHistory.error[0].message : mmrHistory.error};
         const matches = []
 
         for (let i = 0; i < matchHistory.data.length; i++) {
@@ -124,13 +124,13 @@ export const fetchMatchHistory = async (interaction, user, mode="competitive") =
             data.player.hs_percent = totalShots > 0
                 ? Math.ceil(player.stats.headshots / totalShots * 100)
                 : 0;
-            data.player.average_damage_round = (player.damage_made/match.metadata.rounds_played).toFixed(1);
+            data.player.average_damage_round = ((player.damage_made ?? 0)/match.metadata.rounds_played).toFixed(1);
             data.player.average_combat_score = (player.stats.score/match.metadata.rounds_played).toFixed(1);
             data.player.agent = {name: player.character, iconUrl: player.assets.agent.small};
             data.player.kills = player.stats.kills;
             data.player.deaths = player.stats.deaths;
             data.player.assists = player.stats.assists; //I know it looks horrible
-            data.player.kd = (player.stats.kills/player.stats.deaths).toFixed(1);
+            data.player.kd = player.stats.deaths === 0 ? player.stats.kills.toFixed(1) : (player.stats.kills/player.stats.deaths).toFixed(1);
             data.player.position = `${playerPosition}${ordinalSuffix(playerPosition)}`
             data.player.team = player.team
             data.metadata.map = match.metadata.map;
