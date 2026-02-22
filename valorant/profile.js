@@ -93,6 +93,20 @@ export const fetchMatchHistory = async (interaction, user, mode="competitive") =
                 console.log(`Skipping match ${i} due to incomplete data`);
                 continue;
             }
+
+            // Skip matches older than 1 month
+            const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+            const gameStartMs = (match.metadata.game_start ?? 0) * 1000;
+            if (gameStartMs > 0 && Date.now() - gameStartMs > ONE_MONTH_MS) {
+                console.log(`Skipping match ${i} - older than 1 month`);
+                continue;
+            }
+
+            // Skip matches with no rounds played (abandoned/forfeited before round 1)
+            if (!match.metadata.rounds_played || match.metadata.rounds_played === 0) {
+                console.log(`Skipping match ${i} - no rounds played`);
+                continue;
+            }
             
             const data = {metadata: {}, player: {}, teams: {}};
             const matchMMR = mmrHistory.data.find(item => item.match_id === match.metadata.matchid);
@@ -106,7 +120,10 @@ export const fetchMatchHistory = async (interaction, user, mode="competitive") =
             
             const playerPosition = match.players.all_players.slice().sort((a, b) => b.stats.score - a.stats.score).findIndex(player => player.puuid === user.puuid)+1
 
-            data.player.hs_percent = Math.ceil(player.stats.headshots/(player.stats.headshots+player.stats.bodyshots+player.stats.legshots)*100);
+            const totalShots = player.stats.headshots + player.stats.bodyshots + player.stats.legshots;
+            data.player.hs_percent = totalShots > 0
+                ? Math.ceil(player.stats.headshots / totalShots * 100)
+                : 0;
             data.player.average_damage_round = (player.damage_made/match.metadata.rounds_played).toFixed(1);
             data.player.average_combat_score = (player.stats.score/match.metadata.rounds_played).toFixed(1);
             data.player.agent = {name: player.character, iconUrl: player.assets.agent.small};
