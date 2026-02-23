@@ -39,7 +39,6 @@
     "DUPLICATE_ALERT": "Deja aveti o alerta pentru **{s}** in <#{c}>!",
     "GHOST_ALERT": "Aceasta alerta nu mai exista!",
     "ALERT_NO_PERMS": "**Nu am permisiunile necesare!** Am rolul potrivit?\nAsigură-te că pot `Vizualiza canalul`, `Trimite mesaje`, `Încorpora link-uri` și `Folosi emoji externe` în acest canal.",
-    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Pictogramele de raritate sunt ascunse deoarece acest server a dezactivat **Use External Emojis** pentru @everyone și nu s-au găsit copii locale. Roagă un administrator să le activeze sau adaugă manual emoji-urile de raritate pe acest server.",
     "GENERIC_NO_PERMS": "**Nu am permisiunile necesare pentru a face asta în acest canal!** Am rolul potrivit?\nAsigurați-vă că pot `View Channel`, `Send Messages`, `Embed Links` și `Use External Emojis` în acest canal.",
     "NO_NMARKET": "**There is no Night Market currently!**",
     "NO_NMARKET_WITH_DATE": "**Nu există Night Market în prezent!** Următorul va fi <t:{t}:R>.",

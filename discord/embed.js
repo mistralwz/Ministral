@@ -118,15 +118,6 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
         embeds.push(embed);
     }
 
-    const missingExternalPerms = interaction.guild && config.useEmojisFromServer && config.useEmojisFromServer !== interaction.guildId && !interaction.channel.permissionsFor(interaction.guild.members.me).has(PermissionsBitField.Flags.UseExternalEmojis);
-    if ((VPemoji && !VPemoji.startsWith("<:")) || missingExternalPerms) {
-        embeds.push(basicEmbed(s(interaction).error.ALERT_NO_PERMS));
-    } // previous check was: if(VPemoji && !VPemoji.startsWith("<:"))
-
-    if (!rarityEmojisAvailable(interaction.channel)) {
-        embeds.push(basicEmbed(s(interaction).error.RARITY_EMOJIS_UNAVAILABLE));
-    }
-
     // show notice if there is one
     if (config.notice && valorantUser) {
         // users shouldn't see the same notice twice
@@ -207,11 +198,6 @@ export const renderAccessoryOffers = async (shop, interaction, valorantUser, KCe
     // leave a little message if the accessory shop is empty (i.e. they have every single accessory in the game)
     if (shop.accessory.offers.length === 0) {
         embeds.push(basicEmbed(s(interaction).info.NO_MORE_ACCESSORIES));
-    }
-
-    const missingExternalPerms = interaction.guild && config.useEmojisFromServer && config.useEmojisFromServer !== interaction.guildId && !interaction.channel.permissionsFor(interaction.guild.members.me).has(PermissionsBitField.Flags.UseExternalEmojis);
-    if ((KCemoji && !KCemoji.startsWith("<:")) || missingExternalPerms) {
-        embeds.push(basicEmbed(s(interaction).error.ALERT_NO_PERMS));
     }
 
     // show notice if there is one
@@ -316,11 +302,6 @@ export const renderBundles = async (bundles, interaction, VPemoji) => {
         }
     }
 
-    const missingExternalPerms = interaction.guild && config.useEmojisFromServer && config.useEmojisFromServer !== interaction.guildId && !interaction.channel.permissionsFor(interaction.guild.members.me).has(PermissionsBitField.Flags.UseExternalEmojis);
-    if ((VPemoji && !VPemoji.startsWith("<:")) || missingExternalPerms) {
-        embeds.push(basicEmbed(s(interaction).error.ALERT_NO_PERMS));
-    }
-
     return {
         embeds: embeds,
         components: [new ActionRowBuilder().addComponents(...buttons)]
@@ -363,11 +344,6 @@ export const renderBundle = async (bundle, interaction, emoji, includeExpires = 
     const levels = await getSkinLevels(bundle.items.map(i => i.uuid), interaction);
     const result = levels ? { embeds: [bundleTitleEmbed, ...itemEmbeds], components: [levels] } : { embeds: [bundleTitleEmbed, ...itemEmbeds], components: [] };
 
-    const missingExternalPerms = interaction.guild && config.useEmojisFromServer && config.useEmojisFromServer !== interaction.guildId && !interaction.channel.permissionsFor(interaction.guild.members.me).has(PermissionsBitField.Flags.UseExternalEmojis);
-    if ((emoji && !emoji.startsWith("<:")) || missingExternalPerms) {
-        result.embeds.push(basicEmbed(s(interaction).error.ALERT_NO_PERMS));
-    }
-
     return result;
 }
 
@@ -392,15 +368,6 @@ export const renderNightMarket = async (market, interaction, valorantUser, emoji
         embed.description = `${emoji} **${offer.nmPrice}**\n${emoji} ~~${offer.realPrice}~~ (-${offer.percent}%)`;
 
         embeds.push(embed);
-    }
-
-    const missingExternalPerms = interaction.guild && config.useEmojisFromServer && config.useEmojisFromServer !== interaction.guildId && !interaction.channel.permissionsFor(interaction.guild.members.me).has(PermissionsBitField.Flags.UseExternalEmojis);
-    if ((emoji && !emoji.startsWith("<:")) || missingExternalPerms) {
-        embeds.push(basicEmbed(s(interaction).error.ALERT_NO_PERMS));
-    }
-
-    if (!rarityEmojisAvailable(interaction.channel)) {
-        embeds.push(basicEmbed(s(interaction).error.RARITY_EMOJIS_UNAVAILABLE));
     }
 
     const components = switchAccountButtons(interaction, "nm", true);

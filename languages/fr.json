@@ -39,7 +39,6 @@
     "DUPLICATE_ALERT": "Tu as déjà une alerte pour la **{s}** dans <#{c}>!",
     "GHOST_ALERT": "Cette alerte n'existe plus!",
     "ALERT_NO_PERMS": "**Je n'ai pas les permissions nécessaires !** Ai-je le bon rôle ?\nAssure-toi que je peux `Voir le salon`, `Envoyer des messages`, `Intégrer des liens` et `Utiliser des émojis externes` dans ce canal.",
-    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Les icônes de rareté sont masquées car ce serveur a désactivé **Utiliser des émojis externes** pour @everyone et aucune copie locale n'a été trouvée. Demandez à un admin de l'activer ou ajoutez manuellement les émojis de rareté sur ce serveur.",
     "GENERIC_NO_PERMS": "**Je n'ai pas les permissions requises pour faire cela dans ce canal!** Ais-je le bon role?\nDonne moi les permissions `Voir le salons`, `Envoyer des messages`, `Intégrer des liens` et `Utiliser des émojis externes` dans ce canal.",
     "NO_NMARKET": "**Il n'y a pas de Night Market actuellement!**",
     "NO_NMARKET_WITH_DATE": "**Il n'y a pas de Night Market actuellement!** Le prochain sera <t:{t}:R>.",

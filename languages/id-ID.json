@@ -39,7 +39,6 @@
     "DUPLICATE_ALERT": "kamu sudah menambahkan alert untuk skin **{s}** in <#{c}>!",
     "GHOST_ALERT": "Alert itu tidak ada lagi!",
     "ALERT_NO_PERMS": "**Saya tidak punya izin yang diperlukan!** Apakah saya punya role yang tepat?\nPastikan saya bisa `Lihat Saluran`, `Kirim Pesan`, `Sematkan Tautan`, dan `Gunakan Emoji Eksternal` di saluran ini.",
-    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Ikon rarity tersembunyi karena server ini menonaktifkan **Gunakan Emoji Eksternal** untuk @everyone dan tidak ada salinan lokal. Minta admin server untuk mengaktifkannya, atau tambahkan emoji rarity manual di server ini.",
     "GENERIC_NO_PERMS": "**Saya tidak punya izin untuk melakukan itu di saluran ini!** Apakah saya punya role yang tepat?\nPastikan saya bisa `Lihat Saluran`, `Kirim Pesan`, `Sematkan Tautan`, dan `Gunakan Emoji Eksternal` di saluran ini.",
     "NO_NMARKET": "**Tidak ada Night Market sekarang!**",
     "NO_NMARKET_WITH_DATE": "**Tidak ada Night Market sekarang!** Night Market selanjutnya dalam <t:{t}:R>.",

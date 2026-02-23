@@ -39,7 +39,6 @@
     "DUPLICATE_ALERT": "Ya tienes una alerta para el **{s}** en <#{c}>!",
     "GHOST_ALERT": "¡Esa alerta ya no existe!",
     "ALERT_NO_PERMS": "**¡No tengo los permisos necesarios!** ¿Tengo el rol correcto?\nAsegúrate de que pueda `Ver Canal`, `Enviar Mensajes`, `Incrustar Enlaces` y `Usar Emojis Externos` en este canal.",
-    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Los iconos de rareza están ocultos porque este servidor ha desactivado **Usar emojis externos** para @everyone y no se encontraron copias locales. Pide a un administrador que lo habilite o añade manualmente los emojis de rareza en este servidor.",
     "DAILY_SHOP_CHANNEL_INACCESSIBLE": "⚠️ **Problema con la alerta diaria de la tienda**\n\n{perms}\n\n**Canal:** <#{c}>\n**Razón:** {r}\n\nPor favor, usa `/settings` para configurar tu alerta diaria de la tienda en un canal al que tenga acceso, o desactívala si ya no deseas actualizaciones automáticas de la tienda.",
     "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **Canal de alerta de skin inaccesible**\n\n{perms}\n\n**Canal:** <#{c}>\n**Razón:** {r}\n\n✅ **He movido automáticamente {n} alerta(s) a este canal de DM** para que no te pierdas ninguna alerta.\n\nSi deseas configurar alertas en otro canal del servidor, utiliza `/alert` nuevamente en ese canal.",
     "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **Canal de alerta de skin inaccesible**\n\n{perms}\n\n**Canal:** <#{c}>\n**Razón:** {r}\n\nPor favor, configura tus alertas nuevamente en un canal al que tenga acceso usando el comando `/alert`.",

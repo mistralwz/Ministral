@@ -39,7 +39,6 @@
     "DUPLICATE_ALERT": "**{s}** için zaten bir bildirim ayarlı <#{c}>!",
     "GHOST_ALERT": "Bu bildirim artık mevcut değil!",
     "ALERT_NO_PERMS": "**Gerekli izinlere sahip değilim!** Doğru role sahip miyim?\nBu kanalda `Kanalı Görüntüle`, `Mesaj gönder`, `Bağlantı Yerleştir` ve `Harici Emoji Kullan` izinlerine sahip olduğumdan emin olun.",
-    "RARITY_EMOJIS_UNAVAILABLE": "⚠️ Nadirlik simgeleri saklanıyor çünkü bu sunucu @everyone için **Harici Emoji Kullanımı**nı devre dışı bırakmış ve yerel kopya bulunamadı. Bir sunucu yöneticisinden etkinleştirmesini isteyin veya nadirlik emojilerini bu sunucuya manuel ekleyin.",
     "GENERIC_NO_PERMS": "**Bu kanalda bunu yapmak için gerekli izinlere sahip değilim!** Doğru role sahipmiyim?\nBu kanalda `Kanalı Görüntüle`, `Mesaj gönder`, `Bağlantı Yerleştir` ve `Harici Emoji Kullan` izinlerine erişimim olduğundan emin olun.",
     "NO_NMARKET": "**Şu anda Gece Pazarı yok!**",
     "NO_NMARKET_WITH_DATE": "**Şu anda Gece Pazarı yok!** Bir sonraki Gece Pazarı <t:{t}:R>.",
