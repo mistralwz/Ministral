@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   bot:
-    image: ghcr.io/giorgi-o/skinpeek/skinpeek
+    image: ghcr.io/mistralwz/ministral:latest
     restart: unless-stopped
     depends_on:
       - redis

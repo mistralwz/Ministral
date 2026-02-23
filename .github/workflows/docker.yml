@@ -17,12 +17,12 @@ jobs:
       - name: Login ghcr
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-        run:  docker login ghcr.io --username giorgi-o --password "$GHCR_TOKEN"
+        run:  docker login ghcr.io --username ${{ github.repository_owner }} --password "$GHCR_TOKEN"
       - name: Build and Push Image
         run: |
           docker buildx build \
-                  --tag ghcr.io/giorgi-o/skinpeek/skinpeek:latest \
-                  --tag ghcr.io/giorgi-o/skinpeek/skinpeek:"$GITHUB_SHA" \
+                  --tag ghcr.io/${{ github.repository_owner }}/ministral:latest \
+                  --tag ghcr.io/${{ github.repository_owner }}/ministral:"$GITHUB_SHA" \
                   --platform linux/amd64,linux/arm64/v8 \
                   --file ./Dockerfile \
                   --output type=image,push=true .
