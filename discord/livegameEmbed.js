@@ -36,24 +36,19 @@ const STATE_LABEL = {
  * Render one player as a single compact line, placed in the field VALUE.
  *
  * Format (all modes):
- *   **level**┊<agent>  `RiotId`・<rank> **42 RR**・<peak> (E5A3)
+ *   <agent>  `RiotId`・<rank> **42 RR**・<peak> (E5A3)
  *
  * Competitive also appends:
- *   ・**46%WR** (13)・🟢🔴🟢
+ *   ・**46%WR** (13)┊�13:5
  *
- * Level is always shown — **?** when hidden or unavailable.
+ * Level has been removed.
  * Peak rank is always shown when the player has competitive history.
  *
  * @param {object}  player
  * @param {Channel} channel       Discord channel (for emoji resolution)
- * @param {boolean} isCompetitive Show WR + match dots when true
+ * @param {boolean} showCompStats Show WR + last match score when true
  */
-const formatPlayerRow = async (player, channel, isCompetitive = false) => {
-    // Level — always shown; "?" when hidden or unavailable
-    const levelStr = (player.levelHidden || player.accountLevel == null)
-        ? "**?**"
-        : `**${player.accountLevel}**`;
-
+const formatPlayerRow = async (player, channel, showCompStats = false) => {
     // Agent emoji — resolved dynamically from valorant-api.com icon URL.
     // For incognito players riotId IS the agent name, so we suppress the text
     // fallback to avoid "Vyse  `Vyse`" when the emoji hasn't uploaded yet.
@@ -78,29 +73,29 @@ const formatPlayerRow = async (player, channel, isCompetitive = false) => {
         ? `${peakRankEmojiStr}${player.peakActLabel ? ` (${player.peakActLabel})` : ""}`
         : null;
 
-    // Competitive-only: win-rate and last 3 match dots
+    // Competitive-only: win-rate and last match score
+    let matchScoreStr = "";
     const compParts = [];
-    if (isCompetitive) {
+    if (showCompStats) {
         if (player.winRate !== null)
-            compParts.push(`**${player.winRate}%WR** (${player.wins}W-${player.losses}L)`);
-        if (player.recentMatches?.length)
-            compParts.push(player.recentMatches.map(m => m.win ? "🟢" : "🔴").join(""));
+            compParts.push(`**${player.winRate}%**wr (${player.games})`);
+
+        const lastMatch = player.recentMatches?.[0];
+        if (lastMatch) {
+            matchScoreStr = `┊${lastMatch.win ? "�" : "�"}${lastMatch.allyScore}:${lastMatch.enemyScore}`;
+        }
     }
 
-    return [
-        `${levelStr}┊${agentEmojiStr}  \`${player.riotId}\``,
-        rankPart,
-        peakPart,
-        ...compParts,
-    ].filter(Boolean).join("・");
+    const rowTails = [rankPart, peakPart, ...compParts].filter(Boolean).join("・");
+    return `${agentEmojiStr}  \`${player.riotId}\`・${rowTails}${matchScoreStr}`;
 };
 
 /**
  * Build embed fields for a list of players, grouped 5 per field.
  * @param {string} [headerName] Optional name for the first field (defaults to zero-width space).
  */
-const buildPlayerFields = async (players, channel, isCompetitive, headerName = "\u200b") => {
-    const rows = await Promise.all(players.map(p => formatPlayerRow(p, channel, isCompetitive)));
+const buildPlayerFields = async (players, channel, showCompStats, headerName = "\u200b") => {
+    const rows = await Promise.all(players.map(p => formatPlayerRow(p, channel, showCompStats)));
     const fields = [];
     for (let i = 0; i < rows.length; i += 5) {
         fields.push({
@@ -123,7 +118,7 @@ const buildPlayerFields = async (players, channel, isCompetitive, headerName = "
 const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeInput = null) => {
     const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
-    const isCompetitive = data.queueId === "competitive";
+    const showCompStats = data.queueId === "competitive" || data.queueId === "skirmish" || data.queueId === "skirmish 2v2";
     const color = isPreGame ? COLOR_PREGAME : COLOR_ALLY;
     const mapAndServer = data.serverName
         ? `${data.mapName}・${data.serverName}`
@@ -136,22 +131,22 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeIn
         },
         color,
         image: data.mapImage ? { url: data.mapImage } : undefined,
-        footer: { text: s(localeInput).livegame.EMBED_FOOTER.f({ stateLabel, queueName: data.queueName }) },
+        footer: { text: stateLabel },
         timestamp: new Date().toISOString(),
     };
 
     if (data.isSingleTeam) {
         // Free-for-all: description block, one player per line
         const lines = await Promise.all(
-            [...allyPlayers, ...enemyPlayers].map(p => formatPlayerRow(p, channel, isCompetitive))
+            [...allyPlayers, ...enemyPlayers].map(p => formatPlayerRow(p, channel, showCompStats))
         );
         embed.description = lines.join("\n");
     } else {
         // Two-team layout: ally players in description, enemy players in fields
         const [allyLines, enemyFields] = await Promise.all([
-            Promise.all(allyPlayers.map(p => formatPlayerRow(p, channel, isCompetitive))),
+            Promise.all(allyPlayers.map(p => formatPlayerRow(p, channel, showCompStats))),
             enemyPlayers.length > 0
-                ? buildPlayerFields(enemyPlayers, channel, isCompetitive)
+                ? buildPlayerFields(enemyPlayers, channel, showCompStats)
                 : Promise.resolve([]),
         ]);
         embed.description = allyLines.join("\n");

@@ -869,28 +869,76 @@ const fetchPlayerNames = async (user, puuids) => {
 };
 
 /**
- * Fetch the last 3 competitive match results for a single PUUID.
- * Returns an array of { win: boolean } — most-recent first.
- * Uses RankedRatingEarned > 0 as the win heuristic.
+ * Fetch the last competitive match result's ID and time for a single PUUID.
+ * Returns an array of { matchId, startTime } — only 1 item max.
  */
-const fetchCompetitiveUpdates = async (user, puuid) => {
+const fetchCompetitiveUpdateId = async (user, puuid) => {
     const pd = pdUrl(user);
     const headers = authHeaders(user);
     try {
         const resp = await fetch(
-            `${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=3&queue=competitive`,
+            `${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=1&queue=competitive`,
             { headers }
         );
-        if (resp.statusCode !== 200) return [];
+        if (resp.statusCode !== 200) return null;
         const json = JSON.parse(resp.body);
-        return (json.Matches ?? []).slice(0, 3).map(m => ({
-            // >= 0 rather than > 0: Valorant has no draws, so 0 RR is a
-            // placement match where RR hasn't been awarded yet — not a loss.
-            win: (m.RankedRatingEarned ?? 0) >= 0,
-        }));
+        const m = (json.Matches ?? [])[0];
+        if (!m) return null;
+
+        // Check against 2 months (60 days)
+        const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+        if (m.MatchStartTime < Date.now() - TWO_MONTHS_MS) return null;
+
+        return m.MatchID;
     } catch {
-        return [];
+        return null;
     }
+};
+
+/**
+ * Fetch match details and score for multiple players, deduplicating requests.
+ * @returns Map<puuid, {win, allyScore, enemyScore}>
+ */
+const fetchMatchScores = async (user, puuidMatchMap) => {
+    const pd = pdUrl(user);
+    const headers = authHeaders(user);
+    const matchIds = [...new Set(Object.values(puuidMatchMap).filter(Boolean))];
+
+    // Fetch unique matches
+    const detailsMap = new Map();
+    const results = await Promise.allSettled(
+        matchIds.map(matchId =>
+            fetch(`${pd}/match-details/v1/matches/${matchId}`, { headers })
+                .then(r => r.statusCode === 200 ? JSON.parse(r.body) : null)
+        )
+    );
+
+    for (let i = 0; i < matchIds.length; i++) {
+        if (results[i].status === "fulfilled" && results[i].value) {
+            detailsMap.set(matchIds[i], results[i].value);
+        }
+    }
+
+    const scores = new Map();
+    for (const [puuid, matchId] of Object.entries(puuidMatchMap)) {
+        if (!matchId) continue;
+        const json = detailsMap.get(matchId);
+        if (!json) continue;
+
+        const player = json.players?.find(p => p.subject === puuid);
+        if (!player) continue;
+
+        const allyTeam = json.teams?.find(t => t.teamId === player.teamId);
+        const enemyTeam = json.teams?.find(t => t.teamId !== player.teamId);
+        if (allyTeam && enemyTeam) {
+            scores.set(puuid, {
+                win: allyTeam.won !== null ? allyTeam.won : (allyTeam.roundsWon > enemyTeam.roundsWon),
+                allyScore: allyTeam.roundsWon,
+                enemyScore: enemyTeam.roundsWon
+            });
+        }
+    }
+    return scores;
 };
 
 // ──────────────────────────────────────────────
@@ -904,7 +952,7 @@ const fetchCompetitiveUpdates = async (user, puuid) => {
 const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
-    const isComp = queueId === "competitive";
+    const showCompStats = queueId === "competitive" || queueId === "skirmish" || queueId === "skirmish 2v2";
 
     // Start all parallel fetches (including season labels)
     const [mmrMap, nameMap, seasonMap] = await Promise.all([
@@ -913,17 +961,20 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
         loadSeasons(),
     ]);
 
-    // Competitive updates — one request per player, run in parallel
-    const compUpdatesMap = new Map();
-    if (isComp) {
-        const results = await Promise.allSettled(
-            puuids.map(puuid => fetchCompetitiveUpdates(user, puuid))
+    // Competitive updates — one request per player, run in parallel to get matchId
+    const compScoresMap = new Map();
+    if (showCompStats) {
+        const puuidMatchMap = {};
+        const matchIdResults = await Promise.allSettled(
+            puuids.map(puuid => fetchCompetitiveUpdateId(user, puuid))
         );
         for (let i = 0; i < puuids.length; i++) {
-            compUpdatesMap.set(
-                puuids[i],
-                results[i].status === "fulfilled" ? results[i].value : []
-            );
+            puuidMatchMap[puuids[i]] = matchIdResults[i].status === "fulfilled" ? matchIdResults[i].value : null;
+        }
+
+        const scores = await fetchMatchScores(user, puuidMatchMap);
+        for (const [puuid, score] of scores.entries()) {
+            compScoresMap.set(puuid, [score]);
         }
     }
 
@@ -973,7 +1024,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             accountLevel: level,
             levelHidden,
             // Recent competitive match results ([] if not competitive)
-            recentMatches: compUpdatesMap.get(p.puuid) ?? [],
+            recentMatches: compScoresMap.get(p.puuid) ?? [],
         };
     }));
 
