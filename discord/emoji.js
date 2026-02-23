@@ -18,6 +18,9 @@ const lastEmojiFetch = {};
 // a cache for emoji objects (note: due to sharding, might just be JSON representations of the emoji)
 const emojiCache = {};
 
+// tracks in-flight emoji creations to prevent duplicate uploads from concurrent requests
+const pendingCreations = {};
+
 // negative cache: maps emoji name -> expiry timestamp for emojis confirmed not to exist
 const negativeCache = {};
 const NEGATIVE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -71,25 +74,28 @@ const getOrCreateEmoji = async (channel, name, filenameOrUrl) => {
 
     const guild = channel && channel.guild;
 
-    // see if emoji exists already
+    // see if emoji exists already in the current guild
     const emoji = emojiInGuild(guild, name);
     if(emoji && emoji.available) return addEmojiToCache(emoji);
 
-    // check in other guilds
+    // always check the configured emoji server first, regardless of externalEmojisAllowed —
+    // if the emoji lives there it's the authoritative source and should be used even when
+    // the channel's guild has UseExternalEmojis disabled for @everyone
+    if(config.useEmojisFromServer) {
+        try {
+            const emojiGuild = await client.guilds.fetch(config.useEmojisFromServer);
+            if(!emojiGuild) console.error("useEmojisFromServer server not found! Either the ID is incorrect or I am not in that server anymore!");
+            else {
+                await updateEmojiCache(emojiGuild);
+                const emoji = emojiInGuild(emojiGuild, name);
+                if(emoji && emoji.available) return addEmojiToCache(emoji);
+            }
+        } catch(e) {}
+    }
+
+    // check in other guilds (only when external emojis are usable in this channel)
     const externalAllowed = externalEmojisAllowed(channel);
     if(externalAllowed) {
-        if(config.useEmojisFromServer) {
-            try {
-                const emojiGuild = await client.guilds.fetch(config.useEmojisFromServer);
-                if(!emojiGuild) console.error("useEmojisFromServer server not found! Either the ID is incorrect or I am not in that server anymore!");
-                else {
-                    await updateEmojiCache(emojiGuild);
-                    const emoji = emojiInGuild(emojiGuild, name);
-                    if(emoji && emoji.available) return addEmojiToCache(emoji);
-                }
-            } catch(e) {}
-        }
-
         const cachedEmoji = emojiCache[name];
         if(cachedEmoji) return cachedEmoji;
 
@@ -110,12 +116,20 @@ const getOrCreateEmoji = async (channel, name, filenameOrUrl) => {
         }
     }
 
-    // couldn't find usable emoji, try to create it only in the configured server
+    // couldn't find usable emoji, try to create it only in the configured server;
+    // use pendingCreations to prevent duplicate uploads from concurrent requests
     if(config.useEmojisFromServer) {
+        if(pendingCreations[name]) return addEmojiToCache(await pendingCreations[name]);
         try {
             const emojiGuild = await client.guilds.fetch(config.useEmojisFromServer);
-            if(emojiGuild) return addEmojiToCache(await createEmoji(emojiGuild, name, filenameOrUrl));
+            if(emojiGuild) {
+                pendingCreations[name] = createEmoji(emojiGuild, name, filenameOrUrl);
+                const created = await pendingCreations[name];
+                delete pendingCreations[name];
+                return addEmojiToCache(created);
+            }
         } catch(e) {
+            delete pendingCreations[name];
             console.error(`Failed to create emoji in useEmojisFromServer guild: ${e.message}`);
         }
     } else {
@@ -184,21 +198,48 @@ const addEmojiToCache = (emoji) => {
 
 /**
  * Pre-warm the emoji cache at bot startup using the configured emoji server.
- * This prevents the first interaction on each shard from doing a broadcastEval.
+ * Called on shard 0; the resulting cache is broadcast to other shards via
+ * the "emojiCacheWarm" shard message so they don't each need to fetch the guild.
+ * Returns a plain-object snapshot of the cache for broadcasting.
  */
 export const warmEmojiCache = async () => {
-    if(!config.useEmojisFromServer) return;
+    if(!config.useEmojisFromServer) return null;
     try {
         const emojiGuild = await client.guilds.fetch(config.useEmojisFromServer);
-        if(!emojiGuild) return;
+        if(!emojiGuild) return null;
         await updateEmojiCache(emojiGuild);
         for(const emoji of emojiGuild.emojis.cache.values()) {
             if(emoji.available) addEmojiToCache(emoji);
         }
         console.log(`Warmed emoji cache with ${Object.keys(emojiCache).length} emojis from ${emojiGuild.name}`);
+
+        // Return serializable snapshot: { name -> { id, name, animated, guildId } }
+        const snapshot = {};
+        for(const [name, emoji] of Object.entries(emojiCache)) {
+            if(emoji && emoji.id) snapshot[name] = { id: emoji.id, name: emoji.name, animated: emoji.animated, guildId: emoji.guild?.id };
+        }
+        return snapshot;
     } catch(e) {
         console.error(`Failed to warm emoji cache: ${e.message}`);
+        return null;
     }
+}
+
+/**
+ * Populate the emoji cache from a serialized snapshot broadcast by shard 0.
+ * Skips entries that are already cached locally.
+ */
+export const populateEmojiCacheFromSnapshot = (snapshot) => {
+    if(!snapshot) return;
+    let added = 0;
+    for(const [name, data] of Object.entries(snapshot)) {
+        if(!emojiCache[name]) {
+            emojiCache[name] = data; // Store the plain object; emojiToString handles both GuildEmoji and plain objects
+            delete negativeCache[name];
+            added++;
+        }
+    }
+    if(added > 0) console.log(`Populated emoji cache from shard 0 broadcast (${added} emojis)`);
 }
 
 const findEmoji = (c, { name }) => {
