@@ -1,6 +1,6 @@
 {
   "translation_by": "Put your name here if translating :)",
-  "error":{
+  "error": {
     "NOT_REGISTERED": "**You're not registered with the bot!** Try `/login`.",
     "NOT_REGISTERED_OTHER": "**That user is not registered with the bot!**",
     "INVALID_PASSWORD": "Invalid username or password!",
@@ -28,8 +28,8 @@
     "OTHER_COLLECTION_DISABLED": "**{u} disabled the ability to let others see their collection!**",
     "OTHER_PROFILE_DISABLED": "**{u} disabled the ability to let others see their profile!**",
     "STATS_DISABLED": "**Shop statistics are currently disabled for this bot!**",
-    "EMPTY_STATS":  "**I have no shop stats to display!** use `/shop` to get started.",
-    "NO_STATS_FOR_SKIN":  "**That skin hasn't been in anyone's shop** in the past {d} days!",
+    "EMPTY_STATS": "**I have no shop stats to display!** use `/shop` to get started.",
+    "NO_STATS_FOR_SKIN": "**That skin hasn't been in anyone's shop** in the past {d} days!",
     "NOT_UR_MESSAGE_STATS": "**That's not your message!** Use `/stats` to browse skin stats.",
     "NOT_UR_MESSAGE_BUNDLE": "**That's not your message!** Use `/bundle` to search for bundles.",
     "NOT_UR_MESSAGE_ALERT": "**That's not your message!** Use `/alert` to set your own alert.",
@@ -38,11 +38,11 @@
     "NO_ALERTS": "**You don't have any alerts set up!** Use `/alert` to get started.",
     "DUPLICATE_ALERT": "You already have an alert for the **{s}** in <#{c}>!",
     "GHOST_ALERT": "That alert doesn't exist anymore!",
-    "ALERT_NO_PERMS": "**I don't have the necessary permissions!** Do I have the right role?\nMake sure I can `View Channel`, `Send Messages`, `Embed Links` and `Use External Emojis` in this channel.",
+    "ALERT_NO_PERMS": "**I don't have the necessary permissions!** Do I have the right role?\nMake sure I can `View Channel`, `Send Messages` and `Embed Links` in this channel.",
     "DAILY_SHOP_CHANNEL_INACCESSIBLE": "⚠️ **Daily Shop Alert Issue**\n\n{perms}\n\n**Channel:** <#{c}>\n**Reason:** {r}\n\nPlease use `/settings` to set up your daily shop alert in a channel where I have access, or disable it if you no longer want automatic shop updates.",
     "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **Skin Alert Channel Inaccessible**\n\n{perms}\n\n**Channel:** <#{c}>\n**Reason:** {r}\n\n✅ **I've automatically moved {n} alert(s) to this DM channel** so you won't miss any alerts!\n\nIf you'd like to set up alerts in a different server channel, please use `/alert` again in that channel.",
     "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **Skin Alert Channel Inaccessible**\n\n{perms}\n\n**Channel:** <#{c}>\n**Reason:** {r}\n\nPlease set up your alerts again in a channel where I have proper access using the `/alert` command.",
-    "GENERIC_NO_PERMS": "**I don't have the necessary permissions to do that in this channel!** Do I have the right role?\nMake sure I can `View Channel`, `Send Messages`, `Embed Links` and `Use External Emojis` in this channel.",
+    "GENERIC_NO_PERMS": "**I don't have the necessary permissions to do that in this channel!** Do I have the right role?\nMake sure I can `View Channel`, `Send Messages` and `Embed Links` in this channel.",
     "NO_NMARKET": "**There is no Night Market currently!**",
     "NO_NMARKET_WITH_DATE": "**There is no Night Market currently!** The next one will be <t:{t}:R>.",
     "ACCOUNT_NOT_FOUND": "**Couldn't find that account in your registered accounts!**",
@@ -57,7 +57,7 @@
     "INVALID_WEB_AUTH_URL": "**Invalid URL!** Make sure you copied the entire URL from your browser's address bar after the login page.\nIt should start with `http://localhost/redirect#access_token=...`",
     "WEB_AUTH_FAILED": "**Login failed!** {e}"
   },
-  "info":{
+  "info": {
     "SHOP_HEADER": "Daily shop for **{u}** (new shop <t:{t}:R>)",
     "ACCESSORY_SHOP_HEADER": "Accessory shop for **{u}** (new shop <t:{t}:R>)",
     "BUNDLE_HEADER": "Featured bundle: **{b}**",
@@ -145,8 +145,8 @@
     "INCIDENT_TYPE": "incident",
     "LAST_UPDATED": "Last updated <t:{t}:R>",
     "UNHANDLED_COMMAND": "Yer a wizard Harry!",
-    "SELECT_SKIN_WITH_LEVEL":"Select skin to show video:",
-    "SELECT_LEVEL_OF_SKIN":"Select level of skin:",
+    "SELECT_SKIN_WITH_LEVEL": "Select skin to show video:",
+    "SELECT_LEVEL_OF_SKIN": "Select level of skin:",
     "SHARDS_LOADING": "The bot is still starting up! Please wait a few seconds and try again. (Shards loading...)",
     "NO_MORE_ACCESSORIES": "You've already got all the swagger! :sunglasses:",
     "PROFILE_PEAK_RANK": "Peak Rank"
@@ -210,8 +210,7 @@
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
     "PERCENT": "%{v}"
-  }
-  ,
+  },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Game・{mapName}",
     "EMBED_FOOTER": "{stateLabel}・{queueName}",

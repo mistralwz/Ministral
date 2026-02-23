@@ -38,7 +38,7 @@
     "DUPLICATE_ALERT": "Bạn đã chọn nhân thông báo cho skin **{s}** trong <#{c}> rồi",
     "GHOST_ALERT": "Thông báo skin này không còn tồn tại nữa!",
     "ALERT_NO_PERMS": "**Tôi không có quyền cần thiết!** Tôi có đúng vai trò không?\nĐảm bảo rằng tôi có thể `Xem kênh`, `Gửi tin nhắn`, `Chèn liên kết` và `Sử dụng emoji bên ngoài` trong kênh này.",
-    "GENERIC_NO_PERMS": "**Bot không có quyền làm điều đó trong kênh này!** \nĐảm bảo rằng Bot đã có đủ quyền `VIEW_CHANNELS`, `SEND_MESSAGES`, `EMBED_LINKS` và `USE_EXTERNAL_EMOJIS`",
+    "GENERIC_NO_PERMS": "**Bot không có quyền làm điều đó trong kênh này!** \nĐảm bảo rằng Bot đã có đủ quyền `VIEW_CHANNELS`, `SEND_MESSAGES`, `EMBED_LINKS`",
     "NO_NMARKET": "**Hiện tại đang không có Chợ Đêm!**",
     "NO_NMARKET_WITH_DATE": "**Hiện tại không có Chợ đêm!** Chợ đêm tiếp theo sẽ xuất hiện <t:{t}:R>.",
     "ACCOUNT_NOT_FOUND": "**Không tìm thấy tài khoản**",
