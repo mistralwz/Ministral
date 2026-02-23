@@ -50,9 +50,16 @@ export const getValorantVersion = async () => {
 }
 
 export const loadSkinsJSON = async (filename = "data/skins.json") => {
+    // Reset fast-path flag before the async read so any concurrent getSkin() call
+    // that checks dataFullyLoaded will re-enter fetchData() and wait rather than
+    // reading partially-stale data from the previous load.
+    dataFullyLoaded = false;
+    allSkinsCache = null;
+
     const jsonData = await asyncReadJSONFile(filename).catch(() => { });
     if (!jsonData || jsonData.formatVersion !== formatVersion) return;
 
+    // Assign all fields synchronously (single tick, no interleaving possible)
     weapons = jsonData.weapons;
     skins = jsonData.skins;
     prices = jsonData.prices;
@@ -64,6 +71,11 @@ export const loadSkinsJSON = async (filename = "data/skins.json") => {
     titles = jsonData.titles;
     battlepass = jsonData.battlepass;
     buildBundleItemPrices();
+
+    // Re-set the fast-path flag now that all fields are consistent
+    if (skins && prices && bundles && rarities && buddies && cards && sprays && titles && battlepass) {
+        dataFullyLoaded = true;
+    }
 }
 
 export const saveSkinsJSON = (filename = "data/skins.json") => {
@@ -76,6 +88,11 @@ export const saveSkinsJSON = (filename = "data/skins.json") => {
 }
 
 const debouncedSaveSkinsJSON = () => {
+    // Only shard 0 writes to disk — other shards keep in-memory state but
+    // don't contend on the shared skins.json file. Shard 0 broadcasts
+    // skinsReload when data changes so other shards pick up the new data.
+    if(client.shard && client.shard.ids[0] !== 0) return;
+
     skinsSaveDirty = true;
     if(skinsSaveTimer) return;
     skinsSaveTimer = setTimeout(() => {
@@ -84,8 +101,9 @@ const debouncedSaveSkinsJSON = () => {
     }, SKINS_SAVE_DEBOUNCE_MS);
 }
 
-// Force flush pending skins.json writes (call on shutdown)
+// Force flush pending skins.json writes (call on shutdown, shard 0 only)
 export const flushSkinsJSON = () => {
+    if(client.shard && client.shard.ids[0] !== 0) return;
     if(skinsSaveTimer) {
         clearTimeout(skinsSaveTimer);
         skinsSaveTimer = null;
@@ -284,10 +302,44 @@ export const addPricesFromShop = (shopJson) => {
         prices.timestamp = Date.now();
         allSkinsCache = null; // invalidate since prices changed
         console.log(`Added ${newPrices} new skin prices to cache! (Total: ${Object.keys(prices).length - 2} prices)`);
+
+        if (client.shard && client.shard.ids[0] !== 0) {
+            // Non-zero shards: send discovered prices to shard 0 for persistence
+            const newPriceData = {};
+            if (shopJson.SkinsPanelLayout?.SingleItemStoreOffers) {
+                for (const offer of shopJson.SkinsPanelLayout.SingleItemStoreOffers) {
+                    if (offer.OfferID && prices[offer.OfferID]) {
+                        newPriceData[offer.OfferID] = prices[offer.OfferID];
+                    }
+                }
+            }
+            sendShardMessage({ type: "priceUpdate", prices: newPriceData });
+        } else {
+            // Shard 0 (or non-sharded): save to disk and notify other shards
+            debouncedSaveSkinsJSON();
+            if (client.shard) sendShardMessage({ type: "skinsReload" });
+        }
+    }
+}
+
+// Merge price data received from another shard (called on shard 0)
+export const mergePrices = (incomingPrices) => {
+    if (!prices || typeof prices !== 'object') {
+        prices = { timestamp: Date.now() };
+    }
+    let merged = 0;
+    for (const [uuid, price] of Object.entries(incomingPrices)) {
+        if (!prices[uuid]) {
+            prices[uuid] = price;
+            merged++;
+        }
+    }
+    if (merged > 0) {
+        prices.timestamp = Date.now();
+        allSkinsCache = null;
+        console.log(`Merged ${merged} prices from another shard (Total: ${Object.keys(prices).length - 2} prices)`);
         debouncedSaveSkinsJSON();
-        
-        // Notify other shards to reload the updated prices
-        if (client.shard) sendShardMessage({ type: "skinsReload" });
+        sendShardMessage({ type: "skinsReload" });
     }
 }
 

@@ -89,6 +89,25 @@ const receiveShardMessage = async (message) => {
         case "skinsReload":
             await loadSkinsJSON();
             break;
+        case "priceUpdate":
+            // Non-zero shards send discovered prices to shard 0 for persistence
+            if (client.shard && client.shard.ids[0] === 0) {
+                const {mergePrices} = await import("../valorant/cache.js");
+                mergePrices(message.prices);
+            }
+            break;
+        case "emojiCacheWarm":
+            // Shard 0 broadcasts its emoji cache snapshot so other shards skip their own fetch
+            if (client.shard && client.shard.ids[0] !== 0) {
+                const {populateEmojiCacheFromSnapshot} = await import("../discord/emoji.js");
+                populateEmojiCacheFromSnapshot(message.snapshot);
+            }
+            break;
+        case "settingsInvalidate": {
+            const {clearSettingsCache} = await import("./settings.js");
+            clearSettingsCache(message.userId);
+            break;
+        }
         case "logMessages":
             addMessagesToLog(message.messages);
             break;

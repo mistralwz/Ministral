@@ -3,6 +3,7 @@ import {basicEmbed, secondaryEmbed, settingsEmbed} from "../discord/embed.js";
 import {ActionRowBuilder, StringSelectMenuBuilder} from "discord.js";
 import {discLanguageNames, s} from "./languages.js";
 import {findKeyOfValue} from "./util.js";
+import {client} from "../discord/bot.js";
 
 export const settings = {
     dailyShop: { // stores false or channel id
@@ -117,7 +118,7 @@ export const clearSettingsCache = (id) => {
     }
 }
 
-export const setSetting = (interaction, setting, value, force=false) => { // force = whether is set from /settings set
+export const setSetting = async (interaction, setting, value, force=false) => { // force = whether is set from /settings set
     const id = interaction.user.id;
     const json = readUserJson(id);
     if(!json) return defaultSettings[setting]; // returns the default setting if the user does not have an account (this method may be a little bit funny, but it's better than an error)
@@ -137,17 +138,21 @@ export const setSetting = (interaction, setting, value, force=false) => { // for
     }
 
     saveUserJson(id, json);
-    
-    // Invalidate cache after updating settings
+
+    // Invalidate cache after updating settings (local + cross-shard)
     settingsCache.delete(id);
+    if(client.shard) {
+        const {sendShardMessage} = await import("./shardMessage.js");
+        await sendShardMessage({type: "settingsInvalidate", userId: id});
+    }
 
     return json.settings[setting];
 }
 
-export const registerInteractionLocale = (interaction) => {
+export const registerInteractionLocale = async (interaction) => {
     const settings = getSettings(interaction.user.id);
     if(!settings.localeForced && settings.locale !== interaction.locale)
-        setSetting(interaction, "locale", interaction.locale);
+        await setSetting(interaction, "locale", interaction.locale);
 }
 
 export const handleSettingsViewCommand = async (interaction) => {
@@ -182,7 +187,7 @@ export const handleSettingsSetCommand = async (interaction) => {
 export const handleSettingDropdown = async (interaction) => {
     const [setting, value] = interaction.values[0].split('/');
 
-    const valueSet = setSetting(interaction, setting, value, true);
+    const valueSet = await setSetting(interaction, setting, value, true);
 
     await interaction.update({
         embeds: [basicEmbed(s(interaction).settings.CONFIRMATION.f({s: settingName(setting, interaction), v: humanifyValue(valueSet, setting, interaction)}))],

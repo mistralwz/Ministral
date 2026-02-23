@@ -193,7 +193,16 @@ client.on("clientReady", async () => {
     console.log("Loading skins...");
     fetchData().then(() => console.log("Skins loaded!"));
 
-    warmEmojiCache().then(() => {}).catch(e => console.error(`Emoji cache warm failed: ${e.message}`));
+    if(!client.shard || client.shard.ids[0] === 0) {
+        // Shard 0 warms the emoji cache and broadcasts the snapshot to all other shards
+        warmEmojiCache().then(async (snapshot) => {
+            if(snapshot && client.shard) {
+                const {sendShardMessage} = await import("../misc/shardMessage.js");
+                await sendShardMessage({type: "emojiCacheWarm", snapshot});
+            }
+        }).catch(e => console.error(`Emoji cache warm failed: ${e.message}`));
+    }
+    // Other shards skip warmEmojiCache() here — they receive the snapshot via "emojiCacheWarm" message
     
     initProxyManager().then(() => {
         if (getProxyManager().enabled) {
@@ -243,14 +252,20 @@ export const scheduleTasks = () => {
         cronTasks.push(cron.schedule(config.checkGameVersion, () => fetchData(null, true)));
     }
 
-    // reload skin prices from disk every 30mins (for sharding to sync price updates)
-    if (config.refreshPrices) cronTasks.push(cron.schedule(config.refreshPrices, () => loadSkinsJSON()));
+    // reload skin prices from disk every 30mins (shard 0 only — other shards get updates via skinsReload broadcast)
+    if (config.refreshPrices && (!client.shard || client.shard.ids[0] === 0)) {
+        cronTasks.push(cron.schedule(config.refreshPrices, () => loadSkinsJSON()));
+    }
 
-    // if login queue is enabled, process an item every 3 seconds
-    if (config.useLoginQueue && config.loginQueueInterval) startAuthQueue();
+    // if login queue is enabled, process on shard 0 only (all shards submit to the Redis queue, only shard 0 processes)
+    if (config.useLoginQueue && config.loginQueueInterval && (!client.shard || client.shard.ids[0] === 0)) {
+        startAuthQueue();
+    }
 
-    // if send console to discord channel is enabled, send console output every 10 seconds
-    if (config.logToChannel && config.logFrequency) cronTasks.push(cron.schedule(config.logFrequency, sendConsoleOutput));
+    // if send console to discord channel is enabled, send console output (shard 0 only — other shards forward via logMessages)
+    if (config.logToChannel && config.logFrequency && (!client.shard || client.shard.ids[0] === 0)) {
+        cronTasks.push(cron.schedule(config.logFrequency, sendConsoleOutput));
+    }
 
     // check for a new riot client version (new user agent) every 15mins (only on shard 0, then broadcasts to others)
     if (config.updateUserAgent && (!client.shard || client.shard.ids[0] === 0)) {
