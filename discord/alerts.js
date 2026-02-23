@@ -140,123 +140,178 @@ export const removeAlert = (id, uuid) => {
 
 const ALERT_BATCH_SIZE = 50;
 
-export const checkAlerts = async () => {
-    if(client.shard && !client.shard.ids.includes(0)) return; // only run on the first shard
+/**
+ * Process alerts for a single user across all their Valorant accounts.
+ * Extracted so it can be called from both sequential and concurrent paths.
+ *
+ * @param {string}  id               Discord user ID
+ * @param {boolean} initialShouldWait If true, delay before the first real network fetch
+ * @returns {boolean} shouldWait state after this user (pass to the next user in sequential mode)
+ */
+const processUserAlerts = async (id, initialShouldWait = false) => {
+    let shouldWait = initialShouldWait;
+    let credsExpiredAlerts = false;
 
-    console.log("Checking new shop skins for alerts...");
+    const userJson = readUserJson(id);
+    if(!userJson) return shouldWait;
+
+    const accountCount = userJson.accounts.length;
+    for(let i = 1; i <= accountCount; i++) {
+
+        const rawUserAlerts = alertsForUser(id, i);
+        const dailyShopChannel = getSetting(id, "dailyShop");
+        if(!rawUserAlerts?.length && !dailyShopChannel) continue;
+        if(!rawUserAlerts?.length && dailyShopChannel && i !== userJson.currentAccount) continue;
+
+        if(shouldWait) {
+            await wait(config.delayBetweenAlerts); // to prevent being ratelimited
+            shouldWait = false;
+        }
+
+        const valorantUser = getUser(id, i);
+        const discordUser = client.users.cache.get(id);
+        const discordUsername = discordUser ? discordUser.username : id;
+        console.log(`Checking user ${discordUsername}'s ${valorantUser.username} account (${i}/${accountCount}) for alerts...`);
+
+        const userAlerts = removeDupeAlerts(rawUserAlerts);
+        if(userAlerts.length !== rawUserAlerts.length) {
+            valorantUser.alerts = userAlerts;
+            saveUser(valorantUser, i);
+            invalidateUserCache(id);
+        }
+
+        let offers;
+        do { // retry loop in case of rate limit or maintenance
+            offers = await getOffers(id, i);
+            shouldWait = valorantUser.auth && !offers.cached;
+
+            if(!offers.success) {
+                if(offers.maintenance) {
+                    console.log("Valorant servers are under maintenance, waiting 15min before continuing alert checks...");
+                    await wait(15 * 60 * 1000);
+                }
+
+                else if(offers.rateLimit) {
+                    const waitMs = offers.rateLimit - Date.now();
+                    console.error(`I got ratelimited while checking alerts for user ${id} #${i} for ${Math.floor(waitMs / 1000)}s!`);
+                    await wait(waitMs);
+                }
+
+                else {
+                    if(!credsExpiredAlerts) {
+                        if(valorantUser.authFailures < config.authFailureStrikes) {
+                            valorantUser.authFailures++;
+                            credsExpiredAlerts = userAlerts;
+                        }
+                    }
+
+                    deleteUserAuth(valorantUser);
+                    invalidateUserCache(id);
+                    break;
+                }
+            }
+
+        } while(!offers.success);
+
+        if(offers.success && offers.offers) {
+            if(dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, valorantUser);
+
+            const positiveAlerts = userAlerts.filter(alert => offers.offers.includes(alert.uuid));
+            if(positiveAlerts.length) await sendAlert(id, i, positiveAlerts, offers.expires);
+        }
+    }
+
+    if(credsExpiredAlerts) {
+        // user login is invalid
+        const channelsSent = [];
+        for(const alert of credsExpiredAlerts) {
+            if(!channelsSent.includes(alert.channel_id)) {
+                await sendCredentialsExpired(id, alert);
+                channelsSent.push(alert.channel_id);
+            }
+        }
+    }
+
+    return shouldWait;
+}
+
+export const checkAlerts = async () => {
+    // C2: Each shard processes its own partition of users (by Discord snowflake modulo).
+    // The cron fires on all shards simultaneously — no broadcast needed.
+    const myShardId = client.shard?.ids[0] ?? 0;
+    const totalShards = client.shard?.count ?? 1;
+
+    console.log(`[Shard ${myShardId}] Checking new shop skins for alerts...`);
 
     try {
-        let shouldWait = false;
-        const userList = getAlertUserList();
+        const allUsers = getAlertUserList();
 
-        // Process users in batches of ALERT_BATCH_SIZE.
-        // Each batch is flushed as a single SQLite transaction, reducing write contention.
-        let batchStart = 0;
-        while(batchStart < userList.length) {
-            const batchEnd = Math.min(batchStart + ALERT_BATCH_SIZE, userList.length);
+        // Partition: each shard handles the users whose snowflake maps to it.
+        // Users with no shard (non-sharded run) are handled by the single instance.
+        const userList = totalShards > 1
+            ? allUsers.filter(id => Number(BigInt(id) >> 22n) % totalShards === myShardId)
+            : allUsers;
+
+        if(userList.length === 0) {
+            console.log(`[Shard ${myShardId}] No users in this shard's partition, skipping.`);
+            return;
+        }
+
+        const concurrency = config.alertConcurrency ?? 1;
+
+        if(concurrency > 1) {
+            // A5: Concurrent mode — process up to `alertConcurrency` users in parallel.
+            // Set alertConcurrency > 1 in config.json to enable. Default is 1 (sequential).
+            const { default: pLimit } = await import("p-limit");
+            const limit = pLimit(concurrency);
+
+            // Single global batch wraps the entire concurrent run
             beginBatchWrites();
             try {
-                for(let j = batchStart; j < batchEnd; j++) {
-                    const id = userList[j];
+                await Promise.all(userList.map(id => limit(async () => {
                     try {
-                        let credsExpiredAlerts = false;
-
-                        // Start a user-cache scope for this user's entire check cycle
                         beginUserCacheScope();
-
-                        const userJson = readUserJson(id);
-                        if(!userJson) continue;
-
-                        const accountCount = userJson.accounts.length;
-                        for(let i = 1; i <= accountCount; i++) {
-
-                            const rawUserAlerts = alertsForUser(id, i);
-                            const dailyShopChannel = getSetting(id, "dailyShop");
-                            if(!rawUserAlerts?.length && !dailyShopChannel) continue;
-                            if(!rawUserAlerts?.length && dailyShopChannel && i !== userJson.currentAccount) continue;
-
-                            if(shouldWait) {
-                                await wait(config.delayBetweenAlerts); // to prevent being ratelimited
-                                shouldWait = false;
-                            }
-
-                            const valorantUser = getUser(id, i);
-                            const discordUser = client.users.cache.get(id);
-                            const discordUsername = discordUser ? discordUser.username : id;
-                            console.log(`Checking user ${discordUsername}'s ${valorantUser.username} account (${i}/${accountCount}) for alerts...`);
-
-                            const userAlerts = removeDupeAlerts(rawUserAlerts);
-                            if(userAlerts.length !== rawUserAlerts.length) {
-                                valorantUser.alerts = userAlerts;
-                                saveUser(valorantUser, i);
-                                invalidateUserCache(id);
-                            }
-
-                            let offers;
-                            do { // retry loop in case of rate limit or maintenance
-                                offers = await getOffers(id, i);
-                                shouldWait = valorantUser.auth && !offers.cached;
-
-                                if(!offers.success) {
-                                    if(offers.maintenance) {
-                                        console.log("Valorant servers are under maintenance, waiting 15min before continuing alert checks...");
-                                        await wait(15 * 60 * 1000);
-                                    }
-
-                                    else if(offers.rateLimit) {
-                                        const waitMs = offers.rateLimit - Date.now();
-                                        console.error(`I got ratelimited while checking alerts for user ${id} #${i} for ${Math.floor(waitMs / 1000)}s!`);
-                                        await wait(waitMs);
-                                    }
-
-                                    else {
-                                        if(!credsExpiredAlerts) {
-                                            if(valorantUser.authFailures < config.authFailureStrikes) {
-                                                valorantUser.authFailures++;
-                                                credsExpiredAlerts = userAlerts;
-                                            }
-                                        }
-
-                                        deleteUserAuth(valorantUser);
-                                        invalidateUserCache(id);
-                                        break;
-                                    }
-                                }
-
-                            } while(!offers.success);
-
-                            if(offers.success && offers.offers) {
-                                if(dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, valorantUser);
-
-                                const positiveAlerts = userAlerts.filter(alert => offers.offers.includes(alert.uuid));
-                                if(positiveAlerts.length) await sendAlert(id, i, positiveAlerts, offers.expires);
-                            }
-                        }
-
-                        if(credsExpiredAlerts) {
-                            // user login is invalid
-                            const channelsSent = [];
-                            for(const alert of credsExpiredAlerts) {
-                                if(!channelsSent.includes(alert.channel_id)) {
-                                    await sendCredentialsExpired(id, alert);
-                                    channelsSent.push(alert.channel_id);
-                                }
-                            }
-                        }
+                        // Each concurrent task starts fresh — no inter-user delay needed
+                        await processUserAlerts(id);
                     } catch(e) {
                         console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
                         console.error(e);
                     } finally {
                         endUserCacheScope();
                     }
-                }
+                })));
             } finally {
-                commitBatchWrites(); // flush this batch in one SQLite transaction
+                commitBatchWrites();
             }
-            batchStart = batchEnd;
+        } else {
+            // Sequential mode (default): process users one at a time in batches of ALERT_BATCH_SIZE.
+            // Each batch is flushed as a single SQLite transaction, reducing write contention (A1).
+            let shouldWait = false;
+            let batchStart = 0;
+            while(batchStart < userList.length) {
+                const batchEnd = Math.min(batchStart + ALERT_BATCH_SIZE, userList.length);
+                beginBatchWrites();
+                try {
+                    for(let j = batchStart; j < batchEnd; j++) {
+                        const id = userList[j];
+                        try {
+                            beginUserCacheScope();
+                            shouldWait = await processUserAlerts(id, shouldWait);
+                        } catch(e) {
+                            console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
+                            console.error(e);
+                        } finally {
+                            endUserCacheScope();
+                        }
+                    }
+                } finally {
+                    commitBatchWrites(); // flush this batch in one SQLite transaction
+                }
+                batchStart = batchEnd;
+            }
         }
 
-        console.log("Finished checking alerts!");
+        console.log(`[Shard ${myShardId}] Finished checking alerts!`);
     } catch(e) {
         // should I send messages in the discord channels?
         console.error("There was an error while trying to send alerts!");

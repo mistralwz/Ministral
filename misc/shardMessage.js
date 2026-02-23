@@ -8,6 +8,11 @@ import {handleMQRequest, handleMQResponse} from "./multiqueue.js";
 let allShardsReadyCb;
 let allShardsReadyPromise = new Promise(r => allShardsReadyCb = r);
 
+// A4: Channel→shard mapping cache.
+// Maps channelId (string) → shardId (number) so we can skip O(N shards) broadcasts
+// for channels we've successfully delivered to before.
+const channelToShardCache = new Map();
+
 export const areAllShardsReady = () => {
     return !client.shard || allShardsReadyPromise === null;
 }
@@ -30,23 +35,58 @@ export const sendShardMessage = async (message) => {
 /**
  * Send a shard message only to the shard that has a specific channel in its cache.
  * Returns true if any shard processed it, false if no shard has the channel.
+ *
+ * A4: Uses a channelToShardCache to avoid O(N shards) broadcasts for known channels.
+ * On first delivery: full broadcast, cache the winning shard index.
+ * On subsequent deliveries: targeted single-shard eval, fall back to broadcast on miss.
  */
 export const sendShardMessageForChannel = async (message, channelId) => {
     if(!client.shard) return false;
 
     await allShardsReadyPromise;
 
-    localLog(`Sending targeted message for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
+    // A4: Try targeted delivery to the cached shard first
+    const knownShard = channelToShardCache.get(channelId);
+    if(knownShard != null) {
+        try {
+            const [result] = await client.shard.broadcastEval((client, context) => {
+                if(client.channels.cache.has(context.channelId)) {
+                    client.skinPeekShardMessageReceived(context.message);
+                    return true;
+                }
+                return false;
+            }, {context: {message, channelId}, shard: knownShard});
 
+            if(result) {
+                localLog(`Targeted shard ${knownShard} for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
+                return true;
+            }
+            // Shard no longer has this channel (e.g., bot kicked, resharding) — evict and fall through
+            channelToShardCache.delete(channelId);
+        } catch(e) {
+            // Shard unavailable — evict and fall through to broadcast
+            channelToShardCache.delete(channelId);
+        }
+    }
+
+    localLog(`Broadcasting for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
+
+    // Full broadcast fallback
     const results = await client.shard.broadcastEval((client, context) => {
-        if (client.channels.cache.has(context.channelId)) {
+        if(client.channels.cache.has(context.channelId)) {
             client.skinPeekShardMessageReceived(context.message);
             return true;
         }
         return false;
     }, {context: {message, channelId}});
 
-    return results.some(r => r === true);
+    const matchIndex = results.findIndex(r => r === true);
+    if(matchIndex !== -1) {
+        channelToShardCache.set(channelId, matchIndex); // A4: cache for future deliveries
+        return true;
+    }
+
+    return false;
 }
 
 const receiveShardMessage = async (message) => {

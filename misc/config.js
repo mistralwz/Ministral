@@ -58,6 +58,7 @@ export const loadConfig = (filename="config.json", saveAfterLoad=true) => {
     applyConfig(loadedConfig, "refreshPrices", "*/30 * * * *");
     applyConfig(loadedConfig, "updateUserAgent", "*/15 * * * *");
     applyConfig(loadedConfig, "delayBetweenAlerts", 5 * 1000);
+    applyConfig(loadedConfig, "alertConcurrency", 1); // 1 = sequential (safe default); >1 enables parallel alert checks via p-limit
     applyConfig(loadedConfig, "alertsPerPage", 10);
     applyConfig(loadedConfig, "careerCacheExpiration", 10 * 60 * 1000);
     applyConfig(loadedConfig, "emojiCacheExpiration", 10 * 1000);
