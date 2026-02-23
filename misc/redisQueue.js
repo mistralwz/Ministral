@@ -233,9 +233,10 @@ export const getNextCounter = async () => {
     return await redis.incr(COUNTER_KEY);
 };
 
-// ==================== PUB/SUB FOR ALERTS ====================
+// ==================== PUB/SUB FOR ALERTS AND LOGS ====================
 
 const ALERT_CHANNEL = "skinpeek:alerts";
+const LOGS_CHANNEL = "skinpeek:logs";
 
 // Publish alert to all shards
 export const publishAlert = async (alertData) => {
@@ -255,6 +256,29 @@ export const subscribeToAlerts = async (callback) => {
                 callback(data);
             } catch (e) {
                 localError("Failed to parse alert message:", e);
+            }
+        }
+    });
+};
+
+// Publish logs to all shards
+export const publishLogMessages = async (messages) => {
+    if (!isRedisAvailable()) return;
+    await redis.publish(LOGS_CHANNEL, JSON.stringify(messages));
+};
+
+// Subscribe to logs
+export const subscribeToLogMessages = async (callback) => {
+    if (!subscriber) return;
+
+    await subscriber.subscribe(LOGS_CHANNEL);
+    subscriber.on('message', (channel, message) => {
+        if (channel === LOGS_CHANNEL) {
+            try {
+                const data = JSON.parse(message);
+                callback(data);
+            } catch (e) {
+                localError("Failed to parse log messages:", e);
             }
         }
     });

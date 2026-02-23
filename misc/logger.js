@@ -1,7 +1,7 @@
 import config from "./config.js";
 import { escapeMarkdown } from "discord.js";
 import { client } from "../discord/bot.js";
-import { sendShardMessage } from "./shardMessage.js";
+import { publishLogMessages } from "./redisQueue.js";
 
 const messagesToLog = [];
 
@@ -47,11 +47,8 @@ export const sendConsoleOutput = () => {
         const channel = client.channels.cache.get(config.logToChannel);
 
         if (!channel) {
-            oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Channel not in cache. Broadcasting to other shards...`);
-            sendShardMessage({
-                type: "logMessages",
-                messages: [...messagesToLog]
-            })
+            oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Channel not in cache. Broadcasting via Redis...`);
+            publishLogMessages([...messagesToLog]);
         }
         else if (channel) {
             while (messagesToLog.length) {

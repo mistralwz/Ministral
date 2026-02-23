@@ -1,7 +1,7 @@
 import { checkAlerts, debugCheckAlerts, sendAlert, sendCredentialsExpired, sendDailyShop } from "../discord/alerts.js";
 import { loadConfig } from "./config.js";
 import { client, destroyTasks, scheduleTasks } from "../discord/bot.js";
-import { addMessagesToLog, localLog } from "./logger.js";
+import { localLog } from "./logger.js";
 import { loadSkinsJSON } from "../valorant/cache.js";
 let allShardsReadyCb;
 let allShardsReadyPromise = new Promise(r => allShardsReadyCb = r);
@@ -130,9 +130,7 @@ const receiveShardMessage = async (message) => {
             clearSettingsCache(message.userId);
             break;
         }
-        case "logMessages":
-            addMessagesToLog(message.messages);
-            break;
+
         case "riotVersionData":
             const { setRiotVersionData } = await import("./util.js");
             setRiotVersionData(message.data);

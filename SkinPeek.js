@@ -69,8 +69,8 @@ if (isMainThread) {
 } else {
     // Worker Thread Logic
     const { startBot } = await import("./discord/bot.js");
-    const { loadLogger } = await import("./misc/logger.js");
-    const { initRedis } = await import("./misc/redisQueue.js");
+    const { loadLogger, addMessagesToLog } = await import("./misc/logger.js");
+    const { initRedis, subscribeToLogMessages } = await import("./misc/redisQueue.js");
     const { initUserDatabase } = await import("./misc/userDatabase.js");
 
     const config = loadConfig();
@@ -83,6 +83,7 @@ if (isMainThread) {
         }
 
         initRedis().then(() => {
+            subscribeToLogMessages(addMessagesToLog);
             startBot();
         }).catch(err => {
             console.error("Failed to initialize Redis, cannot start bot without it:", err);
