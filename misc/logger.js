@@ -29,11 +29,11 @@ export const addMessagesToLog = (messages) => {
 
     const channel = client.channels.cache.get(config.logToChannel);
     if (!channel) {
-        // localLog("I'm not the right shard for logging! ignoring log messages")
+        // oldLog(`[Shard ${client.shard.ids[0]}] addMessagesToLog: Ignoring, channel not here.`);
         return;
     }
 
-    // localLog(`Adding ${messages.length} messages to log...`);
+    oldLog(`[Shard ${client.shard.ids[0]}] addMessagesToLog: Received ${messages.length} messages! Adding to queue...`);
 
     messagesToLog.push(...messages);
 }
@@ -42,9 +42,12 @@ export const sendConsoleOutput = () => {
     try {
         if (!client || client.destroyed || !messagesToLog.length) return;
 
+        oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Evaluating ${messagesToLog.length} messages.`);
+
         const channel = client.channels.cache.get(config.logToChannel);
 
         if (!channel) {
+            oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Channel not in cache. Broadcasting to other shards...`);
             sendShardMessage({
                 type: "logMessages",
                 messages: [...messagesToLog]

@@ -255,8 +255,8 @@ export const scheduleTasks = () => {
         startAuthQueue();
     }
 
-    // if send console to discord channel is enabled, send console output (shard 0 only — other shards forward via logMessages)
-    if (config.logToChannel && config.logFrequency && client.shard.ids[0] === 0) {
+    // if send console to discord channel is enabled, send console output (all shards gather logs, process forwarding)
+    if (config.logToChannel && config.logFrequency) {
         cronTasks.push(cron.schedule(config.logFrequency, sendConsoleOutput));
     }
 
