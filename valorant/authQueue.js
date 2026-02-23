@@ -21,12 +21,17 @@ export const Operations = {
     NULL: "00"
 }
 
-let authQueueInterval;
+let authQueueTimeout;
 
 export const startAuthQueue = () => {
-    clearInterval(authQueueInterval);
+    clearTimeout(authQueueTimeout);
     if (config.useLoginQueue) {
-        authQueueInterval = setInterval(processAuthQueue, config.loginQueueInterval);
+        const runNext = async () => {
+            await processAuthQueue();
+            authQueueTimeout = setTimeout(runNext, config.loginQueueInterval);
+        };
+        authQueueTimeout = setTimeout(runNext, config.loginQueueInterval);
+
         // Cleanup stale processing marks every 5 minutes
         setInterval(cleanupStaleProcessing, 5 * 60 * 1000);
     }
