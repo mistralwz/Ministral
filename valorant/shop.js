@@ -48,7 +48,7 @@ export const getShop = async (id, account = null) => {
 
     // shop stats tracking
     try {
-        addStore(user.puuid, json.SkinsPanelLayout.SingleItemOffers);
+        await addStore(user.puuid, json.SkinsPanelLayout.SingleItemOffers);
     } catch (e) {
         console.error("Error adding shop stats!");
         console.error(e);
@@ -74,7 +74,7 @@ export const getOffers = async (id, account = null) => {
     const puuid = getPuuid(id, account);
     if (!puuid) return { success: false, error: "User not found" };
     
-    const shopCache = getShopCache(puuid, "offers");
+    const shopCache = await getShopCache(puuid, "offers");
     if (shopCache) return { success: true, cached: true, ...shopCache.offers };
 
     const resp = await getShop(id, account);
@@ -101,7 +101,7 @@ export const getBundles = async (id, account = null) => {
     const puuid = getPuuid(id, account);
     if (!puuid) return { success: false, error: "User not found" };
     
-    const shopCache = getShopCache(puuid, "bundles");
+    const shopCache = await getShopCache(puuid, "bundles");
     if (shopCache) return { success: true, bundles: shopCache.bundles };
 
     const resp = await getShop(id, account);
@@ -116,7 +116,7 @@ export const getNightMarket = async (id, account = null) => {
     const puuid = getPuuid(id, account);
     if (!puuid) return { success: false, error: "User not found" };
     
-    const shopCache = getShopCache(puuid, "night_market");
+    const shopCache = await getShopCache(puuid, "night_market");
     if (shopCache) return { success: true, ...shopCache.night_market };
 
     const resp = await getShop(id, account);
@@ -213,16 +213,28 @@ export let NMTimestamp = null;
  * }
  */
 
-export const getShopCache = (puuid, target = "offers", print = true) => {
+export const getShopCache = async (puuid, target = "offers", print = true) => {
     if (!config.useShopCache) return null;
 
     try {
-        // Try in-memory cache first, fall back to disk
+        // L1: in-memory cache
         let shopCache = memoryShopCache.get(puuid);
+
         if (!shopCache) {
+            // L2: Redis cache (cross-shard)
+            const {getShopData} = await import("../misc/redisQueue.js");
+            const redisCache = await getShopData(puuid);
+            if (redisCache) {
+                memoryShopCache.set(puuid, redisCache); // warm L1
+                shopCache = redisCache;
+            }
+        }
+
+        if (!shopCache) {
+            // L3: disk fallback (legacy)
             try {
                 shopCache = JSON.parse(fs.readFileSync("data/shopCache/" + puuid + ".json", "utf8"));
-                memoryShopCache.set(puuid, shopCache); // warm the memory cache
+                memoryShopCache.set(puuid, shopCache); // warm L1
             } catch (e) {
                 return null;
             }
@@ -252,7 +264,7 @@ export const getShopCache = (puuid, target = "offers", print = true) => {
     return null;
 }
 
-const addShopCache = (puuid, shopJson) => {
+const addShopCache = async (puuid, shopJson) => {
     if (!config.useShopCache) return;
 
     const now = Date.now();
@@ -283,10 +295,14 @@ const addShopCache = (puuid, shopJson) => {
 
     if (shopJson.BonusStore) NMTimestamp = now
 
-    // Store in memory first (fast path for subsequent reads)
+    // L1: in-memory
     memoryShopCache.set(puuid, shopCache);
 
-    // Persist to disk asynchronously (non-blocking)
+    // L2: Redis (primary, cross-shard)
+    const {setShopData} = await import("../misc/redisQueue.js");
+    setShopData(puuid, shopCache).catch(e => console.error(`Failed to write shop to Redis for ${puuid}:`, e.message));
+
+    // L3: disk (legacy fallback)
     if (!fs.existsSync("data/shopCache")) fs.mkdirSync("data/shopCache");
     fs.writeFile("data/shopCache/" + puuid + ".json", JSON.stringify(shopCache, null, 2), (err) => {
         if (err) console.error(`Failed to write shop cache for ${puuid}:`, err.message);

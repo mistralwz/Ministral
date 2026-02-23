@@ -1,5 +1,6 @@
 import config from "./config.js";
 import fs from "fs";
+import {client} from "../discord/bot.js";
 
 let stats = {
     fileVersion: 2,
@@ -38,6 +39,7 @@ const saveStats = (filename="data/stats.json") => {
 }
 
 const debouncedSaveStats = () => {
+    if(client.shard && client.shard.ids[0] !== 0) return; // shard 0 only
     statsDirty = true;
     if(saveDebounceTimer) return; // already scheduled
     saveDebounceTimer = setTimeout(() => {
@@ -105,12 +107,40 @@ export const getStatsFor = (uuid) => {
     }
 }
 
-export const addStore = (puuid, items) => {
+export const addStore = async (puuid, items) => {
     if(!config.trackStoreStats) return;
 
-    loadStats();
-
     const today = formatDate(new Date());
+
+    // Try Redis first: atomic cross-shard dedup via SADD
+    const {statsAddStore, isRedisAvailable} = await import("./redisQueue.js");
+    if(isRedisAvailable()) {
+        const isNew = await statsAddStore(puuid, items, today);
+        if(isNew === false) return; // already counted today (cross-shard dedup)
+        if(isNew === true) {
+            // Update in-memory state for same-shard reads
+            loadStats();
+            let todayStats = stats.stats[today];
+            if(!todayStats) {
+                todayStats = { shopsIncluded: 0, items: {}, users: [] };
+                stats.stats[today] = todayStats;
+            }
+            if(!todayStats.users.includes(puuid)) {
+                todayStats.users.push(puuid);
+                for(const item of items) {
+                    todayStats.items[item] = (todayStats.items[item] || 0) + 1;
+                }
+                todayStats.shopsIncluded++;
+            }
+            debouncedSaveStats(); // no-op on non-zero shards
+            calculateOverallStats();
+            return;
+        }
+        // isNew === null: Redis unavailable, fall through to disk-based approach
+    }
+
+    // Fallback: disk-based approach (Redis unavailable)
+    loadStats();
 
     let todayStats = stats.stats[today];
     if(!todayStats) {

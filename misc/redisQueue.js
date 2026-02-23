@@ -328,6 +328,56 @@ export const getRateLimit = async (url) => {
     }
 };
 
+// ==================== STATS OPERATIONS ====================
+
+const STATS_PREFIX = "skinpeek:stats:";
+const STATS_TTL = 72 * 3600; // 3 days
+
+/**
+ * Atomically record a shop visit for stats tracking.
+ * Returns true if newly counted, false if already counted today, null if Redis unavailable.
+ */
+export const statsAddStore = async (puuid, items, date) => {
+    if (!isRedisAvailable()) return null;
+
+    const usersKey = `${STATS_PREFIX}${date}:users`;
+    const isNew = await redis.sadd(usersKey, puuid);
+    if (!isNew) return false; // already counted today
+
+    const pipeline = redis.pipeline();
+    pipeline.incr(`${STATS_PREFIX}${date}:shops`);
+    for (const item of items) {
+        pipeline.hincrby(`${STATS_PREFIX}${date}:items`, item, 1);
+    }
+    pipeline.expire(usersKey, STATS_TTL);
+    pipeline.expire(`${STATS_PREFIX}${date}:shops`, STATS_TTL);
+    pipeline.expire(`${STATS_PREFIX}${date}:items`, STATS_TTL);
+    await pipeline.exec();
+    return true;
+};
+
+// ==================== SHOP DATA CACHE ====================
+
+const SHOPDATA_PREFIX = "skinpeek:shopdata:";
+const SHOPDATA_TTL = 25 * 3600; // 25 hours (slightly more than daily shop reset)
+
+export const setShopData = async (puuid, shopCache) => {
+    if (!isRedisAvailable()) return;
+    await redis.setex(`${SHOPDATA_PREFIX}${puuid}`, SHOPDATA_TTL, JSON.stringify(shopCache));
+};
+
+export const getShopData = async (puuid) => {
+    if (!isRedisAvailable()) return null;
+    const data = await redis.get(`${SHOPDATA_PREFIX}${puuid}`);
+    if (!data) return null;
+    try { return JSON.parse(data); } catch(e) { return null; }
+};
+
+export const deleteShopData = async (puuid) => {
+    if (!isRedisAvailable()) return;
+    try { await redis.del(`${SHOPDATA_PREFIX}${puuid}`); } catch(e) {}
+};
+
 // ==================== HEALTH CHECK ====================
 
 export const redisHealthCheck = async () => {

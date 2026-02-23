@@ -16,6 +16,7 @@ import {client} from "./bot.js";
 import config from "../misc/config.js";
 import {l, s} from "../misc/languages.js";
 import {readUserJson, saveUser} from "../valorant/accountSwitcher.js";
+import {beginBatchWrites, commitBatchWrites} from "../misc/userDatabase.js";
 import {sendShardMessage, sendShardMessageForChannel} from "../misc/shardMessage.js";
 import {VPEmoji} from "./emoji.js";
 import {getSetting} from "../misc/settings.js";
@@ -29,9 +30,9 @@ import { ActionRowBuilder } from "discord.js";
  */
 
 // Channel validation cache: Map<channelId, {canAccess: boolean, timestamp: number}>
-// Cache expires after 5 minutes to ensure we recheck permissions periodically
+// Short TTL so stale cross-shard entries (e.g. bot kicked from a guild) expire quickly.
 const channelAccessCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 60 * 1000; // 1 minute
 
 export const canAccessChannel = async (channelId) => {
     // Check cache first
@@ -137,6 +138,8 @@ export const removeAlert = (id, uuid) => {
     return alertCount > user.alerts.length;
 }
 
+const ALERT_BATCH_SIZE = 50;
+
 export const checkAlerts = async () => {
     if(client.shard && !client.shard.ids.includes(0)) return; // only run on the first shard
 
@@ -144,99 +147,113 @@ export const checkAlerts = async () => {
 
     try {
         let shouldWait = false;
+        const userList = getAlertUserList();
 
-        for(const id of getAlertUserList()) {
+        // Process users in batches of ALERT_BATCH_SIZE.
+        // Each batch is flushed as a single SQLite transaction, reducing write contention.
+        let batchStart = 0;
+        while(batchStart < userList.length) {
+            const batchEnd = Math.min(batchStart + ALERT_BATCH_SIZE, userList.length);
+            beginBatchWrites();
             try {
-                let credsExpiredAlerts = false;
+                for(let j = batchStart; j < batchEnd; j++) {
+                    const id = userList[j];
+                    try {
+                        let credsExpiredAlerts = false;
 
-                // Start a user-cache scope for this user's entire check cycle
-                beginUserCacheScope();
+                        // Start a user-cache scope for this user's entire check cycle
+                        beginUserCacheScope();
 
-                const userJson = readUserJson(id);
-                if(!userJson) continue;
+                        const userJson = readUserJson(id);
+                        if(!userJson) continue;
 
-                const accountCount = userJson.accounts.length;
-                for(let i = 1; i <= accountCount; i++) {
+                        const accountCount = userJson.accounts.length;
+                        for(let i = 1; i <= accountCount; i++) {
 
-                    const rawUserAlerts = alertsForUser(id, i);
-                    const dailyShopChannel = getSetting(id, "dailyShop");
-                    if(!rawUserAlerts?.length && !dailyShopChannel) continue;
-                    if(!rawUserAlerts?.length && dailyShopChannel && i !== userJson.currentAccount) continue;
+                            const rawUserAlerts = alertsForUser(id, i);
+                            const dailyShopChannel = getSetting(id, "dailyShop");
+                            if(!rawUserAlerts?.length && !dailyShopChannel) continue;
+                            if(!rawUserAlerts?.length && dailyShopChannel && i !== userJson.currentAccount) continue;
 
-                    if(shouldWait) {
-                        await wait(config.delayBetweenAlerts); // to prevent being ratelimited
-                        shouldWait = false;
-                    }
-
-                    const valorantUser = getUser(id, i);
-                    const discordUser = client.users.cache.get(id);
-                    const discordUsername = discordUser ? discordUser.username : id;
-                    console.log(`Checking user ${discordUsername}'s ${valorantUser.username} account (${i}/${accountCount}) for alerts...`);
-
-                    const userAlerts = removeDupeAlerts(rawUserAlerts);
-                    if(userAlerts.length !== rawUserAlerts.length) {
-                        valorantUser.alerts = userAlerts;
-                        saveUser(valorantUser, i);
-                        invalidateUserCache(id);
-                    }
-
-                    let offers;
-                    do { // retry loop in case of rate limit or maintenance
-                        offers = await getOffers(id, i);
-                        shouldWait = valorantUser.auth && !offers.cached;
-
-                        if(!offers.success) {
-                            if(offers.maintenance) {
-                                console.log("Valorant servers are under maintenance, waiting 15min before continuing alert checks...");
-                                await wait(15 * 60 * 1000);
+                            if(shouldWait) {
+                                await wait(config.delayBetweenAlerts); // to prevent being ratelimited
+                                shouldWait = false;
                             }
 
-                            else if(offers.rateLimit) {
-                                const waitMs = offers.rateLimit - Date.now();
-                                console.error(`I got ratelimited while checking alerts for user ${id} #${i} for ${Math.floor(waitMs / 1000)}s!`);
-                                await wait(waitMs);
+                            const valorantUser = getUser(id, i);
+                            const discordUser = client.users.cache.get(id);
+                            const discordUsername = discordUser ? discordUser.username : id;
+                            console.log(`Checking user ${discordUsername}'s ${valorantUser.username} account (${i}/${accountCount}) for alerts...`);
+
+                            const userAlerts = removeDupeAlerts(rawUserAlerts);
+                            if(userAlerts.length !== rawUserAlerts.length) {
+                                valorantUser.alerts = userAlerts;
+                                saveUser(valorantUser, i);
+                                invalidateUserCache(id);
                             }
 
-                            else {
-                                if(!credsExpiredAlerts) {
-                                    if(valorantUser.authFailures < config.authFailureStrikes) {
-                                        valorantUser.authFailures++;
-                                        credsExpiredAlerts = userAlerts;
+                            let offers;
+                            do { // retry loop in case of rate limit or maintenance
+                                offers = await getOffers(id, i);
+                                shouldWait = valorantUser.auth && !offers.cached;
+
+                                if(!offers.success) {
+                                    if(offers.maintenance) {
+                                        console.log("Valorant servers are under maintenance, waiting 15min before continuing alert checks...");
+                                        await wait(15 * 60 * 1000);
+                                    }
+
+                                    else if(offers.rateLimit) {
+                                        const waitMs = offers.rateLimit - Date.now();
+                                        console.error(`I got ratelimited while checking alerts for user ${id} #${i} for ${Math.floor(waitMs / 1000)}s!`);
+                                        await wait(waitMs);
+                                    }
+
+                                    else {
+                                        if(!credsExpiredAlerts) {
+                                            if(valorantUser.authFailures < config.authFailureStrikes) {
+                                                valorantUser.authFailures++;
+                                                credsExpiredAlerts = userAlerts;
+                                            }
+                                        }
+
+                                        deleteUserAuth(valorantUser);
+                                        invalidateUserCache(id);
+                                        break;
                                     }
                                 }
 
-                                deleteUserAuth(valorantUser);
-                                invalidateUserCache(id);
-                                break;
+                            } while(!offers.success);
+
+                            if(offers.success && offers.offers) {
+                                if(dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, valorantUser);
+
+                                const positiveAlerts = userAlerts.filter(alert => offers.offers.includes(alert.uuid));
+                                if(positiveAlerts.length) await sendAlert(id, i, positiveAlerts, offers.expires);
                             }
                         }
 
-                    } while(!offers.success);
-
-                    if(offers.success && offers.offers) {
-                        if(dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, valorantUser);
-
-                        const positiveAlerts = userAlerts.filter(alert => offers.offers.includes(alert.uuid));
-                        if(positiveAlerts.length) await sendAlert(id, i, positiveAlerts, offers.expires);
-                    }
-                }
-
-                if(credsExpiredAlerts) {
-                    // user login is invalid
-                    const channelsSent = [];
-                    for(const alert of credsExpiredAlerts) {
-                        if(!channelsSent.includes(alert.channel_id)) {
-                            await sendCredentialsExpired(id, alert);
-                            channelsSent.push(alert.channel_id);
+                        if(credsExpiredAlerts) {
+                            // user login is invalid
+                            const channelsSent = [];
+                            for(const alert of credsExpiredAlerts) {
+                                if(!channelsSent.includes(alert.channel_id)) {
+                                    await sendCredentialsExpired(id, alert);
+                                    channelsSent.push(alert.channel_id);
+                                }
+                            }
                         }
+                    } catch(e) {
+                        console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
+                        console.error(e);
+                    } finally {
+                        endUserCacheScope();
                     }
                 }
-            } catch(e) {
-                console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
-                console.error(e);
             } finally {
-                endUserCacheScope();
+                commitBatchWrites(); // flush this batch in one SQLite transaction
             }
+            batchStart = batchEnd;
         }
 
         console.log("Finished checking alerts!");

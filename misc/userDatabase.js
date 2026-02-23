@@ -8,6 +8,10 @@ let db = null;
 let stmts = {};
 let saveUserToDbInTransaction = null;
 
+// Batch write state: accumulate user saves and flush in one transaction
+let batchMode = false;
+let batchQueue = new Map(); // userId -> user (last write wins per user)
+
 const safeJsonParse = (value, fallback, context) => {
     try {
         return JSON.parse(value);
@@ -156,6 +160,11 @@ const saveUserToDbTransaction = (user) => {
 };
 
 export const saveUserToDb = (user) => {
+    if (batchMode) {
+        // Buffer the write; last mutation wins if the same user is saved twice
+        batchQueue.set(user.id, user);
+        return;
+    }
     // If already inside a transaction (e.g. runUserDbTransaction), just run directly.
     // Otherwise wrap in a transaction so multiple account upserts share one fsync.
     if (db.inTransaction) {
@@ -163,6 +172,39 @@ export const saveUserToDb = (user) => {
     } else {
         saveUserToDbInTransaction(user);
     }
+};
+
+/**
+ * Begin accumulating saveUserToDb calls into a buffer.
+ * Call commitBatchWrites() to flush them all in a single transaction.
+ */
+export const beginBatchWrites = () => {
+    batchMode = true;
+    batchQueue.clear();
+};
+
+/**
+ * Flush all buffered user saves in a single SQLite transaction, then exit batch mode.
+ * Safe to call even if beginBatchWrites was not called (no-op).
+ */
+export const commitBatchWrites = () => {
+    if (!batchMode) return;
+    batchMode = false;
+
+    if (batchQueue.size === 0) {
+        batchQueue.clear();
+        return;
+    }
+
+    const users = Array.from(batchQueue.values());
+    batchQueue.clear();
+
+    const batchTransaction = db.transaction(() => {
+        for (const user of users) {
+            saveUserToDbTransaction(user);
+        }
+    });
+    batchTransaction();
 };
 
 export const deleteUserFromDb = (id) => {
