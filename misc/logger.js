@@ -33,7 +33,7 @@ export const addMessagesToLog = (messages) => {
         return;
     }
 
-    oldLog(`[Shard ${client.shard.ids[0]}] addMessagesToLog: Received ${messages.length} messages! Adding to queue...`);
+    // oldLog(`[Shard ${client.shard.ids[0]}] addMessagesToLog: Received ${messages.length} messages! Adding to queue...`);
 
     messagesToLog.push(...messages);
 }
@@ -42,12 +42,12 @@ export const sendConsoleOutput = () => {
     try {
         if (!client || client.destroyed || !messagesToLog.length) return;
 
-        oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Evaluating ${messagesToLog.length} messages.`);
+        // oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Evaluating ${messagesToLog.length} messages.`);
 
         const channel = client.channels.cache.get(config.logToChannel);
 
         if (!channel) {
-            oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Channel not in cache. Broadcasting via Redis...`);
+            // oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Channel not in cache. Broadcasting via Redis...`);
             publishLogMessages([...messagesToLog]);
         }
         else if (channel) {

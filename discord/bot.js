@@ -517,7 +517,7 @@ client.on("messageCreate", async (message) => {
 
             await message.reply("Deployed in guild!");
         } else if (content === "!deploy global") {
-            console.log("Deploying commands globally (guild + user installs)...");
+            console.log("Deploying commands globally + user installs...");
 
             await client.application.commands.set(globalCommands).then(() => console.log("Commands deployed globally (guild + user installs)!"));
 
@@ -812,8 +812,6 @@ client.on("interactionCreate", async (interaction) => {
 
                     const message = await fetchBundles(interaction);
                     await interaction.followUp(message);
-
-                    console.log(`Sent ${interaction.user.tag}'s bundle(s)!`);
 
                     break;
                 }
@@ -1394,7 +1392,6 @@ client.on("interactionCreate", async (interaction) => {
         }
     } else if (interaction.isStringSelectMenu()) {
         try {
-            console.log(`${interaction.user.tag} selected an option from the dropdown with id ${interaction.customId}`);
             let selectType = interaction.customId;
             if (interaction.values[0].startsWith("levels") || interaction.values[0].startsWith("chromas")) selectType = "get-level-video"
             switch (selectType) {

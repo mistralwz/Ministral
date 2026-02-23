@@ -18,8 +18,6 @@ export const areAllShardsReady = () => {
 export const sendShardMessage = async (message) => {
     await allShardsReadyPromise;
 
-    if (message.type !== "logMessages") localLog(`Sending message to other shards: ${JSON.stringify(message).substring(0, 100)}`);
-
     // I know this is a weird way of doing this, but trust me
     // client.shard.send() did not want to work for the life of me
     // and this solution seems to work, so should be fine lol
