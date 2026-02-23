@@ -191,7 +191,7 @@ client.on("clientReady", async () => {
     console.log("Loading skins...");
     fetchData().then(() => console.log("Skins loaded!"));
 
-    if (!client.shard || client.shard.ids[0] === 0) {
+    if (client.shard.ids[0] === 0) {
         // Shard 0 warms the emoji cache and broadcasts the snapshot to all other shards
         warmEmojiCache().then(async (snapshot) => {
             if (snapshot) {
@@ -1325,19 +1325,11 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 case "info": {
                     let guildCount, userCount;
-                    if (client.shard) {
-                        const guildCounts = await client.shard.fetchClientValues('guilds.cache.size');
-                        guildCount = guildCounts.reduce((acc, guildCount) => acc + guildCount, 0);
+                    const guildCounts = await client.shard.fetchClientValues('guilds.cache.size');
+                    guildCount = guildCounts.reduce((acc, guildCount) => acc + guildCount, 0);
 
-                        const userCounts = await client.shard.broadcastEval(c => c.guilds.cache.reduce((acc, guild) => acc + (guild.memberCount || 0), 0));
-                        userCount = userCounts.reduce((acc, guildCount) => acc + guildCount, 0);
-                    } else {
-                        guildCount = client.guilds.cache.size;
-
-                        userCount = 0;
-                        for (const guild of client.guilds.cache.values())
-                            userCount += (guild.memberCount || 0);
-                    }
+                    const userCounts = await client.shard.broadcastEval(c => c.guilds.cache.reduce((acc, guild) => acc + (guild.memberCount || 0), 0));
+                    userCount = userCounts.reduce((acc, guildCount) => acc + guildCount, 0);
 
                     const registeredUserCount = getUserList().length;
 
