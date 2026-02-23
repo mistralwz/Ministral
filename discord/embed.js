@@ -111,12 +111,13 @@ export const renderOffers = async (shop, interaction, valorantUser, VPemoji, oth
 
     const embeds = [headerEmbed(headerText)];
 
-    for (const uuid of shop.offers) {
+    const embedPromises = shop.offers.map(async (uuid) => {
         const skin = await getSkin(uuid);
         const price = isDefaultSkin(skin) ? "0" : skin.price; // force render price for defaults
-        const embed = await skinEmbed(skin, price, interaction, VPemoji);
-        embeds.push(embed);
-    }
+        return await skinEmbed(skin, price, interaction, VPemoji);
+    });
+
+    embeds.push(...await Promise.all(embedPromises));
 
     // show notice if there is one
     if (config.notice && valorantUser) {
@@ -361,14 +362,15 @@ export const renderNightMarket = async (market, interaction, valorantUser, emoji
         color: VAL_COLOR_3
     }];
 
-    for (const offer of market.offers) {
+    const embedPromises = market.offers.map(async (offer) => {
         const skin = await getSkin(offer.uuid);
 
         const embed = await skinEmbed(skin, skin.price, interaction, emoji);
         embed.description = `${emoji} **${offer.nmPrice}**\n${emoji} ~~${offer.realPrice}~~ (-${offer.percent}%)`;
+        return embed;
+    });
 
-        embeds.push(embed);
-    }
+    embeds.push(...await Promise.all(embedPromises));
 
     const components = switchAccountButtons(interaction, "nm", true);
 
@@ -658,33 +660,33 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout
         inline: true
     }
 
-    const fields = [
-        await createField(WeaponTypeUuid.Vandal),
-        await createField(WeaponTypeUuid.Phantom),
-        await createField(WeaponTypeUuid.Operator),
+    const fields = await Promise.all([
+        createField(WeaponTypeUuid.Vandal),
+        createField(WeaponTypeUuid.Phantom),
+        createField(WeaponTypeUuid.Operator),
 
-        await createField(WeaponTypeUuid.Knife),
-        await createField(WeaponTypeUuid.Sheriff),
-        await createField(WeaponTypeUuid.Spectre),
+        createField(WeaponTypeUuid.Knife),
+        createField(WeaponTypeUuid.Sheriff),
+        createField(WeaponTypeUuid.Spectre),
 
-        await createField(WeaponTypeUuid.Classic),
-        await createField(WeaponTypeUuid.Ghost),
-        await createField(WeaponTypeUuid.Frenzy),
+        createField(WeaponTypeUuid.Classic),
+        createField(WeaponTypeUuid.Ghost),
+        createField(WeaponTypeUuid.Frenzy),
 
-        await createField(WeaponTypeUuid.Bulldog),
-        await createField(WeaponTypeUuid.Guardian),
-        await createField(WeaponTypeUuid.Marshal),
+        createField(WeaponTypeUuid.Bulldog),
+        createField(WeaponTypeUuid.Guardian),
+        createField(WeaponTypeUuid.Marshal),
 
-        await createField(WeaponTypeUuid.Outlaw),
+        createField(WeaponTypeUuid.Outlaw),
 
-        await createField(WeaponTypeUuid.Stinger),
-        await createField(WeaponTypeUuid.Ares),
-        await createField(WeaponTypeUuid.Odin),
+        createField(WeaponTypeUuid.Stinger),
+        createField(WeaponTypeUuid.Ares),
+        createField(WeaponTypeUuid.Odin),
 
-        await createField(WeaponTypeUuid.Shorty),
-        await createField(WeaponTypeUuid.Bucky),
-        await createField(WeaponTypeUuid.Judge),
-    ]
+        createField(WeaponTypeUuid.Shorty),
+        createField(WeaponTypeUuid.Bucky),
+        createField(WeaponTypeUuid.Judge),
+    ]);
 
     const emoji = await VPEmoji(interaction);
     fields.push(emptyField, {
@@ -773,9 +775,8 @@ export const skinCollectionPageEmbed = async (interaction, id, user, { loadout, 
     else usernameText = user.username;
 
     const embeds = [basicEmbed(s(interaction).info.COLLECTION_HEADER.f({ u: usernameText }, id))];
-    for (const weapon of pages[pageIndex]) {
-        embeds.push(await createEmbed(weapon));
-    }
+    const pageEmbedPromises = pages[pageIndex].map(weapon => createEmbed(weapon));
+    embeds.push(...await Promise.all(pageEmbedPromises));
 
     const firstRowButtons = [collectionSwitchEmbedButton(interaction, false, id)];
     firstRowButtons.push(...(pageButtons("clpage", id, pageIndex, pages.length).components))

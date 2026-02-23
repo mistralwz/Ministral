@@ -69,6 +69,8 @@ import {
     fetch,
     calcLength,
     fetchRiotVersionData,
+    deferInteraction,
+    updateInteraction
 } from "../misc/util.js";
 import config, { loadConfig, saveConfig } from "../misc/config.js";
 import { localError, localLog, sendConsoleOutput } from "../misc/logger.js";
@@ -1403,11 +1405,13 @@ client.on("interactionCreate", async (interaction) => {
                         });
                     }
 
+                    await deferInteraction(interaction);
+
                     const chosenSkin = interaction.values[0].substr(5);
                     const skin = await getSkin(chosenSkin);
 
                     const otherAlert = alertExists(interaction.user.id, chosenSkin);
-                    if (otherAlert) return await interaction.reply({
+                    if (otherAlert) return await interaction.followUp({
                         embeds: [basicEmbed(s(interaction).error.DUPLICATE_ALERT.f({ s: await skinNameAndEmoji(skin, interaction.channel, interaction), c: otherAlert.channel_id }))],
                         components: [removeAlertActionRow(interaction.user.id, otherAlert.uuid, s(interaction).info.REMOVE_ALERT_BUTTON)],
                         flags: [MessageFlags.Ephemeral]
@@ -1416,7 +1420,7 @@ client.on("interactionCreate", async (interaction) => {
                     // Check if we can access the channel before adding the alert
                     const canAccess = await canAccessChannel(interaction.channelId);
                     if (!canAccess) {
-                        return await interaction.reply({
+                        return await interaction.followUp({
                             embeds: [basicEmbed(s(interaction).error.ALERT_NO_PERMS)],
                             flags: [MessageFlags.Ephemeral]
                         });
@@ -1428,7 +1432,7 @@ client.on("interactionCreate", async (interaction) => {
                         channel_id: interaction.channelId
                     });
 
-                    await interaction.update({
+                    await updateInteraction(interaction, {
                         embeds: [await skinChosenEmbed(interaction, skin)],
                         components: [removeAlertActionRow(interaction.user.id, chosenSkin, s(interaction).info.REMOVE_ALERT_BUTTON)]
                     });
@@ -1443,11 +1447,13 @@ client.on("interactionCreate", async (interaction) => {
                         });
                     }
 
+                    await deferInteraction(interaction);
+
                     const chosenSkin = interaction.values[0].substr(5);
                     const skin = await getSkin(chosenSkin);
                     const stats = getStatsFor(chosenSkin);
 
-                    await interaction.update({
+                    await updateInteraction(interaction, {
                         embeds: [await statsForSkinEmbed(skin, stats, interaction)],
                         components: []
                     });
@@ -1462,6 +1468,8 @@ client.on("interactionCreate", async (interaction) => {
                         });
                     }
 
+                    await deferInteraction(interaction);
+
                     const chosenBundle = interaction.values[0].substring(7);
                     const bundle = await getBundle(chosenBundle);
 
@@ -1469,7 +1477,7 @@ client.on("interactionCreate", async (interaction) => {
                     const emoji = await VPEmoji(interaction, channel);
                     const message = await renderBundle(bundle, interaction, emoji);
 
-                    await interaction.update(message);
+                    await updateInteraction(interaction, message);
 
                     break;
                 }
@@ -1478,6 +1486,8 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "select-skin-with-level": {
+                    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
                     let skinUuid = interaction.values[0];
                     let skin = await getSkin(skinUuid);
                     const levelSelector = new StringSelectMenuBuilder()
@@ -1512,10 +1522,12 @@ client.on("interactionCreate", async (interaction) => {
                                 .setValue(`chromas/${chromas.uuid}/${skinUuid}`))
                     }
 
-                    await interaction.reply({ components: [new ActionRowBuilder().addComponents(levelSelector)], flags: [MessageFlags.Ephemeral] })
+                    await interaction.editReply({ components: [new ActionRowBuilder().addComponents(levelSelector)] })
                     break;
                 }
                 case "get-level-video": {
+                    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
                     const [type, uuid, skinUuid] = interaction.values[0].split('/');
                     const rawSkin = await getSkin(skinUuid);
                     const skin = rawSkin[type].filter(x => x.uuid === uuid);
@@ -1524,7 +1536,7 @@ client.on("interactionCreate", async (interaction) => {
                     // Use direct video/image links
                     const link = skin[0].streamedVideo || skin[0].displayIcon;
 
-                    await interaction.reply({ content: `\u200b[${name}](${link})`, flags: [MessageFlags.Ephemeral] })
+                    await interaction.editReply({ content: `\u200b[${name}](${link})` })
                 }
             }
         } catch (e) {
@@ -1572,8 +1584,10 @@ client.on("interactionCreate", async (interaction) => {
                     flags: [MessageFlags.Ephemeral]
                 });
 
+                await deferInteraction(interaction);
+
                 const emojiString = await VPEmoji(interaction);
-                await interaction.update(await alertsPageEmbed(interaction, await filteredAlertsForUser(interaction), parseInt(pageIndex), emojiString));
+                await updateInteraction(interaction, await alertsPageEmbed(interaction, await filteredAlertsForUser(interaction), parseInt(pageIndex), emojiString));
             } else if (interaction.customId.startsWith("changestatspage")) {
                 const [, id, pageIndex] = interaction.customId.split('/');
 
@@ -1582,7 +1596,9 @@ client.on("interactionCreate", async (interaction) => {
                     flags: [MessageFlags.Ephemeral]
                 });
 
-                await interaction.update(await allStatsEmbed(interaction, await getOverallStats(), parseInt(pageIndex)));
+                await deferInteraction(interaction);
+
+                await updateInteraction(interaction, await allStatsEmbed(interaction, await getOverallStats(), parseInt(pageIndex)));
             } else if (interaction.customId.startsWith("clpage")) {
                 const [, id, pageIndex] = interaction.customId.split('/');
 
@@ -1590,10 +1606,12 @@ client.on("interactionCreate", async (interaction) => {
                 if (id !== interaction.user.id) user = getUser(id);
                 else user = valorantUser;
 
-                const loadoutResponse = await getLoadout(user);
-                if (!loadoutResponse.success) return await interaction.reply(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                await deferInteraction(interaction);
 
-                await interaction.update(await skinCollectionPageEmbed(interaction, id, user, loadoutResponse, parseInt(pageIndex)));
+                const loadoutResponse = await getLoadout(user);
+                if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+
+                await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, id, user, loadoutResponse, parseInt(pageIndex)));
             } else if (interaction.customId.startsWith("clswitch")) {
                 const [, switchTo, id] = interaction.customId.split('/');
                 const switchToPage = switchTo === "p";
@@ -1602,11 +1620,13 @@ client.on("interactionCreate", async (interaction) => {
                 if (id !== interaction.user.id) user = getUser(id);
                 else user = valorantUser;
 
-                const loadoutResponse = await getLoadout(user);
-                if (!loadoutResponse.success) return await interaction.reply(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                await deferInteraction(interaction);
 
-                if (switchToPage) await interaction.update(await skinCollectionPageEmbed(interaction, id, user, loadoutResponse));
-                else await interaction.update(await skinCollectionSingleEmbed(interaction, id, user, loadoutResponse));
+                const loadoutResponse = await getLoadout(user);
+                if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+
+                if (switchToPage) await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, id, user, loadoutResponse));
+                else await updateInteraction(interaction, await skinCollectionSingleEmbed(interaction, id, user, loadoutResponse));
             } else if (interaction.customId.startsWith("clwpage")) {
                 const [, weaponTypeIndex, id, pageIndex] = interaction.customId.split('/');
                 const weaponType = Object.values(WeaponTypeUuid)[parseInt(weaponTypeIndex)];
@@ -1615,10 +1635,12 @@ client.on("interactionCreate", async (interaction) => {
                 if (id !== interaction.user.id) user = getUser(id);
                 else user = valorantUser;
 
-                const skinsResponse = await getSkins(user);
-                if (!skinsResponse.success) return await interaction.reply(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                await deferInteraction(interaction);
 
-                await interaction.update(await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, parseInt(pageIndex)));
+                const skinsResponse = await getSkins(user);
+                if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+
+                await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, parseInt(pageIndex)));
             } else if (interaction.customId.startsWith("clwswitch")) {
                 const [, weaponTypeIndex, switchTo, id] = interaction.customId.split('/');
                 const weaponType = Object.values(WeaponTypeUuid)[parseInt(weaponTypeIndex)];
@@ -1628,11 +1650,13 @@ client.on("interactionCreate", async (interaction) => {
                 if (id !== interaction.user.id) user = getUser(id);
                 else user = valorantUser;
 
-                const skinsResponse = await getSkins(user);
-                if (!skinsResponse.success) return await interaction.reply(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                await deferInteraction(interaction);
 
-                if (switchToPage) await interaction.update(await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins));
-                else await interaction.update(await singleWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins));
+                const skinsResponse = await getSkins(user);
+                if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+
+                if (switchToPage) await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins));
+                else await updateInteraction(interaction, await singleWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins));
             } else if (interaction.customId.startsWith("viewbundle")) {
                 const [, id, uuid] = interaction.customId.split('/');
 
@@ -1641,9 +1665,11 @@ client.on("interactionCreate", async (interaction) => {
                     flags: [MessageFlags.Ephemeral]
                 });
 
+                await deferInteraction(interaction);
+
                 const bundle = await getBundle(uuid);
                 const emoji = await VPEmoji(interaction);
-                await interaction.update({
+                await updateInteraction(interaction, {
                     components: [],
                     ...await renderBundle(bundle, interaction, emoji),
                 });
@@ -1781,14 +1807,14 @@ client.on("interactionCreate", async (interaction) => {
                 // Cancel any running poller — we're about to refresh manually
                 cancelLiveGamePoller(interaction.user.id);
 
-                await interaction.deferUpdate();
+                await deferInteraction(interaction);
 
                 const liveGameData = await fetchLiveGame(interaction.user.id);
                 const payload = liveGameData.success
                     ? await renderLiveGame(liveGameData, interaction.user.id, !interaction.guild, interaction.channel)
                     : renderLiveGameError(liveGameData, interaction.user.id);
 
-                await interaction.editReply(payload);
+                await updateInteraction(interaction, payload);
 
                 // Restart poller if still in agent select
                 if (liveGameData.success && liveGameData.state === "pregame") {
@@ -1854,10 +1880,16 @@ client.on("interactionCreate", async (interaction) => {
                 }
 
                 switch (pageId) {
-                    case "clpage": clpage(); break;
-                    case "clwpage": clwpage(); break;
-                    case "changealertspage": await interaction.update(await alertsPageEmbed(interaction, await filteredAlertsForUser(interaction), parseInt(pageIndex - 1), await VPEmoji(interaction))); break;
-                    case "changestatspage": await interaction.update(await allStatsEmbed(interaction, await getOverallStats(), parseInt(pageIndex - 1))); break;
+                    case "clpage": await clpage(); break;
+                    case "clwpage": await clwpage(); break;
+                    case "changealertspage":
+                        await deferInteraction(interaction);
+                        await updateInteraction(interaction, await alertsPageEmbed(interaction, await filteredAlertsForUser(interaction), parseInt(pageIndex - 1), await VPEmoji(interaction)));
+                        break;
+                    case "changestatspage":
+                        await deferInteraction(interaction);
+                        await updateInteraction(interaction, await allStatsEmbed(interaction, await getOverallStats(), parseInt(pageIndex - 1)));
+                        break;
                 }
 
                 async function clpage() {
@@ -1865,10 +1897,12 @@ client.on("interactionCreate", async (interaction) => {
                     if (userId !== interaction.user.id) user = getUser(userId);
                     else user = valorantUser;
 
-                    const loadoutResponse = await getLoadout(user);
-                    if (!loadoutResponse.success) return await interaction.reply(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
+                    await deferInteraction(interaction);
 
-                    await interaction.update(await skinCollectionPageEmbed(interaction, userId, user, loadoutResponse, parseInt(pageIndex - 1)));
+                    const loadoutResponse = await getLoadout(user);
+                    if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
+
+                    await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, userId, user, loadoutResponse, parseInt(pageIndex - 1)));
                 }
 
                 async function clwpage() {
@@ -1878,10 +1912,12 @@ client.on("interactionCreate", async (interaction) => {
                     if (userId !== interaction.user.id) user = getUser(userId);
                     else user = valorantUser;
 
-                    const skinsResponse = await getSkins(user);
-                    if (!skinsResponse.success) return await interaction.reply(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
+                    await deferInteraction(interaction);
 
-                    await interaction.update(await collectionOfWeaponEmbed(interaction, userId, user, weaponType, skinsResponse.skins, parseInt(pageIndex - 1)));
+                    const skinsResponse = await getSkins(user);
+                    if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
+
+                    await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, userId, user, weaponType, skinsResponse.skins, parseInt(pageIndex - 1)));
                 }
             }
         } catch (e) {

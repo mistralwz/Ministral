@@ -400,6 +400,15 @@ export const defer = async (interaction, ephemeral = false) => {
     interaction.deferred = true;
 }
 
+export const deferInteraction = async (interaction) => {
+    if (config.deferInteractions) await interaction.deferUpdate();
+}
+
+export const updateInteraction = async (interaction, data) => {
+    if (config.deferInteractions || interaction.deferred) await interaction.editReply(data);
+    else await interaction.update(data);
+}
+
 export const skinNameAndEmoji = async (skin, channel, localeOrInteraction = DEFAULT_LANG) => {
     const name = l(skin.names, localeOrInteraction);
     if (!skin.rarity) return name;

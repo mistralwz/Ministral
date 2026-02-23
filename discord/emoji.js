@@ -42,9 +42,13 @@ const getOrCreateEmoji = async (name, filenameOrUrl) => {
         return null; // Not ready or not a bot application
     }
 
-    // Try finding the emoji in application emojis
+    // Try finding the emoji in application emojis cache first
+    let existing = client.application.emojis.cache.find(e => e.name === name);
+    if (existing) return existing;
+
+    // Fallback to fetching
     const appEmojis = await client.application.emojis.fetch();
-    const existing = appEmojis.find(e => e.name === name);
+    existing = appEmojis.find(e => e.name === name);
     if (existing) return existing;
 
     // Use pendingCreations to prevent duplicate uploads from concurrent requests

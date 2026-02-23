@@ -63,6 +63,7 @@ export const loadConfig = (filename = "config.json", saveAfterLoad = true) => {
     applyConfig(loadedConfig, "careerCacheExpiration", 10 * 60 * 1000);
     applyConfig(loadedConfig, "emojiCacheExpiration", 10 * 1000);
     applyConfig(loadedConfig, "loadoutCacheExpiration", 10 * 60 * 1000);
+    applyConfig(loadedConfig, "deferInteractions", false);
     applyConfig(loadedConfig, "useShopCache", true);
     applyConfig(loadedConfig, "useLoginQueue", false);
     applyConfig(loadedConfig, "loginQueueInterval", 3000);
