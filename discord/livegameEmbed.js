@@ -246,7 +246,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 options.push({
                     label: agentInfo.names[valLang] || agentInfo.names["en-US"] || "Unknown",
                     value: agentId,
-                    description: agentInfo.roles,
+                    description: agentInfo.roles[valLang] || agentInfo.roles["en-US"] || "Unknown",
                 });
             }
 
