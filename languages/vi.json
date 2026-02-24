@@ -152,8 +152,8 @@
     "PROFILE_PEAK_RANK": "Rank cao nhất"
   },
   "battlepass": {
-    "CALCULATIONS_TITLE": "\uD83D\uDCC8 Tiến trình Battlepass",
-    "FINISHED": "\uD83C\uDF89 Chúc mừng, bạn đã hoàn thành toàn bộ Battlepass!",
+    "CALCULATIONS_TITLE": "📈 Tiến trình Battlepass",
+    "FINISHED": "🎉 Chúc mừng, bạn đã hoàn thành toàn bộ Battlepass!",
     "TIER_HEADER": "Cấp độ Battlepass của **{u}**:",
     "GENERAL_COL": "Chung",
     "XP_COL": "XP",
@@ -162,13 +162,13 @@
     "TIER50_ROW": "Cấp {t}",
     "WEEKLY_LEFT_ROW": "Số XP tuần còn lại",
     "BP_PURCHASED": "Bạn đã mua Battlepass!",
-    "GAMES_HEADER": "\uD83D\uDD2B Số trận cần thêm",
+    "GAMES_HEADER": "🔫 Số trận cần thêm",
     "GAMEMODE_COL": "Chế độ chơi",
     "INCL_WEEKLIES_COL": "gồm nhiệm vụ tuần",
     "NORMAL_ROW": "Đấu thường/Xếp hạng",
     "SPIKERUSH_ROW": "Đặt Spike Nhanh",
     "ACT_END": "Mùa sẽ kết thúc trong {d} ngày",
-    "XP_HEADER": "\uD83D\uDCC5 Số XP cần",
+    "XP_HEADER": "📅 Số XP cần",
     "AVERAGE_COL": "Trung bình",
     "DAILY_XP_ROW": "XP ngày",
     "WEEKLY_XP_ROW": "XP tuần",
@@ -212,7 +212,9 @@
     "LOGIN_REQUIRED_DESC": "Không thể xác minh tài khoản VALORANT của bạn. Vui lòng đăng nhập lại với `/login`.",
     "REFRESH_BUTTON": "Làm mới",
     "ENEMY_TEAM_DIVIDER": "── Đội địch ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 Đang trong hàng chờ",
+    "QUEUING_DESC": "Đang tìm trận đấu trong chế độ **{queueName}**...",
+    "SELECT_AGENT_PLACEHOLDER": "Chọn Đặc vụ để Khóa lại"
   },
   "modal": {
     "PAGE_TITLE": "Điều hướng trang",

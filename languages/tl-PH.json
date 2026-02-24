@@ -152,8 +152,8 @@
     "PROFILE_PEAK_RANK": "Pinakamataas na Rank"
   },
   "battlepass": {
-    "CALCULATIONS_TITLE": "\uD83D\uDCC8 Kalkulasyon ng Battlepass",
-    "FINISHED": "\uD83C\uDF89 Binabati kita, natapos mo na ang battlepass!",
+    "CALCULATIONS_TITLE": "📈 Kalkulasyon ng Battlepass",
+    "FINISHED": "🎉 Binabati kita, natapos mo na ang battlepass!",
     "TIER_HEADER": "Battlepass tier ni {u}:",
     "GENERAL_COL": "Pangkalahatang",
     "XP_COL": "XP",
@@ -162,13 +162,13 @@
     "TIER50_ROW": "Tier {t}",
     "WEEKLY_LEFT_ROW": "Naiiwang Weekly XP",
     "BP_PURCHASED": "{u} ay bumili ng battlepass!",
-    "GAMES_HEADER": "\uD83D\uDD2B Bilang ng kailangang laro",
+    "GAMES_HEADER": "🔫 Bilang ng kailangang laro",
     "GAMEMODE_COL": "Gamemode",
     "INCL_WEEKLIES_COL": "kabilang weekly",
     "NORMAL_ROW": "Unrated/Competitive",
     "SPIKERUSH_ROW": "Spike Rush",
     "ACT_END": "Wawakas ang act sa {d} na araw",
-    "XP_HEADER": "\uD83D\uDCC5 XP na kailangan",
+    "XP_HEADER": "📅 XP na kailangan",
     "AVERAGE_COL": "Karaniwan",
     "DAILY_XP_ROW": "Daily XP",
     "WEEKLY_XP_ROW": "Weekly XP",
@@ -225,6 +225,8 @@
     "LOGIN_REQUIRED_DESC": "Hindi ma-verify ang iyong VALORANT account. Mangyaring mag-login muli gamit ang `/login`.",
     "REFRESH_BUTTON": "Refresh",
     "ENEMY_TEAM_DIVIDER": "── Enemy Team ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 Nakapila para sa Match",
+    "QUEUING_DESC": "Naghahanap ng match sa **{queueName}**...",
+    "SELECT_AGENT_PLACEHOLDER": "Pumili ng Agent para i-Lock In"
   }
 }

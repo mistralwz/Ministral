@@ -225,6 +225,8 @@
     "LOGIN_REQUIRED_DESC": "無法驗證您的 VALORANT 帳號。請使用 `/login` 重新登入。",
     "REFRESH_BUTTON": "重新整理",
     "ENEMY_TEAM_DIVIDER": "── 敵方隊伍 ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 正在排隊中",
+    "QUEUING_DESC": "正在搜尋 **{queueName}** 比賽...",
+    "SELECT_AGENT_PLACEHOLDER": "選擇特務以確認鎖定"
   }
 }

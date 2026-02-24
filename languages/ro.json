@@ -195,7 +195,9 @@
     "LOGIN_REQUIRED_DESC": "Nu s-a putut verifica contul tău VALORANT. Autentifică-te din nou cu `/login`.",
     "REFRESH_BUTTON": "Reîmprospătează",
     "ENEMY_TEAM_DIVIDER": "── Echipa adversă ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 La coadă pentru meci",
+    "QUEUING_DESC": "Se caută un meci în **{queueName}**...",
+    "SELECT_AGENT_PLACEHOLDER": "Selectează un agent pentru a confirma"
   },
   "settings": {
     "TRUE": "Da",

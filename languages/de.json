@@ -195,7 +195,9 @@
     "LOGIN_REQUIRED_DESC": "Dein VALORANT-Account konnte nicht verifiziert werden. Bitte logge dich erneut mit `/login` ein.",
     "REFRESH_BUTTON": "Aktualisieren",
     "ENEMY_TEAM_DIVIDER": "── Gegnerteam ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 Warteschlange für Match",
+    "QUEUING_DESC": "Suche nach einem Match in **{queueName}**...",
+    "SELECT_AGENT_PLACEHOLDER": "Wähle einen Agenten zum Einloggen"
   },
   "settings": {
     "TRUE": "Ja",

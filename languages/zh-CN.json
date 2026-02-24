@@ -225,6 +225,8 @@
     "LOGIN_REQUIRED_DESC": "无法验证你的 VALORANT 账户。请使用 `/login` 重新登录。",
     "REFRESH_BUTTON": "刷新",
     "ENEMY_TEAM_DIVIDER": "── 敌方队伍 ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 正在排队中",
+    "QUEUING_DESC": "正在搜寻 **{queueName}** 比赛...",
+    "SELECT_AGENT_PLACEHOLDER": "选择特工以确认锁定"
   }
 }

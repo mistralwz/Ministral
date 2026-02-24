@@ -195,7 +195,9 @@
     "LOGIN_REQUIRED_DESC": "VALORANTアカウントの認証ができませんでした。`/login`で再度ログインしてください。",
     "REFRESH_BUTTON": "リフレッシュ",
     "ENEMY_TEAM_DIVIDER": "── 敵チーム ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 マッチの待機中",
+    "QUEUING_DESC": "**{queueName}** でマッチを検索中...",
+    "SELECT_AGENT_PLACEHOLDER": "確定するエージェントを選択"
   },
   "settings": {
     "TRUE": "はい",

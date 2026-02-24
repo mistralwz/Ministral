@@ -152,8 +152,8 @@
     "PROFILE_PEAK_RANK": "Rank Tertinggi"
   },
   "battlepass": {
-    "CALCULATIONS_TITLE": "\uD83D\uDCC8 Kalkulasi Battlepass",
-    "FINISHED": "\uD83C\uDF89 Selamat, kamu selesai battlepass!",
+    "CALCULATIONS_TITLE": "📈 Kalkulasi Battlepass",
+    "FINISHED": "🎉 Selamat, kamu selesai battlepass!",
     "TIER_HEADER": "Tier Battlepass **{u}**:",
     "GENERAL_COL": "Umum",
     "XP_COL": "XP",
@@ -162,13 +162,13 @@
     "TIER50_ROW": "Tier {t}",
     "WEEKLY_LEFT_ROW": "XP Mingguan Sisa",
     "BP_PURCHASED": "Kamu sudah beli battlepass!",
-    "GAMES_HEADER": "\uD83D\uDD2B Jumlah permainan diperlukan",
+    "GAMES_HEADER": "🔫 Jumlah permainan diperlukan",
     "GAMEMODE_COL": "Mode Permainan",
     "INCL_WEEKLIES_COL": "termasuk mingguan",
     "NORMAL_ROW": "Unrated/Kompetitif",
     "SPIKERUSH_ROW": "Spike Rush",
     "ACT_END": "Act berakhir dalam {d} hari",
-    "XP_HEADER": "\uD83D\uDCC5 XP diperlukan",
+    "XP_HEADER": "📅 XP diperlukan",
     "AVERAGE_COL": "Rata-rata",
     "DAILY_XP_ROW": "XP Harian",
     "WEEKLY_XP_ROW": "XP Mingguan",
@@ -225,6 +225,8 @@
     "LOGIN_REQUIRED_DESC": "Tidak dapat memverifikasi akun VALORANT kamu. Silakan login lagi dengan `/login`.",
     "REFRESH_BUTTON": "Segarkan",
     "ENEMY_TEAM_DIVIDER": "── Tim Musuh ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 Mengantre untuk Pertandingan",
+    "QUEUING_DESC": "Mencari pertandingan di **{queueName}**...",
+    "SELECT_AGENT_PLACEHOLDER": "Pilih Agen untuk Mengunci"
   }
 }

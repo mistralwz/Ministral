@@ -152,8 +152,8 @@
     "UNHANDLED_COMMAND": "Tu es un sorcier, Harry!"
   },
   "battlepass": {
-    "CALCULATIONS_TITLE": "\uD83D\uDCC8 Calculs sur le passe de combat",
-    "FINISHED": "\uD83C\uDF89 Bravo, vous avez fini le passe de combat!",
+    "CALCULATIONS_TITLE": "📈 Calculs sur le passe de combat",
+    "FINISHED": "🎉 Bravo, vous avez fini le passe de combat!",
     "TIER_HEADER": "Niveau du passe de {u}:",
     "GENERAL_COL": "Général",
     "XP_COL": "XP",
@@ -162,13 +162,13 @@
     "TIER50_ROW": "Niveau {t}",
     "WEEKLY_LEFT_ROW": "XP Hebdomadaire restant",
     "BP_PURCHASED": "{u} à acheté le passe de combat!",
-    "GAMES_HEADER": "\uD83D\uDD2B Nombre de parties requises",
+    "GAMES_HEADER": "🔫 Nombre de parties requises",
     "GAMEMODE_COL": "Mode de jeu",
     "INCL_WEEKLIES_COL": "dont missions hebdo.",
     "NORMAL_ROW": "Classé/Non Classé",
     "SPIKERUSH_ROW": "Spike Rush",
     "ACT_END": "La saison se termine dans {d} jours",
-    "XP_HEADER": "\uD83D\uDCC5 XP requis",
+    "XP_HEADER": "📅 XP requis",
     "AVERAGE_COL": "Moyenne",
     "DAILY_XP_ROW": "XP par jour",
     "WEEKLY_XP_ROW": "XP par semaine",
@@ -225,6 +225,8 @@
     "LOGIN_REQUIRED_DESC": "Impossible de vérifier votre compte VALORANT. Veuillez vous reconnecter avec `/login`.",
     "REFRESH_BUTTON": "Rafraîchir",
     "ENEMY_TEAM_DIVIDER": "── Équipe adverse ──",
-    "PLAYER_ROW_FORMAT": "{level}┊{agent}  `{riotId}`・{rank}・{peak}{competitive}"
+    "QUEUING_TITLE": "🕒 En file d'attente pour une partie",
+    "QUEUING_DESC": "Recherche d'une partie en **{queueName}**...",
+    "SELECT_AGENT_PLACEHOLDER": "Sélectionner un agent à verrouiller"
   }
 }
