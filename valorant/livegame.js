@@ -54,6 +54,8 @@ const loadAgents = async () => {
                 names: agent.displayName, // This is an object of locale strings because of `language=all`
                 icon: agent.displayIcon,
                 roles: agent.role?.displayName ?? null,
+                roleUuid: agent.role?.uuid ?? null,
+                roleIcon: agent.role?.displayIcon ?? null,
             };
         }
     } catch (e) {
@@ -100,6 +102,12 @@ export const clearLiveGameCache = () => {
 export const resolveAgent = async (uuid) => {
     await loadAgents();
     return agentsCache[uuid?.toLowerCase()] ?? { names: { "en-US": "Unknown Agent" }, icon: null, roles: null };
+};
+
+/** Get all known playable agent UUIDs */
+export const getAllPlayableAgents = async () => {
+    await loadAgents();
+    return Object.keys(agentsCache || {});
 };
 
 /** Resolve tier number (0-27) → {name, color, icon} */
@@ -740,18 +748,21 @@ export const lockAgent = async (id, account, matchId, agentId) => {
     return resp.statusCode === 200;
 };
 
+
+
 export const getOwnedAgents = async (user) => {
-    // Agent Item Type ID: "01bb38e1-da47-4e6a-9b3d-945d822588c4"
-    const req = await fetch(`https://pd.${userRegion(user)}.a.pvp.net/store/v1/entitlements/${user.puuid}/01bb38e1-da47-4e6a-9b3d-945d822588c4`, {
-        headers: authHeaders(user)
-    });
+    const base = pdUrl(user);
+    const headers = authHeaders(user);
 
-    if (req.statusCode !== 200) return [];
+    const req = await fetch(`${base}/store/v1/entitlements/${user.puuid}/01bb38e1-da47-4e6a-9b3d-945fe4655707`, { headers });
+    let owned = [];
+    if (req.statusCode === 200) {
+        const json = JSON.parse(req.body);
+        if (json.Entitlements) {
+            owned = json.Entitlements.map(ent => ent.ItemID.toLowerCase());
+        }
+    }
 
-    const json = JSON.parse(req.body);
-    const owned = json.Entitlements ? json.Entitlements.map(ent => ent.ItemID.toLowerCase()) : [];
-
-    // Default unlocked 5 agents
     const defaultAgents = [
         "add6443a-41bd-e414-f6ad-e58d267f4e95", // Jett
         "eb93336a-449b-9c1b-0a54-a891f7921d69", // Phoenix
@@ -760,7 +771,10 @@ export const getOwnedAgents = async (user) => {
         "569fdd95-4d10-43ab-ca70-79becc718b46"  // Sage
     ];
 
-    return [...new Set([...owned, ...defaultAgents])];
+    const allEntitlements = new Set([...owned, ...defaultAgents]);
+
+    const allPlayables = await getAllPlayableAgents();
+    return allPlayables.filter(agentId => allEntitlements.has(agentId.toLowerCase()));
 };
 
 // ──────────────────────────────────────────────
@@ -1110,7 +1124,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             // reads "<agent_emoji>  `AgentName`". "Player N" is the fallback when
             // the agent is not yet known (pre-game, agent not locked).
             riotId: p.incognito
-                ? (p.agentId && agentInfo.name !== "Unknown Agent" ? agentInfo.name : `Player ${idx + 1}`)
+                ? (p.agentId && p.selectionState === "locked" && agentInfo.names ? agentInfo.names["en-US"] : `Player ${idx + 1}`)
                 : (name ?? p.puuid.slice(0, 8)),
             // Agent
             agentName: p.agentId ? agentInfo.names : null,

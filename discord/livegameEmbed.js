@@ -18,10 +18,13 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder }
 import { s, discToValLang, DEFAULT_VALORANT_LANG } from "../misc/languages.js";
 import { getSetting } from "../misc/settings.js";
 import config from "../misc/config.js";
-import { getOwnedAgents, resolveAgent } from "../valorant/livegame.js";
+import { resolveAgent, getOwnedAgents } from "../valorant/livegame.js";
 import { getUser } from "../valorant/auth.js";
 import { agentEmoji, rankEmoji } from "./emoji.js";
 import { emojiToString } from "../misc/util.js";
+
+const roleSelections = new Map();
+export const setRoleSelection = (userId, role) => roleSelections.set(userId, role);
 
 // ─── Colours ────────────────────────────────────────────────────────────────
 const COLOR_PREGAME = 0xFFB300;  // amber  — agent select
@@ -57,9 +60,11 @@ const formatPlayerRow = async (player, channel, showCompStats = false) => {
     // Agent emoji — resolved dynamically from valorant-api.com icon URL.
     // For incognito players riotId IS the agent name, so we suppress the text
     // fallback to avoid "Vyse  `Vyse`" when the emoji hasn't uploaded yet.
-    const agentEmojiStr = player.agentName && player.agentIcon
-        ? (emojiToString(await agentEmoji(player.agentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${player.agentName}\``))
-        : (player.incognito ? "" : `\`${player.agentName ?? "—"}\``);
+    const localizedAgentName = player.agentName ? player.agentName["en-US"] || "Unknown" : null;
+
+    const agentEmojiStr = localizedAgentName && player.agentIcon
+        ? (emojiToString(await agentEmoji(localizedAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``))
+        : (player.incognito ? "" : `\`${localizedAgentName ?? "—"}\``);
 
     // Current rank emoji — tier 0 (Unranked) now has an icon too
     const currentRankEmojiStr = player.currentTierIcon
@@ -194,6 +199,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
     const { state, allyPlayers = [], enemyPlayers = [] } = liveGameData;
 
     if (state === "not_in_game") {
+        roleSelections.delete(userId);
         return {
             embeds: [{
                 title: s(userId).livegame.NOT_IN_MATCH_TITLE,
@@ -206,6 +212,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
     }
 
     if (state === "queuing") {
+        roleSelections.delete(userId);
         return {
             embeds: [{
                 title: s(userId).livegame.QUEUING_TITLE,
@@ -225,8 +232,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         const myPlayer = allyPlayers.find(p => p.puuid === liveGameData.userPuuid);
 
         if (myPlayer && myPlayer.selectionState !== "locked") {
-            const user = getUser(userId);
-            const ownedAgentIds = await getOwnedAgents(user);
+            const ownedAgentIds = await getOwnedAgents(getUser(userId));
 
             const lockedAgentIds = new Set(
                 allyPlayers.filter(p => p.selectionState === "locked").map(p => p.agentId?.toLowerCase())
@@ -243,24 +249,73 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 const agentInfo = await resolveAgent(agentId);
                 if (!agentInfo || agentInfo.roles === null) continue;
 
+                const emojiObj = await agentEmoji(agentInfo.names["en-US"] || "Unknown", agentInfo.icon);
+
                 options.push({
                     label: agentInfo.names[valLang] || agentInfo.names["en-US"] || "Unknown",
                     value: agentId,
+                    default: agentId === myPlayer.agentId?.toLowerCase(),
+                    role: agentInfo.roles["en-US"] || "Unknown",
+                    roleLocalized: agentInfo.roles[valLang] || agentInfo.roles["en-US"] || "Unknown",
+                    roleIcon: agentInfo.roleIcon,
                     description: agentInfo.roles[valLang] || agentInfo.roles["en-US"] || "Unknown",
+                    emoji: emojiObj?.id ? { id: emojiObj.id } : undefined
                 });
             }
 
             options.sort((a, b) => a.label.localeCompare(b.label));
-            const selectMenuOptions = options.slice(0, 25);
 
-            if (selectMenuOptions.length > 0) {
-                const selectMenuRow = new ActionRowBuilder().addComponents(
-                    new StringSelectMenuBuilder()
-                        .setCustomId(`livegame/select_agent/${liveGameData.matchId}`)
-                        .setPlaceholder(s(userId).livegame.SELECT_AGENT_PLACEHOLDER)
-                        .addOptions(selectMenuOptions)
-                );
+            const menuRows = [];
 
+            // 1. Uniquely identify each role
+            const uniqueRoles = new Map();
+            for (const opt of options) {
+                if (!uniqueRoles.has(opt.role)) {
+                    uniqueRoles.set(opt.role, {
+                        roleLocalized: opt.roleLocalized,
+                        roleIcon: opt.roleIcon
+                    });
+                }
+            }
+
+            const roleNames = [...uniqueRoles.keys()].sort();
+            const selectedRole = roleSelections.get(userId);
+
+            // 2. Build the Role Dropdown Options
+            const roleOptions = [];
+            for (const r of roleNames) {
+                const info = uniqueRoles.get(r);
+                const roleEmojiObj = await agentEmoji("Role_" + r, info.roleIcon);
+
+                roleOptions.push({
+                    label: info.roleLocalized,
+                    value: r,
+                    default: r === selectedRole,
+                    emoji: roleEmojiObj?.id ? { id: roleEmojiObj.id } : undefined
+                });
+            }
+
+            menuRows.push(new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId(`livegame/select_role/${liveGameData.matchId}`)
+                    .setPlaceholder(s(userId).livegame.SELECT_AGENT_PLACEHOLDER || "Select a Role")
+                    .addOptions(roleOptions)
+            ));
+
+            // 3. Conditionally build the Agent dropdown if a Role is selected
+            if (selectedRole && roleNames.includes(selectedRole)) {
+                const agentOptions = options.filter(o => o.role === selectedRole);
+                if (agentOptions.length > 0) {
+                    menuRows.push(new ActionRowBuilder().addComponents(
+                        new StringSelectMenuBuilder()
+                            .setCustomId(`livegame/select_agent/${liveGameData.matchId}/0`)
+                            .setPlaceholder(`Select an Agent (${uniqueRoles.get(selectedRole).roleLocalized})`)
+                            .addOptions(agentOptions)
+                    ));
+                }
+            }
+
+            if (menuRows.length > 0) {
                 let lockButtonRow;
                 if (myPlayer.agentId) {
                     lockButtonRow = new ActionRowBuilder().addComponents(
@@ -272,8 +327,8 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 }
 
                 components = lockButtonRow
-                    ? [selectMenuRow, lockButtonRow, components[0]]
-                    : [selectMenuRow, components[0]];
+                    ? [...menuRows, lockButtonRow, components[0]]
+                    : [...menuRows, components[0]];
             }
         }
     }

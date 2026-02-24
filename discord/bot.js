@@ -95,8 +95,8 @@ import fuzzysort from "fuzzysort";
 import { renderCollection, getSkins } from "../valorant/inventory.js";
 import { getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
-import { fetchLiveGame, selectAgent, lockAgent } from "../valorant/livegame.js";
-import { renderLiveGame, renderLiveGameError } from "./livegameEmbed.js";
+import { fetchLiveGame, selectAgent, lockAgent, getAllPlayableAgents, resolveAgent } from "../valorant/livegame.js";
+import { renderLiveGame, renderLiveGameError, setRoleSelection } from "./livegameEmbed.js";
 
 // ─── Pre-game → in-game transition poller ─────────────────────────────────
 // Maps userId → { timer: Timeout, retries: number }
@@ -1395,6 +1395,7 @@ client.on("interactionCreate", async (interaction) => {
             let selectType = interaction.customId;
             if (interaction.values[0].startsWith("levels") || interaction.values[0].startsWith("chromas")) selectType = "get-level-video"
             if (interaction.customId.startsWith("livegame/select_agent")) selectType = "livegame/select_agent";
+            if (interaction.customId.startsWith("livegame/select_role")) selectType = "livegame/select_role";
             switch (selectType) {
                 case "skin-select": {
                     if (interaction.message.interaction.user.id !== interaction.user.id) {
@@ -1435,6 +1436,32 @@ client.on("interactionCreate", async (interaction) => {
                         embeds: [await skinChosenEmbed(interaction, skin)],
                         components: [removeAlertActionRow(interaction.user.id, chosenSkin, s(interaction).info.REMOVE_ALERT_BUTTON)]
                     });
+
+                    break;
+                }
+                case "livegame/select_role": {
+                    if (interaction.message.interaction.user.id !== interaction.user.id) {
+                        return await interaction.reply({
+                            embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
+                            flags: [MessageFlags.Ephemeral]
+                        });
+                    }
+
+                    await interaction.deferUpdate();
+                    interaction.deferred = true;
+
+                    const role = interaction.values[0];
+                    if (!role) return;
+
+                    setRoleSelection(interaction.user.id, role);
+
+                    // Re-render embed immediately
+                    const liveGameData = await fetchLiveGame(interaction.user.id);
+                    const payload = liveGameData.success
+                        ? await renderLiveGame(liveGameData, interaction.user.id, !interaction.guild, interaction.channel)
+                        : renderLiveGameError(liveGameData, interaction.user.id);
+
+                    await updateInteraction(interaction, payload);
 
                     break;
                 }
