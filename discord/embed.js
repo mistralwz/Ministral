@@ -638,17 +638,24 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout
         const weapon = await getWeapon(weaponUuid);
         const skinUuid = loadout.Guns.find(gun => gun.ID === weaponUuid)?.SkinID
         if (!skinUuid) return {
-            name: 'No information available',
+            name: weapon ? l(weapon.names, interaction) : 'No information available',
             value: 'Login to the game for display',
             inline: inline
         }
         const skin = await getSkinFromSkinUuid(skinUuid);
+        if (!skin) {
+            return {
+                name: weapon ? l(weapon.names, interaction) : 'No information available',
+                value: 'Unknown Skin',
+                inline: inline
+            }
+        }
         skinsUuid.push(skin);
-        totalValue += skin.price;
+        totalValue += skin.price || 0;
 
         const starEmoji = favorites.FavoritedContent[skin.skinUuid] ? "⭐ " : "";
         return {
-            name: l(weapon.names, interaction),
+            name: weapon ? l(weapon.names, interaction) : 'Unknown Weapon',
             value: `${starEmoji}${await skinNameAndEmoji(skin, interaction.channel, interaction)}`,
             inline: inline
         }

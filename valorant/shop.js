@@ -9,7 +9,7 @@ import {
     userRegion,
     riotClientHeaders,
 } from "../misc/util.js";
-import { addBundleData, getSkin, getSkinFromSkinUuid, addPricesFromShop } from "./cache.js";
+import { addBundleData, getSkin, getSkinFromSkinUuid, addPricesFromShop, getBundle } from "./cache.js";
 import { addStore } from "../misc/stats.js";
 import config from "../misc/config.js";
 import { deleteUser, saveUser } from "./accountSwitcher.js";
@@ -97,7 +97,17 @@ export const getBundles = async (id, account = null) => {
     if (!puuid) return { success: false, error: "User not found" };
 
     const shopCache = await getShopCache(puuid, "bundles");
-    if (shopCache) return { success: true, bundles: shopCache.bundles };
+    if (shopCache) {
+        let complete = true;
+        for (const bundleCache of shopCache.bundles) {
+            const bundle = await getBundle(bundleCache.uuid);
+            if (!bundle || !bundle.items) {
+                complete = false;
+                break;
+            }
+        }
+        if (complete) return { success: true, bundles: shopCache.bundles };
+    }
 
     const resp = await getShop(id, account);
     if (!resp.success) return resp;

@@ -23,6 +23,8 @@ const SKINS_SAVE_DEBOUNCE_MS = 3000;
 let allSkinsCache = null;
 let allSkinsCacheVersion = null;
 
+let lastBundleFetch = 0;
+
 // Fast-path flag: set to true once all data types have been loaded at least once.
 // Prevents getSkin()/getBundle()/etc. from entering fetchData() on every call.
 let dataFullyLoaded = false;
@@ -384,29 +386,44 @@ const getBundleList = async (gameVersion) => {
 export const addBundleData = async (bundleData) => {
     await fetchData([bundles]);
 
-    const bundle = bundles[bundleData.uuid];
-    if (bundle) {
-        bundle.items = bundleData.items.map(item => {
-            return {
-                uuid: item.uuid,
-                type: item.type,
-                price: item.price,
-                basePrice: item.basePrice,
-                discount: item.discount,
-                amount: item.amount
-            }
-        });
-        bundle.price = bundleData.price;
-        bundle.basePrice = bundleData.basePrice;
-        bundle.expires = bundleData.expires;
-
-        // Update inverted price index for this bundle's items
-        for (const item of bundle.items) {
-            if (item.uuid && item.price) bundleItemPrices[item.uuid] = item.price;
-        }
-
-        debouncedSaveSkinsJSON();
+    let bundle = bundles[bundleData.uuid];
+    if (!bundle) {
+        bundle = {
+            uuid: bundleData.uuid,
+            names: { "en-US": "Unknown Bundle (" + bundleData.uuid.substring(0, 8) + ")" },
+            subNames: null,
+            descriptions: null,
+            icon: "https://media.valorant-api.com/bundles/" + bundleData.uuid + "/displayicon.png",
+            items: null,
+            price: null,
+            basePrice: null,
+            expires: null,
+            last_seen: null
+        };
+        bundles[bundleData.uuid] = bundle;
+        console.log(`Created skeleton for unrecognized bundle ${bundleData.uuid}`);
     }
+
+    bundle.items = bundleData.items.map(item => {
+        return {
+            uuid: item.uuid,
+            type: item.type,
+            price: item.price,
+            basePrice: item.basePrice,
+            discount: item.discount,
+            amount: item.amount
+        }
+    });
+    bundle.price = bundleData.price;
+    bundle.basePrice = bundleData.basePrice;
+    bundle.expires = bundleData.expires;
+
+    // Update inverted price index for this bundle's items
+    for (const item of bundle.items) {
+        if (item.uuid && item.price) bundleItemPrices[item.uuid] = item.price;
+    }
+
+    debouncedSaveSkinsJSON();
 }
 
 const getRarities = async (gameVersion) => {
@@ -670,11 +687,14 @@ export const getBundle = async (uuid) => {
     await fetchData([bundles]);
     if (bundles[uuid]) return bundles[uuid];
 
-    // UUID not in cache — bundle list is likely stale (new Riot bundle). Force a re-fetch.
-    console.log(`[getBundle] UUID ${uuid} not found in bundle cache, forcing re-fetch...`);
-    bundles = null;
-    dataFullyLoaded = false;
-    await fetchData([bundles]);
+    if (Date.now() - lastBundleFetch > 60 * 60 * 1000) {
+        // UUID not in cache — bundle list is likely stale (new Riot bundle). Force a re-fetch.
+        console.log(`[getBundle] UUID ${uuid} not found in bundle cache, forcing re-fetch...`);
+        bundles = null;
+        dataFullyLoaded = false;
+        await fetchData([bundles]);
+        lastBundleFetch = Date.now();
+    }
     return bundles[uuid];
 }
 
