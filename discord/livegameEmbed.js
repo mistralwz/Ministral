@@ -440,6 +440,7 @@ export const renderLiveGameError = (liveGameData, userId = null) => {
                 color: 0x616161,
             }],
             components,
+            ephemeral: true
         };
     }
     if (liveGameData.rateLimit) {
@@ -450,6 +451,7 @@ export const renderLiveGameError = (liveGameData, userId = null) => {
                 color: 0xBF360C,
             }],
             components,
+            ephemeral: true
         };
     }
     return {
@@ -459,5 +461,6 @@ export const renderLiveGameError = (liveGameData, userId = null) => {
             color: 0x616161,
         }],
         components,
+        ephemeral: true
     };
 };

@@ -781,11 +781,13 @@ client.on("interactionCreate", async (interaction) => {
                     if (otherUser && otherUser.id !== interaction.user.id) {
                         const otherValorantUser = getUser(otherUser.id);
                         if (!otherValorantUser) return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED_OTHER)]
+                            embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED_OTHER)],
+                            ephemeral: true
                         });
 
                         if (!getSetting(otherUser.id, "othersCanViewShop")) return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.OTHER_SHOP_DISABLED.f({ u: `<@${otherUser.id}>` }))]
+                            embeds: [basicEmbed(s(interaction).error.OTHER_SHOP_DISABLED.f({ u: `<@${otherUser.id}>` }))],
+                            ephemeral: true
                         });
 
                         targetUser = otherUser;
@@ -930,7 +932,8 @@ client.on("interactionCreate", async (interaction) => {
 
                     const channel = interaction.channel || await fetchChannel(interaction.channelId);
                     if (!canSendMessages(channel)) return await interaction.reply({
-                        embeds: [basicEmbed(s(interaction).error.ALERT_NO_PERMS)]
+                        embeds: [basicEmbed(s(interaction).error.ALERT_NO_PERMS)],
+                        ephemeral: true
                     });
 
                     await defer(interaction);
@@ -950,7 +953,8 @@ client.on("interactionCreate", async (interaction) => {
 
                     if (filteredResults.length === 0) {
                         if (searchResults.length === 0) return await interaction.followUp({
-                            embeds: [basicEmbed(s(interaction).error.SKIN_NOT_FOUND)]
+                            embeds: [basicEmbed(s(interaction).error.SKIN_NOT_FOUND)],
+                            ephemeral: true
                         });
 
                         const skin = searchResults[0].obj;
@@ -1162,11 +1166,13 @@ client.on("interactionCreate", async (interaction) => {
                     if (otherUser && otherUser.id !== interaction.user.id) {
                         const otherValorantUser = getUser(otherUser.id);
                         if (!otherValorantUser) return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED_OTHER)]
+                            embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED_OTHER)],
+                            ephemeral: true
                         });
 
                         if (!getSetting(otherUser.id, "othersCanViewColl")) return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.OTHER_COLLECTION_DISABLED.f({ u: `<@${otherUser.id}>` }))]
+                            embeds: [basicEmbed(s(interaction).error.OTHER_COLLECTION_DISABLED.f({ u: `<@${otherUser.id}>` }))],
+                            ephemeral: true
                         });
 
                         targetUser = otherUser;
@@ -1211,7 +1217,8 @@ client.on("interactionCreate", async (interaction) => {
 
                         if (skins.length === 0) {
                             return await interaction.followUp({
-                                embeds: [basicEmbed(s(interaction).error.SKIN_NOT_FOUND)]
+                                embeds: [basicEmbed(s(interaction).error.SKIN_NOT_FOUND)],
+                                ephemeral: true
                             });
                         } else if (skins.length === 1 ||
                             l(skins[0].obj.names, interaction.locale).toLowerCase() === skinName.toLowerCase() ||
@@ -1360,11 +1367,13 @@ client.on("interactionCreate", async (interaction) => {
                     if (otherUser && otherUser.id !== interaction.user.id) {
                         const otherValorantUser = getUser(otherUser.id);
                         if (!otherValorantUser) return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED_OTHER)]
+                            embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED_OTHER)],
+                            ephemeral: true
                         });
 
                         if (!getSetting(otherUser.id, "othersCanViewProfile")) return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.OTHER_PROFILE_DISABLED.f({ u: `<@${otherUser.id}>` }))]
+                            embeds: [basicEmbed(s(interaction).error.OTHER_PROFILE_DISABLED.f({ u: `<@${otherUser.id}>` }))],
+                            ephemeral: true
                         });
 
                         targetUser = otherUser;
@@ -1780,7 +1789,8 @@ client.on("interactionCreate", async (interaction) => {
                 });
 
                 if (!canSendMessages(interaction.channel)) return await interaction.reply({
-                    embeds: [basicEmbed(s(interaction).error.GENERIC_NO_PERMS)]
+                    embeds: [basicEmbed(s(interaction).error.GENERIC_NO_PERMS)],
+                    ephemeral: true
                 });
 
                 const channel = await client.channels.fetch(interaction.channelId);
@@ -2025,7 +2035,8 @@ client.on("interactionCreate", async (interaction) => {
                 // Validate that it looks like a callback URL (code flow uses ?code= query param)
                 if (!callbackUrl.includes("localhost/redirect") || !callbackUrl.includes("code=")) {
                     return await interaction.editReply({
-                        embeds: [basicEmbed("**Invalid URL!** Make sure you copied the entire URL from your browser's address bar.\n\nIt should look like:\n`http://localhost/redirect?code=...`")]
+                        embeds: [basicEmbed("**Invalid URL!** Make sure you copied the entire URL from your browser's address bar.\n\nIt should look like:\n`http://localhost/redirect?code=...`")],
+                        ephemeral: true
                     });
                 }
 
@@ -2039,7 +2050,8 @@ client.on("interactionCreate", async (interaction) => {
                 } else {
                     console.log(`${interaction.user.tag} web auth login failed: ${result.error}`);
                     await interaction.editReply({
-                        embeds: [basicEmbed(`**Login failed!** ${result.error}`)]
+                        embeds: [basicEmbed(`**Login failed!** ${result.error}`)],
+                        ephemeral: true
                     });
                 }
             } else if (interaction.customId.startsWith("gotopage")) {
