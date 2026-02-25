@@ -228,7 +228,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         const embed = {
             title,
             description: liveGameData.inviteCode
-                ? `${description}\n\n${s(userId).livegame.PARTY_CODE} **\`${liveGameData.inviteCode}\`**`
+                ? `${description}\n\n${s(userId).livegame.PARTY_CODE} **${liveGameData.inviteCode}**`
                 : description,
             color,
             fields: hasParty ? await buildPlayerFields(allyPlayers, channel, true, (s(userId).livegame.PARTY_MEMBERS || "Party Members")) : undefined,
