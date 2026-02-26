@@ -40,7 +40,7 @@ import {
 } from "./embed.js";
 import { authUser, getUser, getUserList, getRegion, getUserInfo, generateWebAuthUrl, redeemWebAuthUrl } from "../valorant/auth.js";
 import { getBalance, clearShopMemoryCache } from "../valorant/shop.js";
-import { getSkin, fetchData, searchSkin, searchBundle, getBundle, clearCache, loadSkinsJSON, flushSkinsJSON } from "../valorant/cache.js";
+import { getSkin, fetchData, searchSkin, searchBundle, getBundle, clearCache, loadSkinsJSON, flushSkinsJSON, areSkinDataLoaded } from "../valorant/cache.js";
 import {
     addAlert,
     alertExists,
@@ -192,7 +192,22 @@ client.on("clientReady", async () => {
     }
 
     console.log("Loading skins...");
-    fetchData().then(() => console.log("Skins loaded!"));
+    if (client.shard.ids[0] === 0) {
+        // Shard 0: fetch fresh skin/item data from valorant-api.com if needed,
+        // save to skins.json, and broadcast skinsReload to all other shards.
+        fetchData().then(() => console.log("Skins loaded!"));
+    } else {
+        // Non-zero shards: read from skins.json written by shard 0.
+        // If the file isn't ready yet (shard 0 still fetching), we'll receive
+        // a skinsReload broadcast shortly which triggers loadSkinsJSON() again.
+        loadSkinsJSON().then(() => {
+            if (areSkinDataLoaded()) {
+                console.log("Skins loaded from disk (shard 0 already fetched)!");
+            } else {
+                console.log("skins.json not ready yet — waiting for skinsReload broadcast from shard 0...");
+            }
+        });
+    }
 
     if (client.shard.ids[0] === 0) {
         warmEmojiCache().catch(e => console.error(`Emoji cache warm/bootstrap failed: ${e.message}`));

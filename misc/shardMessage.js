@@ -2,7 +2,7 @@ import { checkAlerts, debugCheckAlerts, sendAlert, sendCredentialsExpired, sendD
 import { loadConfig } from "./config.js";
 import { client, destroyTasks, scheduleTasks } from "../discord/bot.js";
 import { localLog } from "./logger.js";
-import { loadSkinsJSON } from "../valorant/cache.js";
+import { loadSkinsJSON, areSkinDataLoaded } from "../valorant/cache.js";
 let allShardsReadyCb;
 let allShardsReadyPromise = new Promise(r => allShardsReadyCb = r);
 
@@ -113,9 +113,12 @@ const receiveShardMessage = async (message) => {
             destroyTasks();
             scheduleTasks();
             break;
-        case "skinsReload":
+        case "skinsReload": {
+            const wasEmpty = !areSkinDataLoaded();
             await loadSkinsJSON();
+            if (wasEmpty && areSkinDataLoaded()) localLog(`Skins loaded via skinsReload broadcast from shard 0`);
             break;
+        }
         case "priceUpdate":
             // Non-zero shards send discovered prices to shard 0 for persistence
             if (client.shard.ids[0] === 0) {

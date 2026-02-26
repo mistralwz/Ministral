@@ -37,6 +37,10 @@ export const clearCache = () => {
     dataFullyLoaded = false;
 }
 
+// Returns true once all 9 skin/item data types have been loaded at least once.
+// Used by non-zero shards to check if loadSkinsJSON() succeeded at startup.
+export const areSkinDataLoaded = () => dataFullyLoaded;
+
 export const getValorantVersion = async () => {
     console.log("Fetching current valorant version...");
 
