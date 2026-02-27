@@ -1808,8 +1808,9 @@ client.on("interactionCreate", async (interaction) => {
                     flags: [MessageFlags.Ephemeral]
                 });
 
-                const channel = await client.channels.fetch(interaction.channelId);
-                const message = await channel.messages.fetch(interaction.message.id);
+                // interaction.message is always available on button interactions.
+                // Avoids client.channels.fetch() which fails in user-install / DM contexts (50001).
+                const message = interaction.message;
                 if (!message.components) message.components = switchAccountButtons(interaction, customId, true);
 
                 for (const actionRow of message.components) {
@@ -1859,11 +1860,13 @@ client.on("interactionCreate", async (interaction) => {
                 }
 
                 if (newMessage.flags) {
-                    // Auth / API error — ephemeral payload can't be used with message.edit()
+                    // Auth / API error — ephemeral payload, send as followUp
                     await interaction.followUp(newMessage);
                 } else {
                     if (!newMessage.components) newMessage.components = switchAccountButtons(interaction, customId, true, false, id);
-                    await message.edit(newMessage);
+                    // Use editReply (interaction token) instead of message.edit (requires channel access)
+                    // so this works in user-install / DM contexts too.
+                    await interaction.editReply(newMessage);
                 }
             } else if (interaction.customId.startsWith("webauth/")) {
                 // Web auth button - show modal to paste callback URL
