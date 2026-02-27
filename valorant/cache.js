@@ -29,6 +29,10 @@ let lastBundleFetch = 0;
 // Prevents getSkin()/getBundle()/etc. from entering fetchData() on every call.
 let dataFullyLoaded = false;
 
+// In-flight promise guards — prevents concurrent callers from firing duplicate requests.
+let versionFetchPromise = null;
+let fetchDataPromise = null;
+
 export const clearCache = () => {
     weapons = skins = rarities = buddies = sprays = cards = titles = bundles = battlepass = null;
     prices = { timestamp: null };
@@ -42,15 +46,23 @@ export const clearCache = () => {
 export const areSkinDataLoaded = () => dataFullyLoaded;
 
 export const getValorantVersion = async () => {
-    console.log("Fetching current valorant version...");
+    // If a request is already in-flight, reuse it instead of firing a second one.
+    if (versionFetchPromise) return versionFetchPromise;
 
-    const req = await fetch("https://valorant-api.com/v1/version");
-    console.assert(req.statusCode === 200, `Valorant version status code is ${req.statusCode}!`, req);
+    versionFetchPromise = (async () => {
+        console.log("Fetching current valorant version...");
+        const req = await fetch("https://valorant-api.com/v1/version");
+        console.assert(req.statusCode === 200, `Valorant version status code is ${req.statusCode}!`, req);
+        const json = JSON.parse(req.body);
+        console.assert(json.status === 200, `Valorant version data status code is ${json.status}!`, json);
+        return json.data;
+    })();
 
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant version data status code is ${json.status}!`, json);
-
-    return json.data;
+    try {
+        return await versionFetchPromise;
+    } finally {
+        versionFetchPromise = null;
+    }
 }
 
 export const loadSkinsJSON = async (filename = "data/skins.json") => {
@@ -124,6 +136,18 @@ export const fetchData = async (types = null, checkVersion = false) => {
         if (allPresent) return;
     }
 
+    // If a fetchData() is already running, wait for it rather than starting a parallel one.
+    if (fetchDataPromise) return fetchDataPromise;
+
+    fetchDataPromise = _fetchDataImpl(types, checkVersion);
+    try {
+        await fetchDataPromise;
+    } finally {
+        fetchDataPromise = null;
+    }
+}
+
+const _fetchDataImpl = async (types = null, checkVersion = false) => {
     try {
         if (checkVersion || !gameVersion) {
             gameVersion = (await getValorantVersion()).manifestId;
