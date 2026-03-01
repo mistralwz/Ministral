@@ -34,7 +34,7 @@ export const loadConfig = (filename = "config.json", saveAfterLoad = true) => {
     if (!loadedConfig.token || loadedConfig.token === "token goes here")
         return console.error("You forgot to put your bot token in config.json!");
 
-    if (loadedConfig.HDevTokenAlert && !loadedConfig.HDevToken || loadedConfig.HDevToken === "") {
+    if (loadedConfig.HDevTokenAlert && !loadedConfig.HDevToken) {
         console.error("Looks like you didn't put a HDevToken in config.json!");
         console.error("The /profile command won't work without one. To get a key, see https://discord.gg/B7AarTMZMK");
         console.error("If you don't want to see this notification again, set HDevTokenAlert to false in config.json");
