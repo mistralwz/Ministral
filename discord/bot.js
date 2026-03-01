@@ -1942,16 +1942,24 @@ client.on("interactionCreate", async (interaction) => {
                 await interaction.deferUpdate();
                 interaction.deferred = true;
 
+                let newInviteCode = null;
+                let removedCode = false;
+
                 if (action === "make_code") {
-                    await makePartyCode(interaction.user.id, null, matchId);
+                    newInviteCode = await makePartyCode(interaction.user.id, null, matchId);
                 } else if (action === "remove_code") {
                     await removePartyCode(interaction.user.id, null, matchId);
+                    removedCode = true;
                 }
 
-                // Yield briefly for backend state replication
-                await new Promise(r => setTimeout(r, 1000));
-
                 const liveGameData = await fetchLiveGame(interaction.user.id);
+
+                // Inject our locally sourced code if the backend response hasn't updated yet
+                if (liveGameData.success && liveGameData.state === "queuing") {
+                    if (newInviteCode) liveGameData.inviteCode = newInviteCode;
+                    if (removedCode) liveGameData.inviteCode = null;
+                }
+
                 const payload = liveGameData.success
                     ? await renderLiveGame(liveGameData, interaction.user.id, !interaction.guild, interaction.channel)
                     : renderLiveGameError(liveGameData, interaction.user.id);

@@ -821,7 +821,10 @@ export const makePartyCode = async (id, account, partyId) => {
         body: "{}"
     });
     console.log(`[livegame] makePartyCode for ${partyId} on ${base} returned:`, resp.statusCode);
-    return resp.statusCode === 200;
+    if (resp.statusCode === 200) {
+        return JSON.parse(resp.body)?.InviteCode || true;
+    }
+    return false;
 };
 
 export const removePartyCode = async (id, account, partyId) => {
