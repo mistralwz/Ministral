@@ -1352,6 +1352,9 @@ export const fetchLiveGame = async (id, account = null) => {
     // 1. Ensure static caches are ready before the parallel API calls
     await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapImages(), loadSeasons(), loadGamemodes()]);
 
+    const authResult = await authUser(id, account);
+    if (!authResult.success) return { ...authResult, state: null };
+
     // 2. Try in-game
     const inGame = await getInGameData(id, account);
     if (!inGame.success) return inGame;  // auth failure
