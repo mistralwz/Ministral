@@ -1355,9 +1355,16 @@ export const fetchLiveGame = async (id, account = null) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
-    // 2. Try in-game
-    const inGame = await getInGameData(id, account);
-    if (!inGame.success) return inGame;  // auth failure
+    // 2. Parallelize state checks
+    const [inGame, preGame, party] = await Promise.all([
+        getInGameData(id, account),
+        getPreGameData(id, account),
+        getPartyData(id, account)
+    ]);
+
+    if (!inGame.success) return inGame;
+    if (!preGame.success) return preGame;
+    if (!party.success) return party;
 
     if (inGame.state === "ingame") {
         const enriched = await enrichPlayers(id, account, inGame.players, inGame.queueId);
@@ -1369,10 +1376,6 @@ export const fetchLiveGame = async (id, account = null) => {
         return { ...inGame, players: enriched, allyPlayers, enemyPlayers, mapImage, isSingleTeam, queueIcon };
     }
 
-    // 3. Try pre-game
-    const preGame = await getPreGameData(id, account);
-    if (!preGame.success) return preGame;
-
     if (preGame.state === "pregame") {
         const enriched = await enrichPlayers(id, account, preGame.players, preGame.queueId);
         const mapImage = await resolveMapImage(preGame.mapId);
@@ -1380,10 +1383,6 @@ export const fetchLiveGame = async (id, account = null) => {
         const queueIcon = resolveQueueIcon(preGame.queueId);
         return { ...preGame, players: enriched, allyPlayers: enriched, enemyPlayers: [], mapImage, isSingleTeam, queueIcon };
     }
-
-    // 4. Try queueing or idling party
-    const party = await getPartyData(id, account);
-    if (!party.success) return party;
 
     if (party.state === "queuing" || party.state === "not_queuing") {
         let enriched = [];
