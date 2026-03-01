@@ -671,7 +671,7 @@ const SINGLE_TEAM_QUEUES = new Set(["deathmatch"]);
  * the raw pd/mmr/v1/players response JSON.
  */
 export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
-    const empty = { currentTier: 0, currentRR: 0, peakTier: 0, wins: 0, games: 0, winRate: null };
+    const empty = { currentTier: 0, currentRR: 0, peakTier: 0, wins: 0, games: 0, winRate: null, _rawLatestMatchId: null, _rawLatestMatchStartTime: null };
     if (!mmrJson) return empty;
 
     // Current rank — best source is the latest competitive update
@@ -728,7 +728,11 @@ export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
     const winRate = games > 0 ? Math.round((wins / games) * 100) : null;
     const losses = games - wins;
 
-    return { currentTier, currentRR, peakTier, peakSeasonId, wins, losses, games, winRate };
+    return {
+        currentTier, currentRR, peakTier, peakSeasonId, wins, losses, games, winRate,
+        _rawLatestMatchId: latest?.MatchID ?? null,
+        _rawLatestMatchStartTime: latest?.MatchStartTime ?? null
+    };
 };
 
 // ──────────────────────────────────────────────
@@ -967,10 +971,6 @@ export const getPreGameData = async (id, account = null) => {
 
     const { MatchID: matchId } = JSON.parse(playerResp.body);
 
-    // Ensure the map-name cache is warm before resolveMapName is called below.
-    // fetchLiveGame pre-warms this, but guard here too for direct callers.
-    await loadMapImages();
-
     // Fetch match data
     const matchResp = await fetch(
         `${base}/pregame/v1/matches/${matchId}`,
@@ -1054,9 +1054,6 @@ export const getInGameData = async (id, account = null) => {
     }
 
     const { MatchID: matchId } = JSON.parse(playerResp.body);
-
-    // Ensure the map-name cache is warm before resolveMapName is called below.
-    await loadMapImages();
 
     // Fetch match data
     const matchResp = await fetch(
@@ -1158,33 +1155,6 @@ const fetchPlayerNames = async (user, puuids) => {
 };
 
 /**
- * Fetch the last competitive match result's ID and time for a single PUUID.
- * Returns an array of { matchId, startTime } — only 1 item max.
- */
-const fetchCompetitiveUpdateId = async (user, puuid) => {
-    const pd = pdUrl(user);
-    const headers = authHeaders(user);
-    try {
-        const resp = await fetch(
-            `${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=1&queue=competitive`,
-            { headers }
-        );
-        if (resp.statusCode !== 200) return null;
-        const json = JSON.parse(resp.body);
-        const m = (json.Matches ?? [])[0];
-        if (!m) return null;
-
-        // Check against 2 months (60 days)
-        const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
-        if (m.MatchStartTime < Date.now() - TWO_MONTHS_MS) return null;
-
-        return m.MatchID;
-    } catch {
-        return null;
-    }
-};
-
-/**
  * Fetch match details and score for multiple players, deduplicating requests.
  * @returns Map<puuid, {win, allyScore, enemyScore}>
  */
@@ -1247,7 +1217,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     // populated before fetchPlayerMMRs calls parseMMRData(raw, currentSeasonId).
     // Running them in parallel caused a race where every player appeared Unranked
     // on the first /livegame refresh while already in a match.
-    const seasonMap = await loadSeasons();
+    const seasonMap = seasonsCache; // Pre-warmed by fetchLiveGame
     const [mmrMap, nameMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids.filter(p => !rawPlayers.find(rp => rp.puuid === p)?.incognito)),
@@ -1257,11 +1227,20 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const compScoresMap = new Map();
     if (showCompStats) {
         const puuidMatchMap = {};
-        const matchIdResults = await Promise.allSettled(
-            puuids.map(puuid => fetchCompetitiveUpdateId(user, puuid))
-        );
-        for (let i = 0; i < puuids.length; i++) {
-            puuidMatchMap[puuids[i]] = matchIdResults[i].status === "fulfilled" ? matchIdResults[i].value : null;
+        const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+
+        for (const puuid of puuids) {
+            const mmr = mmrMap.get(puuid);
+            if (mmr && mmr._rawLatestMatchId && mmr._rawLatestMatchStartTime) {
+                if (mmr._rawLatestMatchStartTime >= now - TWO_MONTHS_MS) {
+                    puuidMatchMap[puuid] = mmr._rawLatestMatchId;
+                } else {
+                    puuidMatchMap[puuid] = null;
+                }
+            } else {
+                puuidMatchMap[puuid] = null;
+            }
         }
 
         const scores = await fetchMatchScores(user, puuidMatchMap);
