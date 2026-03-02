@@ -998,7 +998,7 @@ export const getPreGameData = async (id, account = null) => {
     // "customgame" → "custom"  (pre-game Custom lobbies)
     // "standard"   → "unrated" (older Riot clients)
     const SLUG_ALIASES = { customgame: "custom", standard: "unrated" };
-    const queueId = SLUG_ALIASES[rawSlug] ?? rawSlug;
+    const queueId = matchJson.MatchmakingData?.QueueID ?? matchJson.QueueID ?? SLUG_ALIASES[rawSlug] ?? rawSlug;
 
     const gamePodId = matchJson.GamePodID ?? "";
     const serverName = resolveServerName(gamePodId);

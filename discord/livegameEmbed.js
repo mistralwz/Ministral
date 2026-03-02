@@ -399,19 +399,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             }
 
             if (menuRows.length > 0) {
-                let lockButtonRow;
-                if (myPlayer.agentId) {
-                    lockButtonRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`livegame/lock_agent/${liveGameData.matchId}/${myPlayer.agentId.toLowerCase()}`)
-                            .setLabel("Lock In")
-                            .setStyle(ButtonStyle.Success)
-                    );
-                }
-
-                components = lockButtonRow
-                    ? [...menuRows, lockButtonRow, components[0]]
-                    : [...menuRows, components[0]];
+                components = [...menuRows, components[0]];
             }
         }
     }

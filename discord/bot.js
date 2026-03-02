@@ -124,7 +124,7 @@ const cancelLiveGamePoller = (userId) => {
  * @param {Interaction} interaction  Original deferred interaction (for editReply)
  * @param {number}     retriesLeft
  */
-const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER_MAX_TIME_MS / config.livegamePollingInterval)) => {
+const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER_MAX_TIME_MS / config.livegamePollingInterval), previousData = null) => {
     cancelLiveGamePoller(userId);
     if (retriesLeft <= 0) return;
 
@@ -134,12 +134,64 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
             const data = await fetchLiveGame(userId);
             if (!data.success || data.state === "not_in_game") return; // stop
 
+            // ─── STOLEN AGENT PING LOGIC ──────────────────────────────────────
+            // Only applies during pregame (Agent Select)
+            if (data.state === "pregame" && previousData && previousData.state === "pregame") {
+                const myPrevPlayer = previousData.players.find(p => p.puuid === data.userPuuid);
+                const myCurrPlayer = data.players.find(p => p.puuid === data.userPuuid);
+
+                // If I was hovering BEFORE, and now the agent is no longer hovered by me...
+                if (myPrevPlayer && myPrevPlayer.agentId && myPrevPlayer.selectionState !== "locked") {
+                    const hoveredAgentId = myPrevPlayer.agentId;
+                    const hoveredAgentNameObj = myPrevPlayer.agentName || { "en-US": "that agent" };
+                    const hoveredAgentName = hoveredAgentNameObj["en-US"] || "that agent";
+
+                    // Check if someone else locked it in the CURRENT state
+                    const thief = data.players.find(p =>
+                        p.puuid !== data.userPuuid &&
+                        p.agentId === hoveredAgentId &&
+                        p.selectionState === "locked"
+                    );
+
+                    // Check if *I* am still hovering or locked it (if I am, no theft occurred)
+                    const iAmStillHoveringOrLocked = myCurrPlayer && myCurrPlayer.agentId === hoveredAgentId;
+
+                    if (thief && !iAmStillHoveringOrLocked) {
+                        try {
+                            const message = `<@${interaction.user.id}>, a teammate just locked in **${hoveredAgentName}**!`;
+
+                            // Try to ping in the same channel
+                            if (interaction.channel && interaction.channel.permissionsFor) {
+                                const botPerms = interaction.channel.permissionsFor(interaction.client.user);
+                                if (botPerms && botPerms.has("SendMessages")) {
+                                    await interaction.followUp({ content: message });
+                                } else {
+                                    // Fallback to DM if missing SendMessages
+                                    await interaction.user.send(message).catch(() => {
+                                        // Fallback to second embed if DM fails
+                                        interaction.followUp({ content: message, flags: ["Ephemeral"] }).catch(() => { });
+                                    });
+                                }
+                            } else {
+                                // If interaction.channel is missing or permissions error
+                                await interaction.user.send(message).catch(() => {
+                                    interaction.followUp({ content: message, flags: ["Ephemeral"] }).catch(() => { });
+                                });
+                            }
+                        } catch (e) {
+                            console.error(`[livegame poller] Failed to send stolen agent ping for ${userId}:`, e);
+                        }
+                    }
+                }
+            }
+            // ──────────────────────────────────────────────────────────────────
+
             const payload = await renderLiveGame(data, userId, !interaction.guild, interaction.channel);
             await interaction.editReply(payload);
 
             if (data.state === "pregame" || data.state === "queuing") {
                 // Still in agent select or queue — wait another cycle
-                startLiveGamePoller(userId, interaction, retriesLeft - 1);
+                startLiveGamePoller(userId, interaction, retriesLeft - 1, data);
             }
             // state === "ingame" → full embed sent, stop polling
         } catch (e) {
@@ -1558,6 +1610,10 @@ client.on("interactionCreate", async (interaction) => {
 
                     await updateInteraction(interaction, payload);
 
+                    if (liveGameData.success && liveGameData.state === "pregame") {
+                        startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
+                    }
+
                     break;
                 }
                 case "skin-select-stats": {
@@ -2023,28 +2079,6 @@ client.on("interactionCreate", async (interaction) => {
                         cancelLiveGamePoller(interaction.user.id);
                     }
                 }
-            } else if (interaction.customId.startsWith("livegame/lock_agent/")) {
-                const [, , matchId, agentId] = interaction.customId.split('/');
-
-                if (interaction.message.interaction.user.id !== interaction.user.id) {
-                    return await interaction.reply({
-                        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                        flags: [MessageFlags.Ephemeral]
-                    });
-                }
-
-                await interaction.deferUpdate();
-                interaction.deferred = true;
-
-                await lockAgent(interaction.user.id, null, matchId, agentId);
-
-                // Re-render embed immediately
-                const liveGameData = await fetchLiveGame(interaction.user.id);
-                const payload = liveGameData.success
-                    ? await renderLiveGame(liveGameData, interaction.user.id, !interaction.guild, interaction.channel)
-                    : renderLiveGameError(liveGameData, interaction.user.id);
-
-                await updateInteraction(interaction, payload);
             }
         } catch (e) {
             await handleError(e, interaction);
