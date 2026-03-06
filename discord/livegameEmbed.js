@@ -72,7 +72,9 @@ const formatPlayerRow = async (player, channel, showCompStats = false) => {
         : "";
 
     const rankPart = player.currentTier > 0
-        ? `**${player.currentRR}**rr ${currentRankEmojiStr}`.trim()
+        ? (player.isRankFallback
+            ? `${currentRankEmojiStr}`.trim()
+            : `**${player.currentRR}**rr ${currentRankEmojiStr}`.trim())
         : currentRankEmojiStr || "`Unranked`";
 
     // Peak rank — shown in all modes; text fallback when emoji is unavailable

@@ -98,6 +98,7 @@ export const clearLiveGameCache = () => {
     mapNamesCache = null;
     seasonsCache = null;
     currentSeasonId = null;
+    playerMmrCache.clear();
 };
 
 const loadGamemodes = async () => {
@@ -777,7 +778,7 @@ export const getPartyData = async (id, account = null) => {
     }
 
     const partyJson = JSON.parse(partyResp.body);
-    const members = (partyJson.Members || []).map(m => ({ puuid: m.Subject, isLeader: m.IsOwner }));
+    const members = (partyJson.Members || []).map(m => ({ puuid: m.Subject, isLeader: m.IsOwner, matchTier: m.CompetitiveTier || 0 }));
     const eligibleQueues = partyJson.EligibleQueues || [];
     const inviteCode = partyJson.InviteCode || null;
     const preferredGamePods = partyJson.MatchmakingData?.PreferredGamePods || [];
@@ -1012,6 +1013,7 @@ export const getPreGameData = async (id, account = null) => {
         incognito: p.PlayerIdentity?.Incognito ?? false,
         accountLevel: p.PlayerIdentity?.AccountLevel ?? null,
         isHideAccountLevel: p.PlayerIdentity?.HideAccountLevel ?? false,
+        matchTier: p.CompetitiveTier || p.SeasonalBadgeInfo?.Rank || 0,
     }));
 
     return {
@@ -1085,6 +1087,7 @@ export const getInGameData = async (id, account = null) => {
         incognito: p.PlayerIdentity?.Incognito ?? false,
         accountLevel: p.PlayerIdentity?.AccountLevel ?? null,
         isHideAccountLevel: p.PlayerIdentity?.HideAccountLevel ?? false,
+        matchTier: p.Tier || p.SeasonalBadgeInfo?.Rank || 0,
     }));
 
     return {
@@ -1105,6 +1108,8 @@ export const getInGameData = async (id, account = null) => {
 // ──────────────────────────────────────────────
 // Bulk data fetchers
 // ──────────────────────────────────────────────
+const playerMmrCache = new Map();
+const MMR_CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
 
 /**
  * Batch-fetch MMR for a list of PUUIDs using the caller's auth.
@@ -1113,6 +1118,7 @@ export const getInGameData = async (id, account = null) => {
 const fetchPlayerMMRs = async (user, puuids) => {
     const headers = authHeaders(user);
     const pd = pdUrl(user);
+    const now = Date.now();
 
     const results = await Promise.allSettled(
         puuids.map(puuid =>
@@ -1123,8 +1129,23 @@ const fetchPlayerMMRs = async (user, puuids) => {
 
     const out = new Map();
     for (let i = 0; i < puuids.length; i++) {
+        const puuid = puuids[i];
         const raw = results[i].status === "fulfilled" ? results[i].value : null;
-        out.set(puuids[i], parseMMRData(raw, currentSeasonId));
+        let parsed = parseMMRData(raw, currentSeasonId);
+
+        // Riot matches block `QueueSkills` for non-authenticated players during coregame, returning zeroes.
+        // We persist legitimate MMRs (wins > 0, peakTier > 0, or user's own puuid) from pregame into cache.
+        // If Riot gives us 0's, we fallback to cache.
+        if (parsed.games > 0 || parsed.peakTier > 0 || puuid === user.puuid) {
+            playerMmrCache.set(puuid, { data: parsed, ts: now });
+        } else {
+            const cached = playerMmrCache.get(puuid);
+            if (cached && now - cached.ts < MMR_CACHE_TTL) {
+                parsed = cached.data;
+            }
+        }
+
+        out.set(puuid, parsed);
     }
     return out;
 };
@@ -1256,11 +1277,12 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const enriched = await Promise.all(rawPlayers.map(async (p, idx) => {
         const mmr = mmrMap.get(p.puuid);
         const name = !p.incognito ? (nameMap.get(p.puuid) ?? null) : null;
+        const actualCurrentTier = mmr?.currentTier || p.matchTier || 0;
 
         // Resolve agent and tier icons/names in parallel
         const [agentInfo, currentTierInfo, peakTierInfo] = await Promise.all([
             p.agentId ? resolveAgent(p.agentId) : Promise.resolve({ name: "Unknown", icon: null, role: null }),
-            resolveTier(mmr?.currentTier ?? 0),
+            resolveTier(actualCurrentTier),
             resolveTier(mmr?.peakTier ?? 0),
         ]);
 
@@ -1286,10 +1308,11 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             agentIcon: p.agentId ? agentInfo.icon : null,
             selectionState: p.selectionState ?? "",
             // Rank
-            currentTier: mmr?.currentTier ?? 0,
+            currentTier: actualCurrentTier,
             currentRR: mmr?.currentRR ?? 0,
             currentTierName: currentTierInfo.name,
             currentTierIcon: currentTierInfo.icon,
+            isRankFallback: !mmr?.currentTier && p.matchTier > 0,
             // Peak rank
             peakTier: mmr?.peakTier ?? 0,
             peakTierName: peakTierInfo.name,
