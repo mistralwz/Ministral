@@ -1,4 +1,3 @@
-import { redeemCookies } from "./auth.js";
 import config from "../misc/config.js";
 import { wait } from "../misc/util.js";
 import {
@@ -17,7 +16,6 @@ import {
 import { client } from "../discord/bot.js";
 
 export const Operations = {
-    COOKIES: "ck",
     NULL: "00"
 }
 
@@ -37,17 +35,7 @@ export const startAuthQueue = () => {
     }
 }
 
-export const queueCookiesLogin = async (id, cookies) => {
-    if (!config.useLoginQueue) return await redeemCookies(id, cookies);
 
-    const c = await getNextCounter();
-    await pushAuthQueue({
-        operation: Operations.COOKIES,
-        c, id, cookies
-    });
-    console.log(`[Auth Queue] Added cookie login for user ${id} (c=${c})`);
-    return { inQueue: true, c };
-};
 
 export const queueNullOperation = async (timeout) => {  // used for stress-testing the auth queue
     if (!config.useLoginQueue) {
@@ -87,9 +75,7 @@ export const processAuthQueue = async () => {
         let result;
         try {
             switch (item.operation) {
-                case Operations.COOKIES:
-                    result = await redeemCookies(item.id, item.cookies);
-                    break;
+
                 case Operations.NULL:
                     await wait(item.timeout);
                     result = { success: true };

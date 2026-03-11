@@ -261,27 +261,6 @@ export const riotClientHeaders = () => {
     return cachedRiotHeaders;
 }
 
-export const parseSetCookie = (setCookie) => {
-    if (!setCookie) {
-        console.error("Riot didn't return any cookies during the auth request! Cloudflare might have something to do with it...");
-        return {};
-    }
-
-    const cookies = {};
-    for (const cookie of setCookie) {
-        const sep = cookie.indexOf("=");
-        cookies[cookie.slice(0, sep)] = cookie.slice(sep + 1, cookie.indexOf(';'));
-    }
-    return cookies;
-}
-
-export const stringifyCookies = (cookies) => {
-    const cookieList = [];
-    for (let [key, value] of Object.entries(cookies)) {
-        cookieList.push(key + "=" + value);
-    }
-    return cookieList.join("; ");
-}
 
 export const extractTokensFromUri = (uri) => {
     // thx hamper for regex

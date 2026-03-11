@@ -1,7 +1,5 @@
 import {
     fetch,
-    parseSetCookie,
-    stringifyCookies,
     extractTokensFromUri,
     tokenExpiry,
     decodeToken,
@@ -11,7 +9,6 @@ import config from "../misc/config.js";
 import { client } from "../discord/bot.js";
 import { addUser, getAccountWithPuuid, getUserJson, readUserJson, saveUser } from "./accountSwitcher.js";
 import { checkRateLimit, isRateLimited } from "../misc/rateLimit.js";
-import { queueCookiesLogin } from "./authQueue.js";
 import { waitForAuthQueueResponse } from "../discord/authManager.js";
 import { getAllUserIds, getUserIdsWithAlertsOrDailyShop } from "../misc/userDatabase.js";
 
@@ -127,46 +124,7 @@ export const authUser = async (id, account = null) => {
     return await refreshToken(id, account);
 }
 
-const processAuthResponse = async (id, authData, redirect, user = null) => {
-    if (!user) user = new User({ id });
-    const [rso, idt] = extractTokensFromUri(redirect);
-    if (rso == null) {
-        console.error("Riot servers didn't return an RSO token!");
-        console.error("Most likely the Cloudflare firewall is blocking your IP address. Try hosting on your home PC and seeing if the issue still happens.");
-        throw "Riot servers didn't return an RSO token!";
-    }
 
-    user.auth = {
-        ...user.auth,
-        rso: rso,
-        idt: idt,
-        cookies: authData.cookies
-    }
-
-    user.puuid = decodeToken(rso).sub;
-
-    const existingAccount = getAccountWithPuuid(id, user.puuid);
-    if (existingAccount) {
-        user.username = existingAccount.username;
-        user.region = existingAccount.region;
-        if (existingAccount.auth) user.auth.ent = existingAccount.auth.ent;
-    }
-
-    const [userInfo, entitlements, region] = await Promise.all([
-        getUserInfo(user),
-        user.auth.ent ? Promise.resolve(user.auth.ent) : getEntitlements(user),
-        user.region ? Promise.resolve(user.region) : getRegion(user)
-    ]);
-
-    user.username = userInfo.username;
-    user.auth.ent = entitlements;
-    user.region = region;
-
-    user.lastFetchedData = Date.now();
-
-    user.authFailures = 0;
-    return user;
-}
 
 export const getUserInfo = async (user) => {
     const req = await fetch("https://auth.riotgames.com/userinfo", {
@@ -214,41 +172,6 @@ export const getRegion = async (user) => {
     return json.affinities.live;
 }
 
-export const redeemCookies = async (id, cookies) => {
-    let rateLimit = await isRateLimited("auth.riotgames.com");
-    if (rateLimit) return { success: false, rateLimit: rateLimit };
-
-    const req = await fetch("https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&scope=account%20openid&nonce=1", {
-        headers: {
-            'user-agent': await getUserAgent(),
-            cookie: cookies
-        }
-    });
-    console.log(`[redeemCookies] Status: ${req.statusCode}, Location: ${req.headers.location}`);
-    console.assert(req.statusCode === 303, `Cookie Reauth status code is ${req.statusCode}!`, req);
-
-    rateLimit = await checkRateLimit(req, "auth.riotgames.com");
-    if (rateLimit) return { success: false, rateLimit: rateLimit };
-
-    if (detectCloudflareBlock(req)) return { success: false, rateLimit: "cloudflare" };
-
-    // invalid cookies → Riot redirects to login page (can be relative or full URL)
-    if (req.headers.location && (req.headers.location.startsWith("/login") || req.headers.location.includes("authenticate.riotgames.com/login"))) {
-        console.log(`[redeemCookies] Cookies are invalid, redirected to login page`);
-        return { success: false };
-    }
-
-    cookies = {
-        ...parseSetCookie(cookies),
-        ...parseSetCookie(req.headers['set-cookie'])
-    }
-
-    const user = await processAuthResponse(id, { cookies }, req.headers.location);
-    addUser(user);
-
-    return { success: true };
-}
-
 export const refreshToken = async (id, account = null) => {
     if (config.logUrls) console.log(`Refreshing token for ${id}...`)
     let response = { success: false }
@@ -289,14 +212,7 @@ export const refreshToken = async (id, account = null) => {
         }
     }
 
-    // 2. Fall back to cookie-based refresh
-    if (user.auth.cookies) {
-        if (config.logUrls) console.log(`[refreshToken] User has cookies, attempting cookie refresh`);
-        response = await queueCookiesLogin(id, stringifyCookies(user.auth.cookies));
-        if (response.inQueue) response = await waitForAuthQueueResponse(response);
-    } else {
-        if (config.logUrls) console.log(`[refreshToken] User has no cookies or refresh_token, cannot refresh`);
-    }
+
 
     if (!response.success && !response.rateLimit) deleteUserAuth(user);
 
@@ -345,11 +261,11 @@ export const getTokenStatus = (id, account = null) => {
     const status = {
         hasToken: true,
         hasRefreshToken: !!user.auth.refresh_token,
-        hasCookies: !!user.auth.cookies,
+        hasCookies: false,
         expiresAt: expiresAt.toISOString(),
         expiresInMinutes: minutesRemaining,
         needsRefresh: needsRefresh,
-        canAutoRefresh: !!user.auth.refresh_token || !!user.auth.cookies
+        canAutoRefresh: !!user.auth.refresh_token
     };
 
     // Add refresh token age if available

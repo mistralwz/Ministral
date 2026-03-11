@@ -54,7 +54,7 @@ import {
     testAlerts
 } from "./alerts.js";
 import { RadEmoji, VPEmoji, KCEmoji, warmEmojiCache } from "./emoji.js";
-import { queueCookiesLogin, startAuthQueue, } from "../valorant/authQueue.js";
+import { startAuthQueue, } from "../valorant/authQueue.js";
 import { waitForAuthQueueResponse } from "./authManager.js";
 import { renderBattlepassProgress } from "../valorant/battlepass.js";
 import { getOverallStats, getStatsFor, flushStats } from "../misc/stats.js";
@@ -416,16 +416,6 @@ const commands = [
     {
         name: "update",
         description: "Update your username/region in the bot.",
-    },
-    {
-        name: "cookies",
-        description: "Log in with your cookies. Useful if you use Google/Facebook to log in.",
-        options: [{
-            type: ApplicationCommandOptionType.String,
-            name: "cookies",
-            description: "Your auth.riotgames.com cookie header",
-            required: true
-        }]
     },
     {
         name: "settings",
@@ -1158,31 +1148,6 @@ client.on("interactionCreate", async (interaction) => {
                     await interaction.reply({
                         embeds: [embed],
                         components: [new ActionRowBuilder().addComponents(loginButton)],
-                        flags: [MessageFlags.Ephemeral]
-                    });
-
-                    break;
-                }
-                case "cookies": {
-                    await defer(interaction, true);
-
-                    const cookies = interaction.options.get("cookies").value;
-
-                    let success = await queueCookiesLogin(interaction.user.id, cookies);
-                    if (success.inQueue) success = await waitForAuthQueueResponse(success);
-
-                    const user = getUser(interaction.user.id);
-                    let embed;
-                    if (success && user) {
-                        console.log(`${interaction.user.tag} logged in as ${user.username} using cookies`)
-                        embed = basicEmbed(s(interaction).info.LOGGED_IN.f({ u: user.username }));
-                    } else {
-                        console.log(`${interaction.user.tag} cookies login failed`);
-                        embed = basicEmbed(s(interaction).error.INVALID_COOKIES);
-                    }
-
-                    await interaction.followUp({
-                        embeds: [embed],
                         flags: [MessageFlags.Ephemeral]
                     });
 
