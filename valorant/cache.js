@@ -101,6 +101,8 @@ export const saveSkinsJSON = (filename = "data/skins.json") => {
     }
     fs.writeFileSync(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins, prices, bundles, rarities, buddies, sprays, cards, titles, battlepass }, null, 2));
     skinsSaveDirty = false;
+    
+    sendShardMessage({ type: "skinsReload" });
 }
 
 const debouncedSaveSkinsJSON = () => {
@@ -264,28 +266,28 @@ export const addPricesFromShop = (shopJson) => {
     if (!config.fetchSkinPrices) return;
 
     let newPrices = 0;
-    const vpCurrencyId = "85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741"; // VP currency UUID
+    let newPriceData = {};
+    const vpCurrencyId = "85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741";
 
-    // Initialize prices if needed
     if (!prices || typeof prices !== 'object') {
         prices = { timestamp: Date.now() };
     }
 
-    // Extract from SingleItemStoreOffers (daily shop items with full price data)
+    // Daily Shop
     if (shopJson.SkinsPanelLayout?.SingleItemStoreOffers) {
         for (const offer of shopJson.SkinsPanelLayout.SingleItemStoreOffers) {
             if (offer.OfferID && offer.Cost && !prices[offer.OfferID]) {
-                // Get VP cost (most common currency)
                 const cost = offer.Cost[vpCurrencyId] || offer.Cost[Object.keys(offer.Cost)[0]];
                 if (cost) {
                     prices[offer.OfferID] = cost;
+                    newPriceData[offer.OfferID] = cost;
                     newPrices++;
                 }
             }
         }
     }
 
-    // Extract from bundles
+    // Bundles
     if (shopJson.FeaturedBundle?.Bundles) {
         for (const bundle of shopJson.FeaturedBundle.Bundles) {
             if (bundle.ItemOffers) {
@@ -295,16 +297,17 @@ export const addPricesFromShop = (shopJson) => {
                         const cost = offer.Cost[vpCurrencyId] || offer.Cost[Object.keys(offer.Cost)[0]];
                         if (cost) {
                             prices[offer.OfferID] = cost;
+                            newPriceData[offer.OfferID] = cost;
                             newPrices++;
                         }
                     }
                 }
             }
-            // Also check Items array for base prices
             if (bundle.Items) {
                 for (const item of bundle.Items) {
                     if (item.Item?.ItemID && item.BasePrice && !prices[item.Item.ItemID]) {
                         prices[item.Item.ItemID] = item.BasePrice;
+                        newPriceData[item.Item.ItemID] = item.BasePrice;
                         newPrices++;
                     }
                 }
@@ -312,7 +315,7 @@ export const addPricesFromShop = (shopJson) => {
         }
     }
 
-    // Extract from night market if available
+    // Night Market
     if (shopJson.BonusStore?.BonusStoreOffers) {
         for (const bonusOffer of shopJson.BonusStore.BonusStoreOffers) {
             const offer = bonusOffer.Offer;
@@ -320,6 +323,7 @@ export const addPricesFromShop = (shopJson) => {
                 const cost = offer.Cost[vpCurrencyId] || offer.Cost[Object.keys(offer.Cost)[0]];
                 if (cost) {
                     prices[offer.OfferID] = cost;
+                    newPriceData[offer.OfferID] = cost;
                     newPrices++;
                 }
             }
@@ -328,24 +332,15 @@ export const addPricesFromShop = (shopJson) => {
 
     if (newPrices > 0) {
         prices.timestamp = Date.now();
-        allSkinsCache = null; // invalidate since prices changed
+        allSkinsCache = null; 
         console.log(`Added ${newPrices} new skin prices to cache! (Total: ${Object.keys(prices).length - 2} prices)`);
 
-        if (client.shard.ids[0] !== 0) {
-            // Non-zero shards: send discovered prices to shard 0 for persistence
-            const newPriceData = {};
-            if (shopJson.SkinsPanelLayout?.SingleItemStoreOffers) {
-                for (const offer of shopJson.SkinsPanelLayout.SingleItemStoreOffers) {
-                    if (offer.OfferID && prices[offer.OfferID]) {
-                        newPriceData[offer.OfferID] = prices[offer.OfferID];
-                    }
-                }
-            }
+        if (client?.shard && client.shard.ids[0] !== 0) {
+            // Only send the newly discovered prices
             sendShardMessage({ type: "priceUpdate", prices: newPriceData });
         } else {
-            // Shard 0 (or non-sharded): save to disk and notify other shards
+            // Just trigger the save (saveSkinsJSON() is called in debouncedSaveSkinsJSON())
             debouncedSaveSkinsJSON();
-            sendShardMessage({ type: "skinsReload" });
         }
     }
 }
@@ -366,8 +361,8 @@ export const mergePrices = (incomingPrices) => {
         prices.timestamp = Date.now();
         allSkinsCache = null;
         console.log(`Merged ${merged} prices from another shard (Total: ${Object.keys(prices).length - 2} prices)`);
+
         debouncedSaveSkinsJSON();
-        sendShardMessage({ type: "skinsReload" });
     }
 }
 
