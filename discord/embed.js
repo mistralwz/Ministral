@@ -402,6 +402,9 @@ export const renderBattlepass = async (battlepass, targetlevel, interaction, tar
     if (battlepass.nextReward.rewardType === "Spray") {
         battlepass.nextReward.rewardType = s(interaction).battlepass.SPRAY;
     }
+    if (battlepass.nextReward.rewardType === "Totem") {
+        battlepass.nextReward.rewardType = s(interaction).battlepass.FLEX;
+    }
     if (battlepass.nextReward.rewardName === undefined) {
         battlepass.nextReward.rewardName = "Name not found"
     }
