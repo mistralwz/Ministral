@@ -171,7 +171,8 @@ export const itemTypes = {
     BUDDY: "dd3bf334-87f3-40bd-b043-682a57a8dc3a",
     SPRAY: "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475",
     CARD: "3f296c07-64c3-494c-923b-fe692a4fa1bd",
-    TITLE: "de7caa6b-adf7-4588-bbd1-143831e786c6"
+    TITLE: "de7caa6b-adf7-4588-bbd1-143831e786c6",
+    FLEX: "03a572de-4234-31ed-d344-ababa488f981"
 }
 
 // example riotVersionData: {

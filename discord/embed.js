@@ -402,6 +402,9 @@ export const renderBattlepass = async (battlepass, targetlevel, interaction, tar
     if (battlepass.nextReward.rewardType === "Spray") {
         battlepass.nextReward.rewardType = s(interaction).battlepass.SPRAY;
     }
+    if (battlepass.nextReward.rewardType === "Totem") {
+        battlepass.nextReward.rewardType = s(interaction).battlepass.FLEX;
+    }
     if (battlepass.nextReward.rewardName === undefined) {
         battlepass.nextReward.rewardName = "Name not found"
     }
@@ -520,10 +523,11 @@ const renderBundleItems = async (bundle, interaction, VPemojiString) => {
     if (!bundle.items) return [];
 
     const priorities = {};
-    priorities[itemTypes.SKIN] = 5;
-    priorities[itemTypes.BUDDY] = 4;
-    priorities[itemTypes.SPRAY] = 3;
-    priorities[itemTypes.CARD] = 2;
+    priorities[itemTypes.SKIN] = 6;
+    priorities[itemTypes.BUDDY] = 5;
+    priorities[itemTypes.SPRAY] = 4;
+    priorities[itemTypes.CARD] = 3;
+    priorities[itemTypes.FLEX] = 2;
     priorities[itemTypes.TITLE] = 1;
 
     const items = bundle.items.sort((a, b) => priorities[b.type] - priorities[a.type]);
@@ -557,6 +561,7 @@ const bundleItemEmbed = async (item, interaction, VPemojiString) => {
         case itemTypes.CARD: return cardEmbed(item.uuid, item.price, interaction, VPemojiString);
         case itemTypes.SPRAY: return sprayEmbed(item.uuid, item.price, interaction, VPemojiString);
         case itemTypes.TITLE: return titleEmbed(item.uuid, item.price, interaction, VPemojiString);
+        case itemTypes.FLEX: return flexEmbed(item.uuid, item.price, interaction, VPemojiString);
         default: return basicEmbed(s(interaction).error.UNKNOWN_ITEM_TYPE.f({ t: item.type }));
     }
 }

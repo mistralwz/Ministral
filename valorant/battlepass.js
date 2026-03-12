@@ -1,7 +1,7 @@
 
 import {authUser, deleteUserAuth, getUser} from "./auth.js";
 import {fetch, isMaintenance, riotClientHeaders, userRegion} from "../misc/util.js";
-import {getBattlepassInfo, getBuddy, getCard, getSkin, getSpray, getValorantVersion} from "./cache.js";
+import {getBattlepassInfo, getBuddy, getCard, getFlex, getSkin, getSpray, getValorantVersion} from "./cache.js";
 import {renderBattlepass} from "../discord/embed.js";
 import {getEntitlements} from "./inventory.js";
 import {l, s} from "../misc/languages.js";
@@ -107,6 +107,16 @@ const getNextReward = async (interaction, CurrentTier) => {
                 tier: CurrentTier + 1,
                 rewardName: l(spray.names, interaction),
                 rewardIcon: spray.icon,
+                rewardType: rewardType,
+                XP: xpAmount
+            };
+        }
+        case "Totem": {
+            const flex = await getFlex(rewardUUID);
+            return {
+                tier: CurrentTier + 1,
+                rewardName: l(flex.names, interaction),
+                rewardIcon: flex.icon,
                 rewardType: rewardType,
                 XP: xpAmount
             };
