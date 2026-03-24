@@ -72,7 +72,8 @@ const mergePriceCache = (incomingPrices, setVersion = null) => {
 
 export const clearCache = () => {
     weapons = skins = rarities = buddies = sprays = cards = titles = bundles = battlepass = flexes = null;
-    prices = { timestamp: null };
+    // Keep discovered price cache across clearCache() calls.
+    if (!prices || typeof prices !== "object") prices = { timestamp: null };
     allSkinsCache = null;
     bundleItemPrices = {};
     dataFullyLoaded = false;
