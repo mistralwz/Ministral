@@ -309,9 +309,18 @@ const addShopCache = async (puuid, shopJson) => {
     console.log(`Added shop cache for user ${discordTag(puuid)}`);
 }
 
-// Clear all in-memory shop caches (e.g., on !config clearcache)
-export const clearShopMemoryCache = () => {
+// Clear all in-memory shop caches and Redis shop snapshots (e.g., on !config clearcache)
+export const clearShopMemoryCache = async () => {
+    const memoryEntries = memoryShopCache.size;
     memoryShopCache.clear();
+
+    try {
+        const { clearAllShopData } = await import("../misc/redisQueue.js");
+        const redisEntries = await clearAllShopData();
+        console.log(`Cleared shop cache (memory: ${memoryEntries}, redis: ${redisEntries})`);
+    } catch (e) {
+        console.error("Failed to clear Redis shop cache:", e?.message || e);
+    }
 }
 
 const getMidnightTimestamp = (timestamp) => {

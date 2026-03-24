@@ -649,17 +649,15 @@ client.on("messageCreate", async (message) => {
                 }, null, 2) + "```";
                 await message.reply(s);
             } else if (splits[1] === "clearcache") {
-                clearShopMemoryCache();
-
-                // (Using redis key expiration handles individual redis cache clears, so we just clear L1)
+                await clearShopMemoryCache();
 
                 // delete skins.json and reset skin cache
-                await message.channel.send("Deleting skins.json and resetting skin cache...");
+                await message.channel.send("Clearing shop cache (memory + Redis), deleting skins.json and resetting skin cache...");
                 fs.rmSync("data/skins.json");
                 clearCache();
                 await fetchData();
 
-                await message.reply("Successfully cleared shop and skin cache!");
+                await message.reply("Successfully cleared shop cache (memory + Redis) and skin cache!");
             } else {
                 const target = splits[1];
                 const value = splits.slice(2).join(' ');

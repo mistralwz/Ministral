@@ -6,7 +6,7 @@ import { DEFAULT_VALORANT_LANG, discToValLang } from "../misc/languages.js";
 import { client } from "../discord/bot.js";
 import { sendShardMessage } from "../misc/shardMessage.js";
 
-const formatVersion = 15;
+const formatVersion = 16;
 let gameVersion;
 
 let weapons, skins, rarities, buddies, sprays, cards, titles, bundles, battlepass, flexes;
@@ -18,6 +18,7 @@ let bundleItemPrices = {};
 let skinsSaveDirty = false;
 let skinsSaveTimer = null;
 const SKINS_SAVE_DEBOUNCE_MS = 3000;
+const PRICE_META_KEYS = new Set(["version", "timestamp"]);
 
 // Cached result from getAllSkins() — invalidated on skin/price reload
 let allSkinsCache = null;
@@ -33,9 +34,46 @@ let dataFullyLoaded = false;
 let versionFetchPromise = null;
 let fetchDataPromise = null;
 
+const hasAllCoreDataLoaded = () => {
+    return !!(skins && prices && bundles && rarities && buddies && flexes && cards && sprays && titles && battlepass);
+}
+
+const mergePriceCache = (incomingPrices, setVersion = null) => {
+    if (!incomingPrices || typeof incomingPrices !== "object") {
+        if (!prices || typeof prices !== "object") prices = { timestamp: null };
+        if (setVersion && !prices.version) prices.version = setVersion;
+        return { changed: 0, added: 0, updated: 0 };
+    }
+
+    if (!prices || typeof prices !== "object") prices = { timestamp: null };
+
+    let changed = 0;
+    let added = 0;
+    let updated = 0;
+    for (const [uuid, price] of Object.entries(incomingPrices)) {
+        if (PRICE_META_KEYS.has(uuid)) continue;
+        if (price === null || price === undefined) continue;
+
+        const prev = prices[uuid];
+        if (prev === price) continue;
+
+        prices[uuid] = price;
+        changed++;
+        if (prev === undefined) added++;
+        else updated++;
+    }
+
+    if (incomingPrices.version && !prices.version) prices.version = incomingPrices.version;
+    if (setVersion && !prices.version) prices.version = setVersion;
+    if (changed > 0) prices.timestamp = Date.now();
+
+    return { changed, added, updated };
+}
+
 export const clearCache = () => {
     weapons = skins = rarities = buddies = sprays = cards = titles = bundles = battlepass = flexes = null;
-    prices = { timestamp: null };
+    // Keep discovered price cache across clearCache() calls.
+    if (!prices || typeof prices !== "object") prices = { timestamp: null };
     allSkinsCache = null;
     bundleItemPrices = {};
     dataFullyLoaded = false;
@@ -69,16 +107,28 @@ export const loadSkinsJSON = async (filename = "data/skins.json") => {
     // Reset fast-path flag before the async read so any concurrent getSkin() call
     // that checks dataFullyLoaded will re-enter fetchData() and wait rather than
     // reading partially-stale data from the previous load.
+    const wasFullyLoaded = hasAllCoreDataLoaded();
     dataFullyLoaded = false;
-    allSkinsCache = null;
 
     const jsonData = await asyncReadJSONFile(filename).catch(() => { });
-    if (!jsonData || jsonData.formatVersion !== formatVersion) return;
+    if (!jsonData) {
+        dataFullyLoaded = wasFullyLoaded;
+        return;
+    }
+
+    // Prices are merged independently from the global format version so that
+    // rare but still valid price updates survive schema bumps.
+    const priceMerge = mergePriceCache(jsonData.prices, gameVersion || jsonData.gameVersion);
+    if (priceMerge.changed > 0) allSkinsCache = null;
+
+    if (jsonData.formatVersion !== formatVersion) {
+        dataFullyLoaded = hasAllCoreDataLoaded();
+        return;
+    }
 
     // Assign all fields synchronously (single tick, no interleaving possible)
     weapons = jsonData.weapons;
     skins = jsonData.skins;
-    prices = jsonData.prices;
     rarities = jsonData.rarities;
     bundles = jsonData.bundles;
     buddies = jsonData.buddies;
@@ -87,12 +137,11 @@ export const loadSkinsJSON = async (filename = "data/skins.json") => {
     cards = jsonData.cards;
     titles = jsonData.titles;
     battlepass = jsonData.battlepass;
+    allSkinsCache = null;
     buildBundleItemPrices();
 
     // Re-set the fast-path flag now that all fields are consistent
-    if (skins && prices && bundles && rarities && buddies && flexes && cards && sprays && titles && battlepass) {
-        dataFullyLoaded = true;
-    }
+    dataFullyLoaded = hasAllCoreDataLoaded();
 }
 
 export const saveSkinsJSON = (filename = "data/skins.json") => {
@@ -157,7 +206,7 @@ const _fetchDataImpl = async (types = null, checkVersion = false) => {
             await loadSkinsJSON();
         }
 
-        if (types === null) types = [skins, prices, bundles, rarities, buddies, cards, sprays, titles, battlepass];
+        if (types === null) types = [skins, prices, bundles, rarities, buddies, cards, sprays, titles, battlepass, flexes];
 
         const promises = [];
 
@@ -177,7 +226,7 @@ const _fetchDataImpl = async (types = null, checkVersion = false) => {
 
         if (promises.length === 0) {
             // All requested types already loaded — mark as fully loaded if all 9 types are present
-            if (skins && prices && bundles && rarities && buddies && cards && sprays && titles && battlepass) {
+            if (skins && prices && bundles && rarities && buddies && cards && sprays && titles && battlepass && flexes) {
                 dataFullyLoaded = true;
             }
             return;
@@ -185,7 +234,7 @@ const _fetchDataImpl = async (types = null, checkVersion = false) => {
         await Promise.all(promises);
 
         // Check if all data types are now present
-        if (skins && prices && bundles && rarities && buddies && cards && sprays && titles && battlepass) {
+        if (skins && prices && bundles && rarities && buddies && cards && sprays && titles && battlepass && flexes) {
             dataFullyLoaded = true;
         }
 
@@ -267,7 +316,9 @@ const getPrices = async (gameVersion, id = null) => {
 export const addPricesFromShop = (shopJson) => {
     if (!config.fetchSkinPrices) return;
 
-    let newPrices = 0;
+    let changedPrices = 0;
+    let addedPrices = 0;
+    let updatedPrices = 0;
     let newPriceData = {};
     const vpCurrencyId = "85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741";
 
@@ -278,12 +329,17 @@ export const addPricesFromShop = (shopJson) => {
     // Daily Shop
     if (shopJson.SkinsPanelLayout?.SingleItemStoreOffers) {
         for (const offer of shopJson.SkinsPanelLayout.SingleItemStoreOffers) {
-            if (offer.OfferID && offer.Cost && !prices[offer.OfferID]) {
+            if (offer.OfferID && offer.Cost) {
                 const cost = offer.Cost[vpCurrencyId] || offer.Cost[Object.keys(offer.Cost)[0]];
                 if (cost) {
-                    prices[offer.OfferID] = cost;
-                    newPriceData[offer.OfferID] = cost;
-                    newPrices++;
+                    const prev = prices[offer.OfferID];
+                    if (prev !== cost) {
+                        prices[offer.OfferID] = cost;
+                        newPriceData[offer.OfferID] = cost;
+                        changedPrices++;
+                        if (prev === undefined) addedPrices++;
+                        else updatedPrices++;
+                    }
                 }
             }
         }
@@ -295,22 +351,32 @@ export const addPricesFromShop = (shopJson) => {
             if (bundle.ItemOffers) {
                 for (const itemOffer of bundle.ItemOffers) {
                     const offer = itemOffer.Offer;
-                    if (offer?.OfferID && offer?.Cost && !prices[offer.OfferID]) {
+                    if (offer?.OfferID && offer?.Cost) {
                         const cost = offer.Cost[vpCurrencyId] || offer.Cost[Object.keys(offer.Cost)[0]];
                         if (cost) {
-                            prices[offer.OfferID] = cost;
-                            newPriceData[offer.OfferID] = cost;
-                            newPrices++;
+                            const prev = prices[offer.OfferID];
+                            if (prev !== cost) {
+                                prices[offer.OfferID] = cost;
+                                newPriceData[offer.OfferID] = cost;
+                                changedPrices++;
+                                if (prev === undefined) addedPrices++;
+                                else updatedPrices++;
+                            }
                         }
                     }
                 }
             }
             if (bundle.Items) {
                 for (const item of bundle.Items) {
-                    if (item.Item?.ItemID && item.BasePrice && !prices[item.Item.ItemID]) {
-                        prices[item.Item.ItemID] = item.BasePrice;
-                        newPriceData[item.Item.ItemID] = item.BasePrice;
-                        newPrices++;
+                    if (item.Item?.ItemID && item.BasePrice) {
+                        const prev = prices[item.Item.ItemID];
+                        if (prev !== item.BasePrice) {
+                            prices[item.Item.ItemID] = item.BasePrice;
+                            newPriceData[item.Item.ItemID] = item.BasePrice;
+                            changedPrices++;
+                            if (prev === undefined) addedPrices++;
+                            else updatedPrices++;
+                        }
                     }
                 }
             }
@@ -321,21 +387,26 @@ export const addPricesFromShop = (shopJson) => {
     if (shopJson.BonusStore?.BonusStoreOffers) {
         for (const bonusOffer of shopJson.BonusStore.BonusStoreOffers) {
             const offer = bonusOffer.Offer;
-            if (offer?.OfferID && offer?.Cost && !prices[offer.OfferID]) {
+            if (offer?.OfferID && offer?.Cost) {
                 const cost = offer.Cost[vpCurrencyId] || offer.Cost[Object.keys(offer.Cost)[0]];
                 if (cost) {
-                    prices[offer.OfferID] = cost;
-                    newPriceData[offer.OfferID] = cost;
-                    newPrices++;
+                    const prev = prices[offer.OfferID];
+                    if (prev !== cost) {
+                        prices[offer.OfferID] = cost;
+                        newPriceData[offer.OfferID] = cost;
+                        changedPrices++;
+                        if (prev === undefined) addedPrices++;
+                        else updatedPrices++;
+                    }
                 }
             }
         }
     }
 
-    if (newPrices > 0) {
+    if (changedPrices > 0) {
         prices.timestamp = Date.now();
         allSkinsCache = null; 
-        console.log(`Added ${newPrices} new skin prices to cache! (Total: ${Object.keys(prices).length - 2} prices)`);
+        console.log(`Updated ${changedPrices} skin prices (added: ${addedPrices}, changed: ${updatedPrices}) (Total: ${Object.keys(prices).length - 2} prices)`);
 
         if (client?.shard && client.shard.ids[0] !== 0) {
             // Only send the newly discovered prices
@@ -349,20 +420,10 @@ export const addPricesFromShop = (shopJson) => {
 
 // Merge price data received from another shard (called on shard 0)
 export const mergePrices = (incomingPrices) => {
-    if (!prices || typeof prices !== 'object') {
-        prices = { timestamp: Date.now() };
-    }
-    let merged = 0;
-    for (const [uuid, price] of Object.entries(incomingPrices)) {
-        if (!prices[uuid]) {
-            prices[uuid] = price;
-            merged++;
-        }
-    }
-    if (merged > 0) {
-        prices.timestamp = Date.now();
+    const result = mergePriceCache(incomingPrices, gameVersion);
+    if (result.changed > 0) {
         allSkinsCache = null;
-        console.log(`Merged ${merged} prices from another shard (Total: ${Object.keys(prices).length - 2} prices)`);
+        console.log(`Merged ${result.changed} prices from another shard (added: ${result.added}, changed: ${result.updated}) (Total: ${Object.keys(prices).length - 2} prices)`);
 
         debouncedSaveSkinsJSON();
     }

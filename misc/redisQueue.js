@@ -397,6 +397,29 @@ export const deleteShopData = async (puuid) => {
     try { await redis.del(`${SHOPDATA_PREFIX}${puuid}`); } catch (e) { }
 };
 
+export const clearAllShopData = async (batchSize = 200) => {
+    if (!isRedisAvailable()) return 0;
+
+    let cursor = "0";
+    let deletedCount = 0;
+
+    try {
+        do {
+            const [nextCursor, keys] = await redis.scan(cursor, "MATCH", `${SHOPDATA_PREFIX}*`, "COUNT", batchSize);
+            cursor = nextCursor;
+
+            if (keys.length > 0) {
+                deletedCount += await redis.del(...keys);
+            }
+        } while (cursor !== "0");
+    } catch (e) {
+        localError("Failed to clear all shop data keys:", e);
+        throw e;
+    }
+
+    return deletedCount;
+};
+
 // ==================== HEALTH CHECK ====================
 
 export const redisHealthCheck = async () => {
