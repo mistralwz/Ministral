@@ -99,6 +99,66 @@ const prepareStatements = () => {
 
 // ==================== USER OPERATIONS ====================
 
+const mergeAlertLists = (a, b) => {
+    const uuids = [];
+    return (a || []).concat(b || []).filter(alert => {
+        if (uuids.includes(alert.uuid)) return false;
+        return uuids.push(alert.uuid);
+    });
+};
+
+/**
+ * Collapse duplicate account rows that share the same Riot puuid (first-seen order kept).
+ * Merges alerts; later rows win for other fields (e.g. newest auth). Mutates userJson.
+ * Lives here (not util) to avoid userDatabase → util → auth → accountSwitcher → userDatabase cycle.
+ * @returns {boolean} true if anything was merged or removed
+ */
+export const dedupeUserAccountsByPuuid = (userJson) => {
+    if (!userJson?.accounts?.length) return false;
+
+    const oldAccounts = userJson.accounts;
+    const cur = Math.min(Math.max((userJson.currentAccount || 1) - 1, 0), oldAccounts.length - 1);
+    const oldCurrentPuuid = oldAccounts[cur]?.puuid;
+
+    const newAccounts = [];
+    const puuidToIndex = new Map();
+    let changed = false;
+
+    for (const acc of oldAccounts) {
+        if (!acc || !acc.puuid) {
+            newAccounts.push(acc);
+            continue;
+        }
+        const existingIdx = puuidToIndex.get(acc.puuid);
+        if (existingIdx === undefined) {
+            puuidToIndex.set(acc.puuid, newAccounts.length);
+            newAccounts.push({
+                ...acc,
+                alerts: Array.isArray(acc.alerts) ? [...acc.alerts] : []
+            });
+        } else {
+            changed = true;
+            const prev = newAccounts[existingIdx];
+            prev.alerts = mergeAlertLists(prev.alerts, acc.alerts);
+            Object.assign(prev, acc, { alerts: prev.alerts });
+        }
+    }
+
+    if (!changed && newAccounts.length === oldAccounts.length) return false;
+
+    userJson.accounts = newAccounts;
+
+    if (oldCurrentPuuid) {
+        const i = newAccounts.findIndex(a => a.puuid === oldCurrentPuuid);
+        if (i >= 0) userJson.currentAccount = i + 1;
+        else userJson.currentAccount = Math.min(userJson.currentAccount || 1, newAccounts.length) || 1;
+    } else {
+        userJson.currentAccount = Math.min(userJson.currentAccount || 1, newAccounts.length) || 1;
+    }
+
+    return true;
+};
+
 export const getUserFromDb = (id) => {
     const userRow = stmts.getUser.get(id);
     if (!userRow) return null;
@@ -129,6 +189,8 @@ export const getUserFromDb = (id) => {
 // Wrap saveUserToDb in an explicit transaction so all account upserts share a single fsync
 const saveUserToDbTransaction = (user) => {
     const now = Date.now();
+
+    if (user.accounts?.length) dedupeUserAccountsByPuuid(user);
 
     // Save/update user
     stmts.upsertUser.run(

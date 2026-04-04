@@ -155,6 +155,7 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
     const userJson = readUserJson(id);
     if (!userJson) return shouldWait;
 
+    const sentAlertSignaturesByPuuid = new Map();
     const accountCount = userJson.accounts.length;
     for (let i = 1; i <= accountCount; i++) {
 
@@ -217,7 +218,16 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
             if (dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, valorantUser);
 
             const positiveAlerts = userAlerts.filter(alert => offers.offers.includes(alert.uuid));
-            if (positiveAlerts.length) await sendAlert(id, i, positiveAlerts, offers.expires);
+            if (positiveAlerts.length) {
+                const puuid = valorantUser.puuid;
+                const signature = `${offers.expires}:${positiveAlerts.map(a => a.uuid).sort().join(',')}`;
+                if (puuid && sentAlertSignaturesByPuuid.get(puuid) === signature) {
+                    console.log(`Skipping duplicate alert for ${valorantUser.username} (same shop signature already sent this cycle).`);
+                } else {
+                    await sendAlert(id, i, positiveAlerts, offers.expires);
+                    if (puuid) sentAlertSignaturesByPuuid.set(puuid, signature);
+                }
+            }
         }
     }
 
@@ -334,12 +344,10 @@ export const sendAlert = async (id, account, alerts, expires, tryOnOtherShard = 
     const valorantUser = getUser(id, account);
     if (!valorantUser) return;
 
-    if (tryOnOtherShard)
-        for (const alert of alerts) {
-            if (!filteredAlerts[alert.channel_id]) filteredAlerts[alert.channel_id] = [alert];
-            else filteredAlerts[alert.channel_id].push(alert);
-        }
-    else filteredAlerts[alerts[0].channel_id] = alerts
+    for (const alert of alerts) {
+        if (!filteredAlerts[alert.channel_id]) filteredAlerts[alert.channel_id] = [alert];
+        else filteredAlerts[alert.channel_id].push(alert);
+    }
 
     for (const channel_id of Object.keys(filteredAlerts)) {
 

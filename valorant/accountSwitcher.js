@@ -1,10 +1,14 @@
 import fs from "fs";
 import { removeDupeAlerts } from "../misc/util.js";
 import { defaultSettings, clearSettingsCache } from "../misc/settings.js";
-import { getUserFromDb, saveUserToDb, deleteUserFromDb, deleteAccountFromDb, runUserDbTransaction, updateSingleAccountInDb } from "../misc/userDatabase.js";
+import { dedupeUserAccountsByPuuid, getUserFromDb, saveUserToDb, deleteUserFromDb, deleteAccountFromDb, runUserDbTransaction, updateSingleAccountInDb } from "../misc/userDatabase.js";
 
 export const readUserJson = (id) => {
-    return getUserFromDb(id);
+    const userJson = getUserFromDb(id);
+    if (userJson && dedupeUserAccountsByPuuid(userJson)) {
+        saveUserToDb(userJson);
+    }
+    return userJson;
 }
 
 export const getUserJson = (id, account = null) => {
