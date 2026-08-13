@@ -207,9 +207,12 @@ export const commitBatchWrites = () => {
 };
 
 export const deleteUserFromDb = (id) => {
-    // Also delete associated accounts
-    stmts.deleteUserAccounts.run(id);
-    stmts.deleteUser.run(id);
+    // Also delete associated accounts atomically
+    const transaction = db.transaction(() => {
+        stmts.deleteUserAccounts.run(id);
+        stmts.deleteUser.run(id);
+    });
+    transaction();
 };
 
 // ==================== ACCOUNT OPERATIONS ====================
