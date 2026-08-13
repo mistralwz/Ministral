@@ -183,8 +183,9 @@ export const refreshToken = async (id, account = null) => {
     if (user.auth.refresh_token) {
         if (config.logUrls) console.log(`[refreshToken] User has refresh_token, attempting refresh`);
         try {
-            const tokenData = await refreshWithRefreshToken(user.auth.refresh_token);
-            if (tokenData && tokenData.access_token) {
+            const refreshRes = await refreshWithRefreshToken(user.auth.refresh_token);
+            if (refreshRes.success && refreshRes.tokenData && refreshRes.tokenData.access_token) {
+                const tokenData = refreshRes.tokenData;
                 user.auth.rso = tokenData.access_token;
                 if (tokenData.id_token) user.auth.idt = tokenData.id_token;
                 // Riot may rotate refresh tokens — always store the latest one
@@ -193,7 +194,11 @@ export const refreshToken = async (id, account = null) => {
                     user.auth.refresh_token_obtained = Date.now();
                 }
                 // Re-fetch entitlements with the new access token
-                user.auth.ent = await getEntitlements(user);
+                try {
+                    user.auth.ent = await getEntitlements(user);
+                } catch (e) {
+                    console.error(`[refreshToken] Failed to re-fetch entitlements:`, e);
+                }
                 user.lastFetchedData = Date.now();
                 user.authFailures = 0;
                 saveUser(user);
@@ -202,19 +207,19 @@ export const refreshToken = async (id, account = null) => {
                 const expiresIn = Math.floor((newExpiry - Date.now()) / 60000);
                 if (config.logUrls) console.log(`[refreshToken] Refresh token success for ${user.username} — new token expires in ${expiresIn} minutes`);
                 return { success: true };
+            } else if (refreshRes.invalidToken) {
+                if (config.logUrls) console.log(`[refreshToken] Refresh token invalid or revoked for ${user.username}`);
+                deleteUserAuth(user);
+                return { success: false, authFailure: true };
             } else {
-                if (config.logUrls) console.log(`[refreshToken] Refresh token failed, token may be revoked`);
-                user.auth.refresh_token = null; // clear invalid refresh token
+                if (config.logUrls) console.log(`[refreshToken] Refresh token failed due to network error for ${user.username}`);
+                return { success: false, networkError: true };
             }
         } catch (e) {
-            console.error(`[refreshToken] Error using refresh token:`, e);
-            user.auth.refresh_token = null;
+            console.error(`[refreshToken] Unexpected error using refresh token for ${user.username}:`, e);
+            return { success: false, networkError: true };
         }
     }
-
-
-
-    if (!response.success && !response.rateLimit) deleteUserAuth(user);
 
     return response;
 }
@@ -354,30 +359,43 @@ const exchangeCodeForTokens = async (code) => {
  * Returns the full token response or null on failure.
  */
 export const refreshWithRefreshToken = async (refreshToken) => {
-    const req = await fetch("https://auth.riotgames.com/token", {
-        method: "POST",
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'user-agent': await getUserAgent()
-        },
-        body: new URLSearchParams({
-            grant_type: "refresh_token",
-            refresh_token: refreshToken,
-            client_id: "riot-client"
-        }).toString()
-    });
+    try {
+        const req = await fetch("https://auth.riotgames.com/token", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'user-agent': await getUserAgent()
+            },
+            body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: refreshToken,
+                client_id: "riot-client"
+            }).toString()
+        });
 
-    if (req.statusCode !== 200) {
-        console.error(`[refreshWithRefreshToken] Refresh failed with status ${req.statusCode}:`, req.body);
-        return null;
+        if (req.statusCode !== 200) {
+            console.error(`[refreshWithRefreshToken] Refresh failed with status ${req.statusCode}:`, req.body);
+            let invalidToken = false;
+            try {
+                const json = JSON.parse(req.body);
+                if (json.error === "invalid_grant" || json.error === "bad_claims" || req.statusCode === 400 || req.statusCode === 401) {
+                    invalidToken = true;
+                }
+            } catch (e) {
+                if (req.statusCode === 400 || req.statusCode === 401) invalidToken = true;
+            }
+            return { success: false, invalidToken };
+        }
+
+        const json = JSON.parse(req.body);
+        const fields = Object.keys(json).filter(k => !k.includes('token') && !k.includes('secret'));
+        console.log(`[refreshWithRefreshToken] Response fields: ${fields.join(', ')}`);
+        if (json.expires_in) console.log(`[refreshWithRefreshToken] New access token expires in ${json.expires_in} seconds (${Math.floor(json.expires_in / 60)} minutes)`);
+        return { success: true, tokenData: json };
+    } catch (e) {
+        console.error(`[refreshWithRefreshToken] Exception during token refresh:`, e);
+        return { success: false, networkError: true };
     }
-
-    const json = JSON.parse(req.body);
-    // Log available fields to see if Riot returns refresh token expiry info
-    const fields = Object.keys(json).filter(k => !k.includes('token') && !k.includes('secret'));
-    console.log(`[refreshWithRefreshToken] Response fields: ${fields.join(', ')}`);
-    if (json.expires_in) console.log(`[refreshWithRefreshToken] New access token expires in ${json.expires_in} seconds (${Math.floor(json.expires_in / 60)} minutes)`);
-    return json;
 }
 
 export const redeemWebAuthUrl = async (id, callbackUrl) => {

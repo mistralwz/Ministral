@@ -36,10 +36,13 @@ export const getShop = async (id, account = null) => {
     console.assert(req.statusCode === 200, `Valorant skins offers code is ${req.statusCode}!`, req);
 
     const json = JSON.parse(req.body);
-    if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        deleteUserAuth(user);
-        return { success: false }
-    } else if (isMaintenance(json)) return { success: false, maintenance: true };
+    if (req.statusCode !== 200) {
+        if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
+            deleteUserAuth(user);
+            return { success: false, authFailure: true };
+        } else if (isMaintenance(json)) return { success: false, maintenance: true };
+        return { success: false, networkError: true };
+    }
 
     // shop stats tracking
     try {
@@ -60,7 +63,7 @@ export const getShop = async (id, account = null) => {
     Promise.all(json.FeaturedBundle.Bundles.map(rawBundle => formatBundle(rawBundle))).then(async bundles => {
         for (const bundle of bundles)
             await addBundleData(bundle);
-    });
+    }).catch(e => console.error("Error processing shop bundles:", e?.message || e));
 
     return { success: true, shop: json };
 }
@@ -80,14 +83,14 @@ export const getOffers = async (id, account = null) => {
         offers: resp.shop.SkinsPanelLayout.SingleItemOffers,
         expires: Math.floor(Date.now() / 1000) + resp.shop.SkinsPanelLayout.SingleItemOffersRemainingDurationInSeconds,
         accessory: {
-            offers: (resp.shop.AccessoryStore.AccessoryStoreOffers || []).map(rawAccessory => {
+            offers: ((resp.shop.AccessoryStore && resp.shop.AccessoryStore.AccessoryStoreOffers) || []).map(rawAccessory => {
                 return {
                     cost: rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"],
                     rewards: rawAccessory.Offer.Rewards,
                     contractID: rawAccessory.ContractID
                 }
             }),
-            expires: Math.floor(Date.now() / 1000) + resp.shop.AccessoryStore.AccessoryStoreRemainingDurationInSeconds
+            expires: Math.floor(Date.now() / 1000) + (resp.shop.AccessoryStore ? resp.shop.AccessoryStore.AccessoryStoreRemainingDurationInSeconds : 0)
         }
     });
 }
@@ -153,10 +156,13 @@ export const getBalance = async (id, account = null) => {
     console.assert(req.statusCode === 200, `Valorant balance code is ${req.statusCode}!`, req);
 
     const json = JSON.parse(req.body);
-    if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        deleteUser(id, account);
-        return { success: false };
-    } else if (isMaintenance(json)) return { success: false, maintenance: true };
+    if (req.statusCode !== 200) {
+        if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
+            deleteUserAuth(user);
+            return { success: false, authFailure: true };
+        } else if (isMaintenance(json)) return { success: false, maintenance: true };
+        return { success: false, networkError: true };
+    }
 
     return {
         success: true,

@@ -197,7 +197,7 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
                     await wait(waitMs);
                 }
 
-                else {
+                else if (offers.authFailure) {
                     if (!credsExpiredAlerts) {
                         if (valorantUser.authFailures < config.authFailureStrikes) {
                             valorantUser.authFailures++;
@@ -207,6 +207,10 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
 
                     deleteUserAuth(valorantUser);
                     invalidateUserCache(id);
+                    break;
+                }
+                else {
+                    console.error(`Alert check for user ${id} #${i} failed due to network/API error, skipping without clearing auth.`);
                     break;
                 }
             }

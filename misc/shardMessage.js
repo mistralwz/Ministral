@@ -71,10 +71,15 @@ export const sendShardMessageForChannel = async (message, channelId) => {
     if (matchIndex !== -1) {
         channelToShardCache.set(channelId, matchIndex); // A4: cache winning shard index for future deliveries
         localLog(`Delivering shard message to winning shard ${matchIndex} for channel ${channelId}`);
-        await client.shard.broadcastEval((client, context) => {
-            client.skinPeekShardMessageReceived(context.message);
-        }, { context: { message }, shard: matchIndex });
-        return true;
+        try {
+            await client.shard.broadcastEval((client, context) => {
+                client.skinPeekShardMessageReceived(context.message);
+            }, { context: { message }, shard: matchIndex });
+            return true;
+        } catch (e) {
+            channelToShardCache.delete(channelId);
+            return false;
+        }
     }
 
     return false;
