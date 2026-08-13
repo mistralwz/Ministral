@@ -327,13 +327,11 @@ export const closeUserDatabase = () => {
     }
 };
 
-export const backupUserDatabase = (backupPath = "data/users.db.backup") => {
+export const backupUserDatabase = async (backupPath = "data/users.db.backup") => {
     if (!db) return false;
 
     try {
-        const backup = new Database(backupPath);
-        db.backup(backup);
-        backup.close();
+        await db.backup(backupPath);
         localLog(`User database backed up to ${backupPath}`);
         return true;
     } catch (e) {
