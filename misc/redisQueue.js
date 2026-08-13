@@ -437,7 +437,7 @@ export const redisHealthCheck = async () => {
             healthy: true,
             latency,
             queueLength,
-            memory: memory.split('\n').find(l => l.startsWith('used_memory_human:'))?.split(':')[1]?.trim()
+            memory: memory.split(/\r?\n/).find(l => l.startsWith('used_memory_human:'))?.split(':')[1]?.trim()
         };
     } catch (e) {
         return { healthy: false, error: e.message };
