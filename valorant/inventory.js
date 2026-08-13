@@ -35,7 +35,7 @@ export const getEntitlements = async (user, itemTypeId, itemType = "item") => {
 
 const skinCache = {};
 
-export const getSkins = async (user) => {
+export const getSkins = async (user, account = null) => {
     // get all the owned skins of a user
     if (user.puuid in skinCache) {
         const cached = skinCache[user.puuid];
@@ -58,7 +58,7 @@ export const getSkins = async (user) => {
         }
     }
 
-    const authResult = await authUser(user.id);
+    const authResult = await authUser(user.id, account);
     if (!authResult.success) return authResult;
 
     const data = await getEntitlements(user, "e7c63390-eda7-46e0-bb7a-a6abdacd2433", "skins");
