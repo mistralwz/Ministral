@@ -298,6 +298,7 @@ client.on("clientReady", async () => {
 });
 
 export const scheduleTasks = () => {
+    destroyTasks();
     console.log("Scheduling tasks...");
 
     // check alerts every day at 00:00:10 GMT

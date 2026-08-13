@@ -41,16 +41,15 @@ export const sendShardMessageForChannel = async (message, channelId) => {
     const knownShard = channelToShardCache.get(channelId);
     if (knownShard != null) {
         try {
-            const [result] = await client.shard.broadcastEval((client, context) => {
-                if (client.channels.cache.has(context.channelId)) {
-                    client.skinPeekShardMessageReceived(context.message);
-                    return true;
-                }
-                return false;
-            }, { context: { message, channelId }, shard: knownShard });
+            const [hasChannel] = await client.shard.broadcastEval((client, context) => {
+                return client.channels.cache.has(context.channelId);
+            }, { context: { channelId }, shard: knownShard });
 
-            if (result) {
+            if (hasChannel) {
                 localLog(`Targeted shard ${knownShard} for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
+                await client.shard.broadcastEval((client, context) => {
+                    client.skinPeekShardMessageReceived(context.message);
+                }, { context: { message }, shard: knownShard });
                 return true;
             }
             // Shard no longer has this channel (e.g., bot kicked, resharding) — evict and fall through
@@ -61,20 +60,20 @@ export const sendShardMessageForChannel = async (message, channelId) => {
         }
     }
 
-    localLog(`Broadcasting for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
+    localLog(`Broadcasting channel check for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
 
-    // Full broadcast fallback
+    // Full broadcast fallback: check channel existence WITHOUT side effects in eval callback
     const results = await client.shard.broadcastEval((client, context) => {
-        if (client.channels.cache.has(context.channelId)) {
-            client.skinPeekShardMessageReceived(context.message);
-            return true;
-        }
-        return false;
-    }, { context: { message, channelId } });
+        return client.channels.cache.has(context.channelId);
+    }, { context: { channelId } });
 
     const matchIndex = results.findIndex(r => r === true);
     if (matchIndex !== -1) {
-        channelToShardCache.set(channelId, matchIndex); // A4: cache for future deliveries
+        channelToShardCache.set(channelId, matchIndex); // A4: cache winning shard index for future deliveries
+        localLog(`Delivering shard message to winning shard ${matchIndex} for channel ${channelId}`);
+        await client.shard.broadcastEval((client, context) => {
+            client.skinPeekShardMessageReceived(context.message);
+        }, { context: { message }, shard: matchIndex });
         return true;
     }
 
