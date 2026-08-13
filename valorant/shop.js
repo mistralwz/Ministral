@@ -280,20 +280,20 @@ const addShopCache = async (puuid, shopJson) => {
     const now = Date.now();
     const shopCache = {
         offers: {
-            offers: shopJson.SkinsPanelLayout.SingleItemOffers,
-            expires: Math.floor(now / 1000) + shopJson.SkinsPanelLayout.SingleItemOffersRemainingDurationInSeconds,
+            offers: shopJson.SkinsPanelLayout ? shopJson.SkinsPanelLayout.SingleItemOffers : [],
+            expires: Math.floor(now / 1000) + (shopJson.SkinsPanelLayout ? shopJson.SkinsPanelLayout.SingleItemOffersRemainingDurationInSeconds : 0),
             accessory: {
-                offers: (shopJson.AccessoryStore.AccessoryStoreOffers || []).map(rawAccessory => {
+                offers: ((shopJson.AccessoryStore && shopJson.AccessoryStore.AccessoryStoreOffers) || []).map(rawAccessory => {
                     return {
-                        cost: rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"],
-                        rewards: rawAccessory.Offer.Rewards,
+                        cost: rawAccessory.Offer?.Cost ? rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"] : 0,
+                        rewards: rawAccessory.Offer?.Rewards || [],
                         contractID: rawAccessory.ContractID
                     }
                 }),
-                expires: Math.floor(now / 1000) + shopJson.AccessoryStore.AccessoryStoreRemainingDurationInSeconds
+                expires: Math.floor(now / 1000) + (shopJson.AccessoryStore ? shopJson.AccessoryStore.AccessoryStoreRemainingDurationInSeconds : 0)
             }
         },
-        bundles: shopJson.FeaturedBundle.Bundles.map(rawBundle => {
+        bundles: (shopJson.FeaturedBundle?.Bundles || []).map(rawBundle => {
             return {
                 uuid: rawBundle.DataAssetID,
                 expires: Math.floor(now / 1000) + rawBundle.DurationRemainingInSeconds,
