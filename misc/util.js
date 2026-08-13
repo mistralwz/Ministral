@@ -280,7 +280,8 @@ export const decodeToken = (token) => {
     if (cached) return cached;
 
     const encodedPayload = token.split('.')[1];
-    const decoded = JSON.parse(atob(encodedPayload));
+    const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
 
     if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) tokenCache.clear();
     tokenCache.set(token, decoded);
