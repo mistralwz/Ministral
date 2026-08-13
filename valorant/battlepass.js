@@ -54,8 +54,10 @@ const getNextReward = async (interaction, CurrentTier) => {
     };
 
     const battlepassInfo = await getBattlepassInfo();
-    const chapters = battlepassInfo.chapters.flatMap(chapter => chapter.levels) // only premium items
+    if (!battlepassInfo || !battlepassInfo.chapters) return null;
+    const chapters = battlepassInfo.chapters.flatMap(chapter => chapter.levels || []);
     const nextTier = chapters[CurrentTier];
+    if (!nextTier || !nextTier.reward) return null;
 
     const rewardType = nextTier.reward.type;
     const rewardUUID = nextTier.reward.uuid;
@@ -153,23 +155,28 @@ export const getBattlepassProgress = async (interaction, maxlevel, id=interactio
         return { success: false, maintenance: true };
 
     const battlepassInfo = await getBattlepassInfo();
-    const contract = json.Contracts.find(contract => contract.ContractDefinitionID === battlepassInfo.uuid);
+    if (!battlepassInfo || !battlepassInfo.uuid) return { success: false, error: "Battlepass info unavailable" };
+
+    const contract = json.Contracts && json.Contracts.find(contract => contract.ContractDefinitionID === battlepassInfo.uuid);
+    if (!contract) return { success: false, error: "Active battlepass contract not found" };
 
     const contractData = {
         progressionLevelReached: contract.ProgressionLevelReached,
         progressionTowardsNextLevel: contract.ProgressionTowardsNextLevel,
         totalProgressionEarned: contract.ContractProgression.TotalProgressionEarned,
         missions: {
-            missionArray: json.Missions,
-            weeklyCheckpoint: json.MissionMetadata.WeeklyCheckpoint
+            missionArray: json.Missions || [],
+            weeklyCheckpoint: json.MissionMetadata ? json.MissionMetadata.WeeklyCheckpoint : null
         }
     }
 
     const weeklyxp = await getWeeklyXP(contractData.missions);
     const battlepassPurchased = await getBattlepassPurchase(id);
 
-    if(battlepassPurchased.success === false) // login failed
+    if (typeof battlepassPurchased === "object" && battlepassPurchased.success === false)
         return battlepassPurchased;
+
+    const isBpPurchased = battlepassPurchased === true;
 
     // Calculate
     const season_end = new Date(battlepassInfo.end);
@@ -188,7 +195,7 @@ export const getBattlepassProgress = async (interaction, maxlevel, id=interactio
 
     let spikerush_xp = SPIKERUSH_XP_CONSTANT
     let average_unrated_xp = AVERAGE_UNRATED_XP_CONSTANT
-    if (battlepassPurchased) {
+    if (isBpPurchased) {
         spikerush_xp = spikerush_xp * 1.03;
         average_unrated_xp = average_unrated_xp * 1.03;
     }
@@ -196,7 +203,7 @@ export const getBattlepassProgress = async (interaction, maxlevel, id=interactio
     return {
         success: true,
         bpdata: contractData,
-        battlepassPurchased: battlepassPurchased,
+        battlepassPurchased: isBpPurchased,
         nextReward: await getNextReward(interaction, contractData.progressionLevelReached),
         season_days_left: season_days_left,
         totalxp: totalxp.toLocaleString(),
