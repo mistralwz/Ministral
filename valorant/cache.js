@@ -805,6 +805,7 @@ export const getBundle = async (uuid) => {
 
 export const getAllBundles = () => {
     // reverse the array so that the older bundles are first
+    if (!bundles) return [];
     return Object.values(bundles).reverse().filter(o => typeof o === "object")
 }
 
