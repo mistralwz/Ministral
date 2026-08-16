@@ -244,6 +244,7 @@
     "COMPETITIVE": "Rekabetçi",
     "UNRATED": "Derecesiz",
     "CUSTOM": "Özel Oyun",
-    "NEWMAP": "Yeni Harita"
+    "NEWMAP": "Yeni Harita",
+    "RETAKE": "AKIN"
   }
 }

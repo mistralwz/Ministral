@@ -244,6 +244,7 @@
     "COMPETITIVE": "Compétitif",
     "UNRATED": "Non classé",
     "CUSTOM": "Partie personnalisée",
-    "NEWMAP": "Nouvelle carte"
+    "NEWMAP": "Nouvelle carte",
+    "RETAKE": "Retake"
   }
 }

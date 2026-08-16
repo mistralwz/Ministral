@@ -244,6 +244,7 @@
     "COMPETITIVE": "竞技",
     "UNRATED": "一般模式",
     "CUSTOM": "自定义",
-    "NEWMAP": "新地图"
+    "NEWMAP": "新地图",
+    "RETAKE": "回防模式"
   }
 }

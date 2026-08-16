@@ -244,6 +244,7 @@
     "COMPETITIVE": "Competitive",
     "UNRATED": "Walang Rank",
     "CUSTOM": "Pasadyang Laro",
-    "NEWMAP": "Bagong Mapa"
+    "NEWMAP": "Bagong Mapa",
+    "RETAKE": "Retake"
   }
 }

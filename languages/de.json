@@ -244,6 +244,7 @@
     "COMPETITIVE": "Wettbewerb",
     "UNRATED": "Nicht gewertet",
     "CUSTOM": "Eigene Spielrunde",
-    "NEWMAP": "Neue Karte"
+    "NEWMAP": "Neue Karte",
+    "RETAKE": "Rückeroberung"
   }
 }

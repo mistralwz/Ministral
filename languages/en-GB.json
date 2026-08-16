@@ -243,6 +243,7 @@
     "COMPETITIVE": "Competitive",
     "UNRATED": "Unrated",
     "CUSTOM": "Custom Game",
-    "NEWMAP": "New Map"
+    "NEWMAP": "New Map",
+    "RETAKE": "Retake"
   }
 }

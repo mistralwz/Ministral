@@ -244,6 +244,7 @@
     "COMPETITIVE": "Competitivo",
     "UNRATED": "Normal",
     "CUSTOM": "Partida personalizada",
-    "NEWMAP": "Nuevo mapa"
+    "NEWMAP": "Nuevo mapa",
+    "RETAKE": "Reconquista"
   }
 }

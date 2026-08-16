@@ -243,6 +243,7 @@
     "COMPETITIVE": "Konkurrence",
     "UNRATED": "Standard",
     "CUSTOM": "Brugerdefineret Kamp",
-    "NEWMAP": "Ny bane"
+    "NEWMAP": "Ny bane",
+    "RETAKE": "Retake"
   }
 }

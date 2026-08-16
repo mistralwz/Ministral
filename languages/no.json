@@ -243,6 +243,7 @@
     "COMPETITIVE": "Konkurranse-Rangert",
     "UNRATED": "Urangert Spillmodus",
     "CUSTOM": "Tilpasset-kamp moduser",
-    "NEWMAP": "Sist Map. - Update!"
+    "NEWMAP": "Sist Map. - Update!",
+    "RETAKE": "Retake"
   }
 }

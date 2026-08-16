@@ -244,6 +244,7 @@
     "COMPETITIVE": "Kompetitif",
     "UNRATED": "Unrated",
     "CUSTOM": "Game Kustom",
-    "NEWMAP": "Peta Baru"
+    "NEWMAP": "Peta Baru",
+    "RETAKE": "Retake"
   }
 }

@@ -89,11 +89,14 @@ const loadCompetitiveTiers = async () => {
     }
 };
 
+let gamemodeIconsCache = null;
+
 /** Invalidate all static caches (call when skins/version reloads). */
 export const clearLiveGameCache = () => {
     agentsCache = null;
     competitiveTiersCache = null;
     gamemodesCache = null;
+    gamemodeIconsCache = null;
     mapImagesCache = null;
     mapNamesCache = null;
     seasonsCache = null;
@@ -107,20 +110,24 @@ const loadGamemodes = async () => {
         const req = await globalThis.fetch("https://valorant-api.com/v1/gamemodes?language=all");
         const json = await req.json();
         gamemodesCache = {};
+        gamemodeIconsCache = {};
         for (const mode of json.data) {
-            gamemodesCache[mode.uuid.toLowerCase()] = {};
+            const uuid = mode.uuid.toLowerCase();
+            gamemodesCache[uuid] = {};
+            if (mode.displayIcon) gamemodeIconsCache[uuid] = mode.displayIcon;
             if (mode.displayName && typeof mode.displayName === "object") {
                 // Populate the cache with localized strings (e.g. ['en-US': 'Swiftplay', ...])
                 for (const [lang, val] of Object.entries(mode.displayName)) {
-                    gamemodesCache[mode.uuid.toLowerCase()][lang] = val;
+                    gamemodesCache[uuid][lang] = val;
                 }
             } else {
-                gamemodesCache[mode.uuid.toLowerCase()]["en-US"] = mode.displayName;
+                gamemodesCache[uuid]["en-US"] = mode.displayName;
             }
         }
     } catch (e) {
         console.error("[livegame] Failed to load gamemodes:", e);
         gamemodesCache = {};
+        gamemodeIconsCache = {};
     }
 };
 
@@ -607,6 +614,9 @@ const QUEUE_NAMES = {
     newmap: "New Map",
     skirmish: "Skirmish",
     skirmish2v2: "Skirmish 2v2",
+    retake: "Retake",
+    fortcollins: "Retake",
+    knockout: "Knockout",
     "": "Custom",
 };
 
@@ -621,6 +631,9 @@ const QUEUE_UUIDS = {
     valaram: "1cd8901f-47af-49cb-d758-e2afd0eb2a39",
     skirmish: "0e9805d8-4af6-5ffb-f467-55806a6bc484",
     skirmish2v2: "0e9805d8-4af6-5ffb-f467-55806a6bc484",
+    retake: "75b7b658-472c-0264-cbe6-049abf14f54b",
+    fortcollins: "75b7b658-472c-0264-cbe6-049abf14f54b",
+    knockout: "1a4a3fd5-4966-62cb-7fe4-15b0317f5c80",
 };
 
 export const resolveQueueName = (queueId, language = "en-US") => {
@@ -651,11 +664,20 @@ const QUEUE_ICONS = {
     newmap: "https://media.valorant-api.com/gamemodes/96bd3920-4f36-d026-2b28-c683eb0bcac5/displayicon.png",
     skirmish: "https://media.valorant-api.com/gamemodes/0e9805d8-4af6-5ffb-f467-55806a6bc484/displayicon.png",
     skirmish2v2: "https://media.valorant-api.com/gamemodes/0e9805d8-4af6-5ffb-f467-55806a6bc484/displayicon.png",
+    retake: "https://media.valorant-api.com/gamemodes/75b7b658-472c-0264-cbe6-049abf14f54b/displayicon.png",
+    fortcollins: "https://media.valorant-api.com/gamemodes/75b7b658-472c-0264-cbe6-049abf14f54b/displayicon.png",
+    knockout: "https://media.valorant-api.com/gamemodes/1a4a3fd5-4966-62cb-7fe4-15b0317f5c80/displayicon.png",
     "": "https://media.valorant-api.com/gamemodes/e2dc3878-4fe5-d132-28f8-3d8c259efcc6/displayicon.png",
 };
 
-export const resolveQueueIcon = (queueId) =>
-    QUEUE_ICONS[queueId?.toLowerCase()] ?? null;
+export const resolveQueueIcon = (queueId) => {
+    const qid = queueId?.toLowerCase() || "";
+    const uuid = QUEUE_UUIDS[qid];
+    if (uuid && gamemodeIconsCache && gamemodeIconsCache[uuid]) {
+        return gamemodeIconsCache[uuid];
+    }
+    return QUEUE_ICONS[qid] ?? null;
+};
 
 /**
  * Queues where everyone is on a single team / free-for-all.
@@ -998,7 +1020,14 @@ export const getPreGameData = async (id, account = null) => {
     // Normalise mode slugs that differ from our QUEUE_NAMES keys.
     // "customgame" → "custom"  (pre-game Custom lobbies)
     // "standard"   → "unrated" (older Riot clients)
-    const SLUG_ALIASES = { customgame: "custom", standard: "unrated" };
+    // "fortcollins" / "fortcollins_primaryasset" → "retake" (Retake mode asset name)
+    const SLUG_ALIASES = {
+        customgame: "custom",
+        standard: "unrated",
+        fortcollins: "retake",
+        fortcollins_primaryasset: "retake",
+        dodgeball_gamemode_primaryasset: "knockout",
+    };
     const queueId = matchJson.MatchmakingData?.QueueID ?? matchJson.QueueID ?? SLUG_ALIASES[rawSlug] ?? rawSlug;
 
     const gamePodId = matchJson.GamePodID ?? "";

@@ -243,6 +243,7 @@
     "COMPETITIVE": "Змагання",
     "UNRATED": "Без Рейтингу",
     "CUSTOM": "Власна Гра",
-    "NEWMAP": "Нова Карта"
+    "NEWMAP": "Нова Карта",
+    "RETAKE": "Retake"
   }
 }

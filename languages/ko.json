@@ -243,6 +243,7 @@
     "COMPETITIVE": "경쟁전",
     "UNRATED": "일반전",
     "CUSTOM": "사용자 설정 게임",
-    "NEWMAP": "새로운 맵"
+    "NEWMAP": "새로운 맵",
+    "RETAKE": "탈환전"
   }
 }

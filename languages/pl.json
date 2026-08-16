@@ -244,6 +244,7 @@
     "COMPETITIVE": "Rankingowa",
     "UNRATED": "Nierankingowa",
     "CUSTOM": "Gra niestandardowa",
-    "NEWMAP": "Nowa mapa"
+    "NEWMAP": "Nowa mapa",
+    "RETAKE": "Odbicie"
   }
 }
