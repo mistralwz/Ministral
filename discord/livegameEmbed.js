@@ -184,7 +184,7 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
     // Place badge before RR for clean visual scanning: <rank_badge>**42**rr
     const rankPart = player.currentTier > 0
         ? (player.isRankFallback
-            ? `${currentRankEmojiStr}`.trim()
+            ? `${currentRankEmojiStr}\`${player.currentTierName}\``.trim()
             : `${currentRankEmojiStr}**${player.currentRR}**rr`.trim())
         : (currentRankEmojiStr ? `${currentRankEmojiStr}\`Unranked\`` : "`Unranked`");
 
@@ -196,11 +196,11 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
         ? `${peakRankEmojiStr}\`${player.peakActLabel ?? "—"}\``
         : null;
 
-    // Competitive-only: win-rate and last 5 match results
+    // Competitive-only: win-rate and last 3 match results
     let recentMatchesStr = "";
     const compParts = [];
     if (showCompStats) {
-        if (player.winRate !== null)
+        if (player.winRate != null && player.games != null)
             compParts.push(`**${player.winRate}%**wr \`${player.games}\``);
 
         if (player.recentMatches && player.recentMatches.length > 0) {

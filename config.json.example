@@ -16,6 +16,7 @@
   "careerCacheExpiration": 600000,
   "emojiCacheExpiration": 10000,
   "loadoutCacheExpiration": 600000,
+  "livegamePollingInterval": 8000,
   "useShopCache": true,
   "useLoginQueue": true,
   "loginQueueInterval": 15000,

@@ -1158,6 +1158,7 @@ export const getInGameData = async (id, account = null) => {
 // Bulk data fetchers
 // ──────────────────────────────────────────────
 const playerMmrCache = new Map();
+const playerRecentMatchesCache = new Map();
 const MMR_CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
 
 /**
@@ -1180,17 +1181,16 @@ const fetchPlayerMMRs = async (user, puuids) => {
     for (let i = 0; i < puuids.length; i++) {
         const puuid = puuids[i];
         const raw = results[i].status === "fulfilled" ? results[i].value : null;
-        let parsed = parseMMRData(raw, currentSeasonId);
+        let parsed = raw ? parseMMRData(raw, currentSeasonId) : null;
 
-        // Riot matches block `QueueSkills` for non-authenticated players during coregame, returning zeroes.
-        // We persist legitimate MMRs (wins > 0, peakTier > 0, or user's own puuid) from pregame into cache.
-        // If Riot gives us 0's, we fallback to cache.
-        if (parsed.games > 0 || parsed.peakTier > 0 || puuid === user.puuid) {
+        if (parsed && (parsed.games > 0 || parsed.peakTier > 0 || parsed.currentTier > 0)) {
             playerMmrCache.set(puuid, { data: parsed, ts: now });
         } else {
             const cached = playerMmrCache.get(puuid);
-            if (cached && now - cached.ts < MMR_CACHE_TTL) {
+            if (cached && (now - cached.ts < MMR_CACHE_TTL)) {
                 parsed = cached.data;
+            } else if (!parsed) {
+                parsed = parseMMRData(null, currentSeasonId);
             }
         }
 
@@ -1228,16 +1228,17 @@ const fetchPlayerNames = async (user, puuids) => {
 };
 
 /**
- * Fetch last 5 competitive match results for a list of PUUIDs.
+ * Fetch last 3 competitive match results for a list of PUUIDs.
  * Returns Map<puuid, Array<"win" | "loss" | "tie">>
  */
 const fetchPlayerRecentMatches = async (user, puuids) => {
     const pd = pdUrl(user);
     const headers = authHeaders(user);
+    const now = Date.now();
 
     const results = await Promise.allSettled(
         puuids.map(puuid =>
-            fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=5&queue=competitive`, { headers })
+            fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=3&queue=competitive`, { headers })
                 .then(r => r.statusCode === 200 ? JSON.parse(r.body) : null)
         )
     );
@@ -1246,16 +1247,26 @@ const fetchPlayerRecentMatches = async (user, puuids) => {
     for (let i = 0; i < puuids.length; i++) {
         const puuid = puuids[i];
         const raw = results[i].status === "fulfilled" ? results[i].value : null;
-        const matches = raw?.Matches || [];
-        const history = [];
+        let history = null;
 
-        for (const m of matches) {
-            if (m.RankedRatingEarned > 0 || (m.TierAfterUpdate > m.TierBeforeUpdate)) {
-                history.push("win");
-            } else if (m.RankedRatingEarned < 0 || (m.TierAfterUpdate < m.TierBeforeUpdate)) {
-                history.push("loss");
-            } else if (m.RankedRatingEarned === 0) {
-                history.push("tie");
+        if (raw?.Matches) {
+            history = [];
+            for (const m of raw.Matches.slice(0, 3)) {
+                if (m.RankedRatingEarned > 0 || (m.TierAfterUpdate > m.TierBeforeUpdate)) {
+                    history.push("win");
+                } else if (m.RankedRatingEarned < 0 || (m.TierAfterUpdate < m.TierBeforeUpdate)) {
+                    history.push("loss");
+                } else if (m.RankedRatingEarned === 0) {
+                    history.push("tie");
+                }
+            }
+            playerRecentMatchesCache.set(puuid, { data: history, ts: now });
+        } else {
+            const cached = playerRecentMatchesCache.get(puuid);
+            if (cached && now - cached.ts < MMR_CACHE_TTL) {
+                history = cached.data;
+            } else {
+                history = [];
             }
         }
         out.set(puuid, history);
@@ -1274,7 +1285,7 @@ const fetchPlayerRecentMatches = async (user, puuids) => {
 const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
-    const showCompStats = queueId === "competitive" || queueId === "skirmish" || queueId === "skirmish 2v2";
+    const showCompStats = queueId === "competitive" || queueId === "skirmish" || queueId === "skirmish 2v2" || !queueId;
 
     // loadSeasons must finish first so that currentSeasonId (module-level) is
     // populated before fetchPlayerMMRs calls parseMMRData(raw, currentSeasonId).
