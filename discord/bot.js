@@ -928,11 +928,18 @@ client.on("interactionCreate", async (interaction) => {
                 case "bundle": {
                     await defer(interaction);
 
-                    const searchQuery = interaction.options.get("bundle").value.replace(/collection/i, "").replace(/bundle/i, "");
-                    const searchResults = await searchBundle(searchQuery, interaction.locale, 25);
-
+                    const rawQuery = interaction.options.get("bundle").value;
+                    const directBundle = await getBundle(rawQuery);
                     const channel = interaction.channel || await fetchChannel(interaction.channelId);
                     const emoji = await VPEmoji(interaction, channel);
+
+                    if (directBundle) {
+                        const message = await renderBundle(directBundle, interaction, emoji);
+                        return await interaction.followUp(message);
+                    }
+
+                    const searchQuery = rawQuery.replace(/collection/i, "").replace(/bundle/i, "");
+                    const searchResults = await searchBundle(searchQuery, interaction.locale, 25);
 
                     // if the name matches exactly, and there is only one with that name
                     const nameMatchesExactly = (interaction) => searchResults.filter(r => l(r.obj.names, interaction).toLowerCase() === searchQuery.toLowerCase()).length === 1;
@@ -2212,12 +2219,24 @@ client.on("interactionCreate", async (interaction) => {
             } else if (interaction.commandName === "bundle") {
 
                 const focusedValue = interaction.options.getFocused();
-                const searchResults = await searchBundle(focusedValue, interaction.locale, 5);
+                const searchResults = await searchBundle(focusedValue, interaction.locale, 25);
 
-                await interaction.respond(searchResults.map(result => ({
-                    name: result.obj.names[discToValLang[interaction.locale] || DEFAULT_VALORANT_LANG],
-                    value: result.obj.names[DEFAULT_VALORANT_LANG],
-                })));
+                const nameCount = {};
+                for (const r of searchResults) {
+                    const label = l(r.obj.names, interaction);
+                    nameCount[label] = (nameCount[label] || 0) + 1;
+                }
+
+                const options = [];
+                for (let i = searchResults.length - 1; i >= 0; i--) {
+                    const r = searchResults[i];
+                    let label = l(r.obj.names, interaction);
+                    const count = nameCount[label]--;
+                    if (count > 1) label += ` ${count}`;
+                    options.unshift({ name: label, value: r.obj.uuid });
+                }
+
+                await interaction.respond(options.slice(0, 25));
             } else if (interaction.commandName === "account" || interaction.commandName === "forget") {
                 const focusedValue = interaction.options.getFocused();
 
