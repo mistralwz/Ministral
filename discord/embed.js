@@ -933,41 +933,50 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout
         interaction.user.id !== user.id;
 
     let totalValue = 0;
-    let favoritesCount = 0;
     const skinsUuid = [];
 
     const formatWeaponLine = async (weaponUuid) => {
         const weapon = await getWeapon(weaponUuid);
-        const weaponName = weapon ? l(weapon.names, interaction) : 'Weapon';
         const gunData = loadout?.Guns?.find(gun => gun.ID === weaponUuid);
         const skinUuid = gunData?.SkinID;
 
-        if (!skinUuid) {
-            return `• Standard ${weaponName}`;
-        }
+        if (!skinUuid) return null;
 
         const skin = await getSkinFromSkinUuid(skinUuid);
-        if (!skin) {
-            return `• Standard ${weaponName}`;
+        if (!skin) return null;
+
+        // Hide standard skins
+        if (
+            skin.themeUuid === "5a629df4-4765-0214-bd40-fbb96542941f" ||
+            skin.skinUuid === weapon?.defaultSkinUuid ||
+            skin.defaultSkinUuid === skin.skinUuid ||
+            l(skin.names, 'en-US')?.startsWith('Standard ')
+        ) {
+            return null;
         }
 
         skinsUuid.push(skin);
         if (skin.price) totalValue += skin.price;
 
         const isFavorited = favorites?.FavoritedContent?.[skin.skinUuid];
-        if (isFavorited) favoritesCount++;
         const starEmoji = isFavorited ? "⭐ " : "";
 
         const skinFormatted = await skinNameAndEmoji(skin, interaction.channel, interaction);
 
-        // Check equipped chroma / variant
+        // Check equipped chroma / variant (clean variant name only, e.g. *(Gold)* or *(Black)*)
         let chromaText = "";
         if (gunData?.ChromaID && skin.chromas && skin.chromas.length > 1) {
             const chroma = skin.chromas.find(c => c.uuid === gunData.ChromaID);
             if (chroma && chroma.uuid !== skin.chromas[0].uuid) {
                 const rawChromaName = l(chroma.displayName, interaction);
-                const match = rawChromaName.match(/\((.+?)\)/);
-                const variantName = match ? match[1] : rawChromaName.replace(l(skin.names, interaction), '').replace(/[\r\n]+/g, ' ').trim();
+                let variantName = rawChromaName;
+                const parenMatch = variantName.match(/\((.+?)\)/);
+                if (parenMatch) {
+                    variantName = parenMatch[1];
+                } else {
+                    variantName = variantName.replace(l(skin.names, interaction), '').trim();
+                }
+                variantName = variantName.replace(/^Variant\s*\d*\s*[:\-–]?\s*/i, '').replace(/^\((.+)\)$/, '$1').trim() || variantName;
                 if (variantName) chromaText = ` *(${variantName})*`;
             }
         }
@@ -978,29 +987,29 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout
         if (charmUuid) {
             const buddy = await getBuddy(charmUuid);
             if (buddy) {
-                const bName = l(buddy.names, interaction);
+                let bName = l(buddy.names, interaction);
+                bName = bName.replace(/\s*Buddy\s*$/i, '').trim() || bName;
                 buddyText = ` · 🧸 *${bName}*`;
             }
         }
 
         const displayName = skin.rarity ? `**${skinFormatted}**` : skinFormatted;
-        return `• ${starEmoji}${displayName}${chromaText}${buddyText}`;
+        return `- ${starEmoji}${displayName}${chromaText}${buddyText}`;
     };
 
-    const categoryFields = await Promise.all(WEAPON_CATEGORIES.map(async (cat) => {
-        const lines = await Promise.all(cat.weapons.map(wUuid => formatWeaponLine(wUuid)));
+    const categoryFields = (await Promise.all(WEAPON_CATEGORIES.map(async (cat) => {
+        const lines = (await Promise.all(cat.weapons.map(wUuid => formatWeaponLine(wUuid)))).filter(Boolean);
+        if (lines.length === 0) return null;
         const catName = s(interaction).info[cat.nameKey] || cat.defaultName;
         return {
             name: `${cat.emoji} ${catName}`,
             value: lines.join('\n'),
             inline: false
         };
-    }));
+    }))).filter(Boolean);
 
     const emoji = await VPEmoji(interaction);
-    const summaryLine = totalValue === 0
-        ? `💰 **${s(interaction).info.COLLECTION_EQUIPPED_VALUE || "Equipped Value"}:** ${emoji} **0** *(Runnin' on Empty)*  |  ⭐ **${s(interaction).info.COLLECTION_FAVORITES_EQUIPPED || "Favorites Equipped"}:** **${favoritesCount}/19**`
-        : `💰 **${s(interaction).info.COLLECTION_EQUIPPED_VALUE || "Equipped Value"}:** ${emoji} **${totalValue.toLocaleString()}**  |  ⭐ **${s(interaction).info.COLLECTION_FAVORITES_EQUIPPED || "Favorites Equipped"}:** **${favoritesCount}/19**`;
+    const summaryLine = `💰 **${s(interaction).info.COLLECTION_EQUIPPED_VALUE || "Equipped Value"}:** ${emoji} **${totalValue.toLocaleString()}**`;
 
     let usernameText;
     if (someoneElseUsedCommand) {
@@ -1015,8 +1024,7 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout
         title: s(interaction).info.COLLECTION_HEADER.f({ u: usernameText }, id),
         description: summaryLine,
         color: VAL_COLOR_1,
-        fields: categoryFields,
-        ...(totalValue === 0 ? { thumbnail: { url: RUNNIN_ON_EMPTY_SPRAY } } : {})
+        ...(categoryFields.length === 0 ? { image: { url: RUNNIN_ON_EMPTY_SPRAY } } : { fields: categoryFields })
     };
 
     // Retrieve owned skins to populate dropdown counters
@@ -1119,7 +1127,7 @@ export const collectionStatsEmbed = async (interaction, id, user) => {
                 if (equippedSkin) equippedName = ` *(Equipped: ${l(equippedSkin.names, interaction)})*`;
             }
         }
-        return `• **${wName}:** **${count}** skins${equippedName}`;
+        return `- **${wName}:** **${count}** skins${equippedName}`;
     }));
 
     const rarityLines = [
@@ -1141,7 +1149,7 @@ export const collectionStatsEmbed = async (interaction, id, user) => {
     }
 
     const descriptionText = totalCollectionValue === 0
-        ? `💰 **${s(interaction).info.COLLECTION_TOTAL_VALUE || "Total Collection Value"}:** ${emoji} **0** *(Runnin' on Empty)*\n🎒 **${s(interaction).info.COLLECTION_TOTAL_SKINS || "Total Skins Owned"}:** **${validSkins.length}** skins *(Standard/Battlepass only)*`
+        ? `💰 **${s(interaction).info.COLLECTION_TOTAL_VALUE || "Total Collection Value"}:** ${emoji} **0**\n🎒 **${s(interaction).info.COLLECTION_TOTAL_SKINS || "Total Skins Owned"}:** **${validSkins.length}** skins *(Standard/Battlepass only)*`
         : `💰 **${s(interaction).info.COLLECTION_TOTAL_VALUE || "Total Collection Value"}:** ${emoji} **${totalCollectionValue.toLocaleString()}**\n🎒 **${s(interaction).info.COLLECTION_TOTAL_SKINS || "Total Skins Owned"}:** **${validSkins.length}** skins across **${Object.keys(weaponCounts).length}** weapons`;
 
     const embed = {
@@ -1160,7 +1168,7 @@ export const collectionStatsEmbed = async (interaction, id, user) => {
                 inline: true
             }
         ],
-        ...(totalCollectionValue === 0 ? { thumbnail: { url: RUNNIN_ON_EMPTY_SPRAY } } : {})
+        ...(totalCollectionValue === 0 ? { image: { url: RUNNIN_ON_EMPTY_SPRAY } } : {})
     };
 
     const components = [];
@@ -1315,11 +1323,11 @@ export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeU
             const isFavorited = favorites?.FavoritedContent?.[skin.skinUuid];
             const star = isFavorited ? "⭐ " : "";
             const equipBadge = isEquipped ? " `[EQUIPPED]`" : "";
-            return `• ${star}${formatted} · ${emoji} ${skin.price || 'N/A'}${equipBadge}`;
+            return `- ${star}${formatted} · ${emoji} ${skin.price || 'N/A'}${equipBadge}`;
         }));
 
         if (skinLines.length === 0) {
-            skinLines.push("• *Standard Skin*");
+            skinLines.push("- *Standard Skin*");
         }
 
         const totalWeaponValue = filteredSkins.reduce((acc, s) => acc + (s.price || 0), 0);

@@ -48,6 +48,7 @@ import {
 
 import { User, getPuuid } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
+import { getPrice } from "../valorant/cache.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown } from "../discord/embed.js";
 
 test("util: token decoding and expiration", () => {
@@ -294,5 +295,33 @@ test("collection: mode buttons and select dropdown builders", async () => {
     const selectMenu = dropdownRow.components[0];
     assert.equal(selectMenu.data.custom_id, "cl_select_weapon/user-123");
     assert.equal(selectMenu.options.length, 19);
+});
+
+test("valorant cache: getPrice tier fallbacks for guns and melees", async () => {
+    // Ultra tier
+    const ultraGun = { rarity: "411e4a55-4e59-7757-41f0-86a53f101bb5", weapon: WeaponTypeUuid.Vandal };
+    const ultraMelee = { rarity: "411e4a55-4e59-7757-41f0-86a53f101bb5", weapon: WeaponTypeUuid.Knife };
+    assert.equal(await getPrice("dummy-uuid-1", ultraGun), 2475);
+    assert.equal(await getPrice("dummy-uuid-2", ultraMelee), 4950);
+
+    // Premium tier
+    const premGun = { rarity: "60bca009-4182-7998-dee7-b8a2558dc369", weapon: WeaponTypeUuid.Phantom };
+    const premMelee = { rarity: "60bca009-4182-7998-dee7-b8a2558dc369", weapon: WeaponTypeUuid.Knife };
+    assert.equal(await getPrice("dummy-uuid-3", premGun), 1775);
+    assert.equal(await getPrice("dummy-uuid-4", premMelee), 3550);
+
+    // Exclusive tier
+    const exclGun = { rarity: "e046854e-406c-37f4-6607-19a9ba8426fc", weapon: WeaponTypeUuid.Sheriff };
+    const exclMelee = { rarity: "e046854e-406c-37f4-6607-19a9ba8426fc", weapon: WeaponTypeUuid.Knife };
+    assert.equal(await getPrice("dummy-uuid-5", exclGun), 2175);
+    assert.equal(await getPrice("dummy-uuid-6", exclMelee), 4350);
+
+    // Deluxe tier
+    const dlxGun = { rarity: "0cebb8be-46d7-c12a-d306-e9907bfc5a25", weapon: WeaponTypeUuid.Spectre };
+    assert.equal(await getPrice("dummy-uuid-7", dlxGun), 1275);
+
+    // Select tier
+    const selGun = { rarity: "12683d76-48d7-84a3-4e09-6985794f0445", weapon: WeaponTypeUuid.Classic };
+    assert.equal(await getPrice("dummy-uuid-8", selGun), 875);
 });
 
