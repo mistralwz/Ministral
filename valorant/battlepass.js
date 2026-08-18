@@ -9,158 +9,216 @@ const SPIKERUSH_XP_CONSTANT = 1000;
 const LEVEL_MULTIPLIER = 750;
 
 const getWeeklies = async () => {
-    console.log("Fetching mission data...");
+    try {
+        const req = await fetch("https://valorant-api.com/v1/missions");
+        const json = JSON.parse(req.body);
 
-    const req = await fetch("https://valorant-api.com/v1/missions");
-    const json = JSON.parse(req.body);
-
-    const now = Date.now();
-    const weeklyData = {};
-    if (Array.isArray(json?.data)) {
-        json.data.forEach(mission => {
-            if (mission.type === "EAresMissionType::Weekly" && new Date(mission.expirationDate) > now) {
-                if (!weeklyData[mission.activationDate]) {
-                    weeklyData[mission.activationDate] = {};
+        const now = Date.now();
+        const weeklyData = {};
+        if (Array.isArray(json?.data)) {
+            json.data.forEach(mission => {
+                if (mission.type === "EAresMissionType::Weekly" && new Date(mission.expirationDate) > now) {
+                    if (!weeklyData[mission.activationDate]) {
+                        weeklyData[mission.activationDate] = {};
+                    }
+                    weeklyData[mission.activationDate][mission.uuid] = {
+                        title: mission.title,
+                        xpGrant: mission.xpGrant,
+                        progressToComplete: mission.progressToComplete,
+                        activationDate: mission.activationDate
+                    };
                 }
-                weeklyData[mission.activationDate][mission.uuid] = {
-                    title: mission.title,
-                    xpGrant: mission.xpGrant,
-                    progressToComplete: mission.progressToComplete,
-                    activationDate: mission.activationDate
-                };
-            }
-        });
+            });
+        }
+        return weeklyData;
+    } catch (e) {
+        console.error("Failed to fetch missions:", e);
+        return {};
     }
-    return weeklyData;
 };
 
 const calculate_level_xp = async (level) => {
-    if (level <= 50) {
-        if (level === 1) return 0;
-        return (level - 2) * LEVEL_MULTIPLIER + 2000;
+    if (level >= 2 && level <= 50) {
+        return 2000 + (level - 2) * LEVEL_MULTIPLIER;
+    } else if (level >= 51 && level <= 55) {
+        return 36500;
+    } else {
+        return 0;
     }
-    return 36500;
 };
 
-const calculate_total_xp = async (level) => {
-    let total_xp = 0;
-    for (let i = 1; i <= level; i++) {
-        total_xp += await calculate_level_xp(i);
-    }
-    return total_xp;
-};
-
-const getContracts = async (user) => {
-    const req = await fetch(`https://pd.${userRegion(user)}.a.pvp.net/contracts/v1/contracts/${user.puuid}`, {
-        headers: {
-            "Authorization": "Bearer " + user.auth.rso,
-            "X-Riot-Entitlements-JWT": user.auth.ent,
-            ...riotClientHeaders(),
-        }
-    });
-
-    const json = JSON.parse(req.body);
-    if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        deleteUserAuth(user);
-        return { success: false, authFailure: true };
-    } else if (isMaintenance(json)) {
-        return { success: false, maintenance: true };
+const getNextReward = async (interaction, currentTier) => {
+    if (currentTier >= 55) {
+        return {
+            tier: 56,
+            rewardName: s(interaction).battlepass.FINISHED,
+            rewardIcon: null,
+            rewardType: "Finished",
+            XP: 0
+        };
     }
 
-    return {
-        success: true,
-        contracts: json
-    };
-};
-
-const getBattlepassContract = async (contracts) => {
     const battlepassInfo = await getBattlepassInfo();
-    for (const contract of contracts.Contracts) {
-        if (contract.ContractDefinitionID === battlepassInfo.battlepassId) {
-            return contract;
+    if (!battlepassInfo || !Array.isArray(battlepassInfo.chapters)) return null;
+
+    const allLevels = battlepassInfo.chapters.flatMap(chapter => chapter.levels || []);
+    const nextTier = allLevels[currentTier];
+    if (!nextTier || !nextTier.reward) return null;
+
+    const rewardType = nextTier.reward.type;
+    const rewardUUID = nextTier.reward.uuid;
+    const xpAmount = nextTier.xp;
+
+    switch (rewardType) {
+        case "EquippableSkinLevel": {
+            const skin = await getSkin(rewardUUID);
+            return {
+                tier: currentTier + 1,
+                rewardName: skin ? l(skin.names, interaction) : "Skin",
+                rewardIcon: skin?.icon || null,
+                rewardType: rewardType,
+                XP: xpAmount
+            };
         }
+        case "EquippableCharmLevel": {
+            const buddy = await getBuddy(rewardUUID);
+            return {
+                tier: currentTier + 1,
+                rewardName: buddy ? l(buddy.names, interaction) : "Buddy",
+                rewardIcon: buddy?.icon || null,
+                rewardType: rewardType,
+                XP: xpAmount
+            };
+        }
+        case "Currency":
+            return {
+                tier: currentTier + 1,
+                rewardName: s(interaction).info.RADIANITE,
+                rewardIcon: 'https://media.valorant-api.com/currencies/e59aa87c-4cbf-517a-5983-6e81511be9b7/displayicon.png',
+                rewardType: rewardType,
+                XP: xpAmount
+            };
+        case "PlayerCard": {
+            const card = await getCard(rewardUUID);
+            return {
+                tier: currentTier + 1,
+                rewardName: card ? l(card.names, interaction) : "Card",
+                rewardIcon: card?.icons?.small || null,
+                rewardType: rewardType,
+                XP: xpAmount
+            };
+        }
+        case "Spray": {
+            const spray = await getSpray(rewardUUID);
+            return {
+                tier: currentTier + 1,
+                rewardName: spray ? l(spray.names, interaction) : "Spray",
+                rewardIcon: spray?.icon || null,
+                rewardType: rewardType,
+                XP: xpAmount
+            };
+        }
+        case "Totem": {
+            const flex = await getFlex(rewardUUID);
+            return {
+                tier: currentTier + 1,
+                rewardName: flex ? l(flex.names, interaction) : "Flex",
+                rewardIcon: flex?.icon || null,
+                rewardType: rewardType,
+                XP: xpAmount
+            };
+        }
+        default:
+            return {
+                tier: currentTier + 1,
+                rewardName: "Reward",
+                rewardIcon: null,
+                rewardType: rewardType,
+                XP: xpAmount
+            };
     }
-    return null;
-};
-
-const getNextReward = async (interaction, progressionLevelReached) => {
-    const battlepassInfo = await getBattlepassInfo();
-    const nextReward = battlepassInfo.levels[progressionLevelReached];
-    if (!nextReward) return null;
-
-    let item;
-    switch (nextReward.rewardType) {
-        case "skin":
-            item = await getSkin(nextReward.uuid);
-            break;
-        case "buddy":
-            item = await getBuddy(nextReward.uuid);
-            break;
-        case "spray":
-            item = await getSpray(nextReward.uuid);
-            break;
-        case "card":
-            item = await getCard(nextReward.uuid);
-            break;
-        case "flex":
-            item = await getFlex(nextReward.uuid);
-            break;
-    }
-
-    return {
-        name: item ? l(item.names, interaction) : nextReward.name,
-        type: nextReward.rewardType,
-        icon: item?.icon || nextReward.icon,
-        tier: progressionLevelReached + 1
-    };
 };
 
 export const getBattlepassProgress = async (interaction, maxlevel = 50, targetId = interaction.user.id) => {
     const user = getUser(targetId);
     if (!user) return { success: false };
 
-    const authResult = await authUser(user.id);
-    if (!authResult.success) return authResult;
+    const authSuccess = await authUser(targetId);
+    if (!authSuccess.success) return authSuccess;
 
-    const contractsResult = await getContracts(user);
-    if (!contractsResult.success) return contractsResult;
+    const valUser = getUser(targetId);
+    console.log(`Fetching battlepass progress for ${valUser.username}...`);
 
-    const contractData = await getBattlepassContract(contractsResult.contracts);
-    if (!contractData) return { success: false };
+    let req;
+    try {
+        const clientVer = await getValorantVersion().catch(() => ({}));
+        req = await fetch(`https://pd.${userRegion(valUser)}.a.pvp.net/contracts/v1/contracts/${valUser.puuid}`, {
+            headers: {
+                "Authorization": "Bearer " + valUser.auth.rso,
+                "X-Riot-Entitlements-JWT": valUser.auth.ent,
+                "X-Riot-ClientVersion": clientVer.riotClientVersion || "",
+                ...riotClientHeaders(),
+            }
+        });
+    } catch (e) {
+        console.error("Error fetching contracts:", e);
+        return { success: false };
+    }
+
+    const json = JSON.parse(req.body);
+    if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
+        deleteUserAuth(valUser);
+        return { success: false };
+    } else if (isMaintenance(json)) {
+        return { success: false, maintenance: true };
+    }
 
     const battlepassInfo = await getBattlepassInfo();
-    const end_date = new Date(battlepassInfo.endDate);
-    const now = new Date();
-    const season_days_left = Math.max(1, Math.ceil((end_date - now) / (1000 * 60 * 60 * 24)));
-    const season_weeks_left = Math.max(1, Math.ceil(season_days_left / 7));
+    if (!battlepassInfo || !battlepassInfo.uuid) return { success: false, error: "Battlepass info unavailable" };
 
-    let totalxp = 0;
-    for (let i = 1; i <= contractData.progressionLevelReached; i++) {
-        totalxp += await calculate_level_xp(i);
+    const contract = json.Contracts && json.Contracts.find(c => c.ContractDefinitionID === battlepassInfo.uuid);
+    if (!contract) return { success: false, error: "Active battlepass contract not found" };
+
+    const contractData = {
+        progressionLevelReached: contract.ProgressionLevelReached || 0,
+        progressionTowardsNextLevel: contract.ProgressionTowardsNextLevel || 0,
+        totalProgressionEarned: contract.ContractProgression ? contract.ContractProgression.TotalProgressionEarned : 0,
+        missions: {
+            missionArray: json.Missions || [],
+            weeklyCheckpoint: json.MissionMetadata ? json.MissionMetadata.WeeklyCheckpoint : null
+        }
+    };
+
+    const weeklyxp = await getWeeklyXP(contractData.missions);
+    const isBpPurchased = await getBattlepassPurchase(targetId);
+
+    const season_end = new Date(battlepassInfo.end);
+    const season_now = Date.now();
+    const season_left = Math.max(0, season_end - season_now);
+    const season_days_left = Math.max(1, Math.floor(season_left / (1000 * 60 * 60 * 24)));
+    const season_weeks_left = Math.max(1, season_days_left / 7);
+
+    let totalxp = contractData.totalProgressionEarned;
+    let totalxpneeded = 0;
+    for (let i = 1; i <= maxlevel; i++) {
+        totalxpneeded += await calculate_level_xp(i);
     }
-    totalxp += contractData.progressionTowardsNextLevel;
+    totalxpneeded -= totalxp;
 
-    const max_xp = await calculate_total_xp(maxlevel);
-    const totalxpneeded = max_xp - totalxp;
-
-    const weeklyxp = await getWeeklyXP({
-        missionArray: contractsResult.contracts.Missions,
-        weeklyCheckpoint: contractsResult.contracts.MissionMetadata.WeeklyCheckpoint
-    });
-
-    let average_unrated_xp = AVERAGE_UNRATED_XP_CONSTANT;
     let spikerush_xp = SPIKERUSH_XP_CONSTANT;
-
-    const isBpPurchased = await getBattlepassPurchase(user.id);
+    let average_unrated_xp = AVERAGE_UNRATED_XP_CONSTANT;
     if (isBpPurchased) {
+        spikerush_xp = spikerush_xp * 1.03;
         average_unrated_xp = average_unrated_xp * 1.03;
     }
+
+    const nextRewardData = await getNextReward(interaction, contractData.progressionLevelReached);
 
     return {
         success: true,
         bpdata: contractData,
         battlepassPurchased: isBpPurchased,
-        nextReward: await getNextReward(interaction, contractData.progressionLevelReached),
+        nextReward: nextRewardData,
         season_days_left: season_days_left,
         totalxp: totalxp.toLocaleString(),
         xpneeded: (await calculate_level_xp(contractData.progressionLevelReached + 1) - contractData.progressionTowardsNextLevel).toLocaleString(),
@@ -181,7 +239,7 @@ const getWeeklyXP = async (userMissionsObj) => {
     const seasonWeeklyMissions = await getWeeklies();
     let xp = 0;
 
-    if (userMissionsObj.missionArray.length > 2) {
+    if (userMissionsObj.missionArray && userMissionsObj.missionArray.length > 2) {
         userMissionsObj.missionArray.forEach(userMission => {
             if (!userMission.Complete) {
                 Object.entries(seasonWeeklyMissions).forEach(([date, weeklyMissions]) => {
