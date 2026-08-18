@@ -26,6 +26,7 @@
     "MAINTENANCE": "**Máy chủ VALORANT của Riot đang bảo trì!** Vui lòng thử lại.",
     "OTHER_SHOP_DISABLED": "**{u} đã tắt tính năng cho người khác xem cửa hàng của họ!**",
     "OTHER_COLLECTION_DISABLED": "**{u} không cho phép người khác xem bộ sưu tập!**",
+    "OTHER_PROFILE_DISABLED": "**{u} đã tắt tính năng cho người khác xem hồ sơ của họ!**",
     "STATS_DISABLED": "**Thống kê skin đã bị vô hiệu hoá trên bot này!**",
     "EMPTY_STATS": "**Chưa có dữ liệu thống kê cửa hàng, hãy sử dụng `/shop` để bắt đầu!**",
     "NO_STATS_FOR_SKIN": "**Skin này chưa xuất hiện trong bất kỳ một cửa hàng nào** trong {d} ngày qua!",
@@ -38,6 +39,9 @@
     "DUPLICATE_ALERT": "Bạn đã chọn nhân thông báo cho skin **{s}** trong <#{c}> rồi",
     "GHOST_ALERT": "Thông báo skin này không còn tồn tại nữa!",
     "ALERT_NO_PERMS": "**Tôi không có quyền cần thiết!** Tôi có đúng vai trò không?\nĐảm bảo rằng tôi có thể `Xem kênh`, `Gửi tin nhắn` và `Chèn liên kết` trong kênh này.",
+    "DAILY_SHOP_CHANNEL_INACCESSIBLE": "⚠️ **Vấn đề với thông báo Cửa hàng hàng ngày**\n\n{perms}\n\n**Kênh:** <#{c}>\n**Lý do:** {r}\n\nVui lòng dùng `/settings` để cài thông báo cửa hàng hàng ngày vào kênh mà tôi có quyền truy cập, hoặc tắt nó nếu bạn không muốn cập nhật tự động nữa.",
+    "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **Không thể truy cập kênh thông báo skin**\n\n{perms}\n\n**Kênh:** <#{c}>\n**Lý do:** {r}\n\n✅ **Tôi đã tự động chuyển {n} thông báo vào kênh DM này** để bạn không bỏ lỡ bất kỳ thông báo nào!\n\nNếu bạn muốn thiết lập thông báo trong kênh server khác, hãy dùng lại `/alert` trong kênh đó.",
+    "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **Không thể truy cập kênh thông báo skin**\n\n{perms}\n\n**Kênh:** <#{c}>\n**Lý do:** {r}\n\nVui lòng dùng `/alert` để cấu hình lại thông báo trong kênh mà tôi có quyền truy cập.",
     "GENERIC_NO_PERMS": "**Bot không có quyền làm điều đó trong kênh này!** \nĐảm bảo rằng Bot đã có đủ quyền `VIEW_CHANNELS`, `SEND_MESSAGES`, `EMBED_LINKS`",
     "NO_NMARKET": "**Hiện tại đang không có Chợ Đêm!**",
     "NO_NMARKET_WITH_DATE": "**Hiện tại không có Chợ đêm!** Chợ đêm tiếp theo sẽ xuất hiện <t:{t}:R>.",
@@ -52,11 +56,7 @@
     "WAIT_FOR_PREVIUS_REQUEST": "Chúng tôi vẫn đang xử lý yêu cầu trước đó của bạn, vui lòng đợi một chút trước khi thử lại!",
     "INVALID_WEB_AUTH_URL": "**URL không hợp lệ!** Đảm bảo rằng bạn đã sao chép toàn bộ URL từ thanh địa chỉ trình duyệt sau trang đăng nhập.\nNó phải bắt đầu bằng `http://localhost/redirect#access_token=...`",
     "WEB_AUTH_FAILED": "**Đăng nhập thất bại!** {e}",
-    "CUSTOM_GAME_ESCAPE_REJECTED": "Không thể thay đổi chế độ chơi. **Nếu bạn hiện đang ở trong sảnh Trận đấu Tùy chọn**, Riot yêu cầu bạn phải rời khỏi Trận đấu Tùy chọn theo cách thủ công trong client Valorant của mình trước khi thay đổi hàng chờ!",
-    "DAILY_SHOP_CHANNEL_INACCESSIBLE": "⚠️ **Vấn đề với thông báo Cửa hàng hàng ngày**\n\n{perms}\n\n**Kênh:** <#{c}>\n**Lý do:** {r}\n\nVui lòng dùng `/settings` để cài thông báo cửa hàng hàng ngày vào kênh mà tôi có quyền truy cập, hoặc tắt nó nếu bạn không muốn cập nhật tự động nữa.",
-    "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **Không thể truy cập kênh thông báo skin**\n\n{perms}\n\n**Kênh:** <#{c}>\n**Lý do:** {r}\n\n✅ **Tôi đã tự động chuyển {n} thông báo vào kênh DM này** để bạn không bỏ lỡ bất kỳ thông báo nào!\n\nNếu bạn muốn thiết lập thông báo trong kênh server khác, hãy dùng lại `/alert` trong kênh đó.",
-    "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **Không thể truy cập kênh thông báo skin**\n\n{perms}\n\n**Kênh:** <#{c}>\n**Lý do:** {r}\n\nVui lòng dùng `/alert` để cấu hình lại thông báo trong kênh mà tôi có quyền truy cập.",
-    "OTHER_PROFILE_DISABLED": "**{u} đã tắt tính năng cho người khác xem hồ sơ của họ!**"
+    "CUSTOM_GAME_ESCAPE_REJECTED": "Không thể thay đổi chế độ chơi. **Nếu bạn hiện đang ở trong sảnh Trận đấu Tùy chọn**, Riot yêu cầu bạn phải rời khỏi Trận đấu Tùy chọn theo cách thủ công trong client Valorant của mình trước khi thay đổi hàng chờ!"
   },
   "info": {
     "SHOP_HEADER": "Cửa hàng ngày hôm nay của **{u}** (làm mới <t:{t}:R>)",
@@ -124,6 +124,25 @@
     "COLLECTION_VALUE": "Tổng giá trị:",
     "COLLECTION_VIEW_IMAGES": "Xem ảnh",
     "COLLECTION_VIEW_ALL": "Xem tất cả",
+    "COLLECTION_STATS_BUTTON": "Thống kê tài khoản",
+    "COLLECTION_LOADOUT_BUTTON": "Trang bị đang dùng",
+    "COLLECTION_GALLERY_BUTTON": "Bộ sưu tập hình ảnh",
+    "COLLECTION_SELECT_WEAPON": "Chọn vũ khí để xem kho đồ...",
+    "COLLECTION_LIST_VIEW": "Xem danh sách",
+    "COLLECTION_CARD_VIEW": "Xem dạng thẻ",
+    "COLLECTION_TOTAL_SKINS": "Tổng skin sở hữu",
+    "COLLECTION_TOTAL_VALUE": "Tổng giá trị bộ sưu tập",
+    "COLLECTION_RARITY_BREAKDOWN": "Phân loại theo độ hiếm",
+    "COLLECTION_TOP_WEAPONS": "Vũ khí nhiều skin nhất",
+    "COLLECTION_EQUIPPED_VALUE": "Giá trị đang trang bị",
+    "COLLECTION_FAVORITES_EQUIPPED": "Yêu thích đang trang bị",
+    "COLLECTION_CATEGORY_SIDEARMS": "Vũ khí phụ",
+    "COLLECTION_CATEGORY_SMGS_SHOTGUNS": "SMG & Shotgun",
+    "COLLECTION_CATEGORY_RIFLES": "Súng trường",
+    "COLLECTION_CATEGORY_SNIPERS_HEAVIES": "Sniper & Vũ khí hạng nặng",
+    "COLLECTION_CATEGORY_MELEE": "Cận chiến",
+    "COLLECTION_ALL_WEAPONS": "Tất cả vũ khí",
+    "COLLECTION_STATS_HEADER": "Định giá & Thống kê BST của **{u}**:",
     "ACCOUNT_SWITCHED": "Đã chọn tài khoản **{n}. {u}**",
     "ACCOUNT_ALREADY_SELECTED": "Bạn đã chọn tài khoản **{u}** rồi mà!",
     "ACCOUNTS_HEADER": "Các tài khoản bạn đã đăng nhập:",
@@ -199,6 +218,19 @@
     "othersCanUseAccountButtons": "Cho phép người khác nhấn nút trên /shop của bạn",
     "locale": "Ngôn ngữ"
   },
+  "modal": {
+    "PAGE_TITLE": "Điều hướng trang",
+    "PAGE_INPUT_PLACEHOLDER": "Vui lòng chỉ nhập số.",
+    "PAGE_INPUT_LABEL": "Đi đến trang (1-{max})"
+  },
+  "match": {
+    "COMPETITIVE": "Xếp hạng",
+    "RANKED_RATING": "RR",
+    "AVERAGE_DAMAGE_ROUND": "Sát thương TB/Hiệp",
+    "AVERAGE_COMBAT_SCORE": "Điểm chiến đấu TB",
+    "HS_PERCENT": "% Headshot",
+    "PERCENT": "%{v}"
+  },
   "livegame": {
     "EMBED_TITLE": "⚔️ Trận đấu trực tiếp・{mapName}",
     "EMBED_FOOTER": "{stateLabel}・{queueName}",
@@ -213,30 +245,19 @@
     "REFRESH_BUTTON": "Làm mới",
     "QUEUING_TITLE": "🕒 Đang trong hàng chờ",
     "QUEUING_DESC": "Đang tìm trận đấu trong chế độ **{queueName}**...",
-    "SELECT_AGENT_PLACEHOLDER": "Chọn Đặc vụ để Khóa lại",
     "IDLE_PARTY_TITLE": "Đang treo máy trong Tổ đội",
     "IDLE_PARTY_DESC": "Đang chờ vào hàng chờ.",
     "PARTY_MEMBERS": "Thành viên Tổ đội",
+    "SELECT_AGENT_PLACEHOLDER": "Chọn Đặc vụ để Khóa lại",
     "START_QUEUE": "Bắt đầu hàng chờ",
     "CANCEL_QUEUE": "Hủy hàng chờ",
     "GENERATE_PARTY_CODE": "Tạo mã Tổ đội",
     "REMOVE_PARTY_CODE": "Tắt mã Tổ đội",
     "PARTY_CODE": "Mã Tổ đội:",
     "PREFERRED_SERVERS": "Ưu tiên: {servers}",
-    "AUTO_SERVERS": "Tự động"
-  },
-  "modal": {
-    "PAGE_TITLE": "Điều hướng trang",
-    "PAGE_INPUT_PLACEHOLDER": "Vui lòng chỉ nhập số.",
-    "PAGE_INPUT_LABEL": "Đi đến trang (1-{max})"
-  },
-  "match": {
-    "COMPETITIVE": "Xếp hạng",
-    "RANKED_RATING": "RR",
-    "AVERAGE_DAMAGE_ROUND": "Sát thương TB/Hiệp",
-    "AVERAGE_COMBAT_SCORE": "Điểm chiến đấu TB",
-    "HS_PERCENT": "% Headshot",
-    "PERCENT": "%{v}"
+    "AUTO_SERVERS": "Tự động",
+    "JOIN_PARTY": "Tham gia nhóm",
+    "PARTY_CLOSED": "Nhóm đã đóng"
   },
   "queues": {
     "COMPETITIVE": "Xếp hạng",

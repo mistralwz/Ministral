@@ -39,6 +39,9 @@
     "DUPLICATE_ALERT": "คุณมีการแจ้งเตือนของสกินนี้อยู่แล้ว **{s}** ใน <#{c}>!",
     "GHOST_ALERT": "ไม่มีการแจ้งเตือนนั้นอีกต่อไป!",
     "ALERT_NO_PERMS": "**ฉันไม่มีสิทธิ์ที่จำเป็น!** ฉันมีบทบาทที่ถูกต้องหรือไม่?\nตรวจสอบให้แน่ใจว่าฉันสามารถ `ดูช่อง`, `ส่งข้อความ` และ `ฝังลิงก์` ในช่องนี้",
+    "DAILY_SHOP_CHANNEL_INACCESSIBLE": "⚠️ **มีปัญหากับการแจ้งเตือนร้านประจำวัน**\n\n{perms}\n\n**ช่อง:** <#{c}>\n**สาเหตุ:** {r}\n\nกรุณาใช้ `/settings` เพื่อตั้งค่าการแจ้งเตือนร้านประจำวันในช่องที่ฉันสามารถเข้าได้ หรือปิดการแจ้งเตือนหากคุณไม่ต้องการอัปเดตร้านอัตโนมัติอีกต่อไป.",
+    "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **ไม่สามารถเข้าถึงช่องแจ้งเตือนสกินได้**\n\n{perms}\n\n**ช่อง:** <#{c}>\n**สาเหตุ:** {r}\n\n✅ **ฉันได้ย้าย {n} การแจ้งเตือนไปยังช่อง DM นี้โดยอัตโนมัติ** เพื่อที่คุณจะไม่พลาดการแจ้งเตือน!\n\nหากต้องการตั้งค่าการแจ้งเตือนในช่องของเซิร์ฟเวอร์อื่น โปรดใช้ `/alert` ในช่องนั้นอีกครั้ง.",
+    "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **ไม่สามารถเข้าถึงช่องแจ้งเตือนสกินได้**\n\n{perms}\n\n**ช่อง:** <#{c}>\n**สาเหตุ:** {r}\n\nโปรดตั้งค่าการแจ้งเตือนของคุณอีกครั้งในช่องที่ฉันสามารถเข้าถึงได้ โดยใช้คำสั่ง `/alert`.",
     "GENERIC_NO_PERMS": "**ไม่มีสิทธิ์ที่จำเป็นในช่องนี้!** บอทมีบทบาทที่ถูกต้องหรือไม่?\nตรวจสอบว่าสามารถ `ดูช่อง`, `ส่งข้อความ` และ `ฝังลิงก์` ในช่องนี้",
     "NO_NMARKET": "**ไม่มีตลาดกลางคืนในขณะนี้!**",
     "NO_NMARKET_WITH_DATE": "**ไม่มีตลาดกลางคืนในขณะนี้!** ตลาดกลางคืนครั้งถัดไปจะมาอีกใน <t:{t}:R>.",
@@ -53,10 +56,7 @@
     "WAIT_FOR_PREVIUS_REQUEST": "ยังคงดำเนินการตามคำขอก่อนหน้าของคุณ กรุณารอสักครู่เเละลองอีกครั้ง!",
     "INVALID_WEB_AUTH_URL": "**URL ไม่ถูกต้อง!** ตรวจสอบให้แน่ใจว่าคุณคัดลอก URL ทั้งหมดจากแถบที่อยู่ของเบราว์เซอร์หลังจากหน้าเข้าสู่ระบบ\nควรเริ่มต้นด้วย `http://localhost/redirect#access_token=...`",
     "WEB_AUTH_FAILED": "**เข้าสู่ระบบล้มเหลว!** {e}",
-    "CUSTOM_GAME_ESCAPE_REJECTED": "เปลี่ยนโหมดเกมล้มเหลว **หากคุณอยู่ในล็อบบี้เกมที่กำหนดเอง** Riot กำหนดให้คุณต้องออกจากเกมที่กำหนดเองด้วยตนเองในไคลเอนต์ Valorant ก่อนที่จะเปลี่ยนคิว!",
-    "DAILY_SHOP_CHANNEL_INACCESSIBLE": "⚠️ **มีปัญหากับการแจ้งเตือนร้านประจำวัน**\n\n{perms}\n\n**ช่อง:** <#{c}>\n**สาเหตุ:** {r}\n\nกรุณาใช้ `/settings` เพื่อตั้งค่าการแจ้งเตือนร้านประจำวันในช่องที่ฉันสามารถเข้าได้ หรือปิดการแจ้งเตือนหากคุณไม่ต้องการอัปเดตร้านอัตโนมัติอีกต่อไป.",
-    "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **ไม่สามารถเข้าถึงช่องแจ้งเตือนสกินได้**\n\n{perms}\n\n**ช่อง:** <#{c}>\n**สาเหตุ:** {r}\n\n✅ **ฉันได้ย้าย {n} การแจ้งเตือนไปยังช่อง DM นี้โดยอัตโนมัติ** เพื่อที่คุณจะไม่พลาดการแจ้งเตือน!\n\nหากต้องการตั้งค่าการแจ้งเตือนในช่องของเซิร์ฟเวอร์อื่น โปรดใช้ `/alert` ในช่องนั้นอีกครั้ง.",
-    "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **ไม่สามารถเข้าถึงช่องแจ้งเตือนสกินได้**\n\n{perms}\n\n**ช่อง:** <#{c}>\n**สาเหตุ:** {r}\n\nโปรดตั้งค่าการแจ้งเตือนของคุณอีกครั้งในช่องที่ฉันสามารถเข้าถึงได้ โดยใช้คำสั่ง `/alert`."
+    "CUSTOM_GAME_ESCAPE_REJECTED": "เปลี่ยนโหมดเกมล้มเหลว **หากคุณอยู่ในล็อบบี้เกมที่กำหนดเอง** Riot กำหนดให้คุณต้องออกจากเกมที่กำหนดเองด้วยตนเองในไคลเอนต์ Valorant ก่อนที่จะเปลี่ยนคิว!"
   },
   "info": {
     "SHOP_HEADER": "ร้านค้ารายวันของคุณ **{u}** (เหลือเวลาอีก <t:{t}:R>)",
@@ -124,6 +124,25 @@
     "COLLECTION_VALUE": "มูลค่าสกิน:",
     "COLLECTION_VIEW_IMAGES": "ดูภาพ",
     "COLLECTION_VIEW_ALL": "ดูทั้งหมด",
+    "COLLECTION_STATS_BUTTON": "สถิติบัญชี",
+    "COLLECTION_LOADOUT_BUTTON": "ชุดอุปกรณ์ที่ติดตั้ง",
+    "COLLECTION_GALLERY_BUTTON": "แกลเลอรีรูปภาพ",
+    "COLLECTION_SELECT_WEAPON": "เลือกอาวุธเพื่อดูคลังเก็บของ...",
+    "COLLECTION_LIST_VIEW": "มุมมองรายการ",
+    "COLLECTION_CARD_VIEW": "มุมมองการ์ด",
+    "COLLECTION_TOTAL_SKINS": "จำนวนสกินที่ครอบครองทั้งหมด",
+    "COLLECTION_TOTAL_VALUE": "มูลค่าคลังสะสมทั้งหมด",
+    "COLLECTION_RARITY_BREAKDOWN": "รายละเอียดระดับความหายาก",
+    "COLLECTION_TOP_WEAPONS": "อาวุธยอดนิยมในตู้เก็บของ",
+    "COLLECTION_EQUIPPED_VALUE": "มูลค่าที่ติดตั้งอยู่",
+    "COLLECTION_FAVORITES_EQUIPPED": "รายการโปรดที่ติดตั้ง",
+    "COLLECTION_CATEGORY_SIDEARMS": "ปืนพก",
+    "COLLECTION_CATEGORY_SMGS_SHOTGUNS": "ปืนกลมือและปืนลูกซอง",
+    "COLLECTION_CATEGORY_RIFLES": "ปืนไรเฟิล",
+    "COLLECTION_CATEGORY_SNIPERS_HEAVIES": "ปืนสไนเปอร์และปืนกลหนัก",
+    "COLLECTION_CATEGORY_MELEE": "อาวุธระยะประชิด",
+    "COLLECTION_ALL_WEAPONS": "อาวุธทั้งหมด",
+    "COLLECTION_STATS_HEADER": "การประเมินมูลค่าและสถิติคลังของ **{u}**:",
     "ACCOUNT_SWITCHED": "เปลี่ยนบัญชีเเล้วเป็นบัญชี **{n}. {u}**",
     "ACCOUNT_ALREADY_SELECTED": "**{u}** ถูกเลือกแล้ว!",
     "ACCOUNTS_HEADER": "บัญชีทั้งหมดของคุณที่ลงทะเบียนไว้กับบอท:",
@@ -199,6 +218,19 @@
     "othersCanUseAccountButtons": "อนุญาตให้ผู้อื่นกดปุ่มในคำสั่ง /shop ของคุณ",
     "locale": "ภาษา"
   },
+  "modal": {
+    "PAGE_TITLE": "เลือกหน้า",
+    "PAGE_INPUT_PLACEHOLDER": "กรุณากรอกตัวเลขเท่านั้น",
+    "PAGE_INPUT_LABEL": "ไปที่หน้า (1-{max})"
+  },
+  "match": {
+    "COMPETITIVE": "จัดอันดับ",
+    "RANKED_RATING": "RR",
+    "AVERAGE_DAMAGE_ROUND": "ความเสียหายเฉลี่ยต่อรอบ",
+    "AVERAGE_COMBAT_SCORE": "คะแนนการต่อสู้เฉลี่ย",
+    "HS_PERCENT": "อัตรา Headshot",
+    "PERCENT": "{v}%"
+  },
   "livegame": {
     "EMBED_TITLE": "⚔️ เกมสด・{mapName}",
     "EMBED_FOOTER": "{stateLabel}・{queueName}",
@@ -213,30 +245,19 @@
     "REFRESH_BUTTON": "รีเฟรช",
     "QUEUING_TITLE": "🕒 กำลังเข้าคิวหาแมตช์",
     "QUEUING_DESC": "กำลังค้นหาแมตช์ในโหมด **{queueName}**...",
-    "SELECT_AGENT_PLACEHOLDER": "เลือกเอเจนท์เพื่อยืนยัน",
     "IDLE_PARTY_TITLE": "ปาร์ตี้ว่าง",
     "IDLE_PARTY_DESC": "กำลังรอเข้าคิว",
     "PARTY_MEMBERS": "สมาชิกปาร์ตี้",
+    "SELECT_AGENT_PLACEHOLDER": "เลือกเอเจนท์เพื่อยืนยัน",
     "START_QUEUE": "เริ่มคิว",
     "CANCEL_QUEUE": "ยกเลิกคิว",
     "GENERATE_PARTY_CODE": "สร้างรหัสปาร์ตี้",
     "REMOVE_PARTY_CODE": "ปิดใช้งานรหัสปาร์ตี้",
     "PARTY_CODE": "รหัสปาร์ตี้:",
     "PREFERRED_SERVERS": "เซิร์ฟเวอร์ที่ต้องการ: {servers}",
-    "AUTO_SERVERS": "อัตโนมัติ"
-  },
-  "modal": {
-    "PAGE_TITLE": "เลือกหน้า",
-    "PAGE_INPUT_PLACEHOLDER": "กรุณากรอกตัวเลขเท่านั้น",
-    "PAGE_INPUT_LABEL": "ไปที่หน้า (1-{max})"
-  },
-  "match": {
-    "COMPETITIVE": "จัดอันดับ",
-    "RANKED_RATING": "RR",
-    "AVERAGE_DAMAGE_ROUND": "ความเสียหายเฉลี่ยต่อรอบ",
-    "AVERAGE_COMBAT_SCORE": "คะแนนการต่อสู้เฉลี่ย",
-    "HS_PERCENT": "อัตรา Headshot",
-    "PERCENT": "{v}%"
+    "AUTO_SERVERS": "อัตโนมัติ",
+    "JOIN_PARTY": "เข้าร่วมปาร์ตี้",
+    "PARTY_CLOSED": "ปาร์ตี้ปิดแล้ว"
   },
   "queues": {
     "COMPETITIVE": "จัดอันดับ",
