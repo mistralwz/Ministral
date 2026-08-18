@@ -1,7 +1,6 @@
 import fs from "fs";
-import {BaseInteraction} from "discord.js";
-import {getSetting} from "./settings.js";
-import {getUser, User} from "../valorant/auth.js";
+import { BaseInteraction } from "discord.js";
+import { getUserFromDb } from "./userDatabase.js";
 import config from "./config.js";
 
 // languages valorant doesn't have (fetch skins in en-US):
@@ -9,44 +8,44 @@ import config from "./config.js";
 // languages discord doesn't have:
 // arabic, mexican spanish, indonesian
 export const discToValLang = {
-    'de'   : 'de-DE',
-    'en-GB': 'en-US', // :(
+    'de': 'de-DE',
+    'en-GB': 'en-US',
     'en-US': 'en-US',
     'es-ES': 'es-ES',
     'es-419': 'es-MX',
-    'fr'   : 'fr-FR',
-    'it'   : 'it-IT',
-    'pl'   : 'pl-PL',
+    'fr': 'fr-FR',
+    'it': 'it-IT',
+    'pl': 'pl-PL',
     'pt-BR': 'pt-BR',
-    'vi'   : 'vi-VN',
-    'tr'   : 'tr-TR',
-    'ru'   : 'ru-RU',
-    'th'   : 'th-TH',
+    'vi': 'vi-VN',
+    'tr': 'tr-TR',
+    'ru': 'ru-RU',
+    'th': 'th-TH',
     'zh-CN': 'zh-CN',
-    'ja'   : 'ja-JP',
+    'ja': 'ja-JP',
     'zh-TW': 'zh-TW',
-    'ko'   : 'ko-KR',
-    'id'   : 'id-ID',
+    'ko': 'ko-KR',
+    'id': 'id-ID',
 
     // Discord locales that Valorant doesn't have
-    'da'   : 'en-US',
-    'hr'   : 'en-US',
-    'lt'   : 'en-US',
-    'hu'   : 'en-US',
-    'nl'   : 'en-US',
-    'no'   : 'en-US',
-    'ro'   : 'en-US',
-    'fi'   : 'en-US',
+    'da': 'en-US',
+    'hr': 'en-US',
+    'lt': 'en-US',
+    'hu': 'en-US',
+    'nl': 'en-US',
+    'no': 'en-US',
+    'ro': 'en-US',
+    'fi': 'en-US',
     'sv-SE': 'en-US',
-    'cs'   : 'en-US',
-    'el'   : 'en-US',
-    'bg'   : 'en-US',
-    'uk'   : 'en-US',
-    'hi'   : 'en-US',
+    'cs': 'en-US',
+    'el': 'en-US',
+    'bg': 'en-US',
+    'uk': 'en-US',
+    'hi': 'en-US',
 
-    // valorant languages, that discord doesn't support
+    // valorant languages that discord doesn't support
     'ar-AE': 'ar-AE'
-}
+};
 
 export const valToDiscLang = {};
 Object.keys(discToValLang).forEach(discLang => {
@@ -54,169 +53,204 @@ Object.keys(discToValLang).forEach(discLang => {
 });
 
 export const discLanguageNames = {
-    'de'   : '🇩🇪 Deutsch',
+    'de': '🇩🇪 Deutsch',
     'en-GB': '🇬🇧 English (UK)',
     'en-US': '🇺🇸 English (US)',
     'es-ES': '🇪🇸 Español',
     'es-419': '🇲🇽 Español (Latinoamérica)',
-    'fr'   : '🇫🇷 Français',
-    'it'   : '🇮🇹 Italiano',
-    'pl'   : '🇵🇱 Polski',
+    'fr': '🇫🇷 Français',
+    'it': '🇮🇹 Italiano',
+    'pl': '🇵🇱 Polski',
     'pt-BR': '🇧🇷 Português (Brasil)',
-    'vi'   : '🇻🇳 Tiếng Việt',
-    'tr'   : '🇹🇷 Türkçe',
-    'ru'   : '🇷🇺 Русский',
-    'th'   : '🇹🇭 ไทย',
+    'vi': '🇻🇳 Tiếng Việt',
+    'tr': '🇹🇷 Türkçe',
+    'ru': '🇷🇺 Русский',
+    'th': '🇹🇭 ไทย',
     'zh-CN': '🇨🇳 简体中文',
-    'ja'   : '🇯🇵 日本語',
+    'ja': '🇯🇵 日本語',
     'zh-TW': '🇹🇼 繁體中文',
-    'ko'   : '🇰🇷 한국어',
-    'id'   : '🇮🇩 Bahasa Indonesia',
+    'ko': '🇰🇷 한국어',
+    'id': '🇮🇩 Bahasa Indonesia',
 
     // Discord locales that Valorant doesn't have
-    'da'   : '🇩🇰 Dansk',
-    'hr'   : '🇭🇷 Hrvatski',
-    'lt'   : '🇱🇹 Lietuvių',
-    'hu'   : '🇭🇺 Magyar',
-    'nl'   : '🇳🇱 Nederlands',
-    'no'   : '🇳🇴 Norsk',
-    'ro'   : '🇷🇴 Română',
-    'fi'   : '🇫🇮 Suomi',
+    'da': '🇩🇰 Dansk',
+    'hr': '🇭🇷 Hrvatski',
+    'lt': '🇱🇹 Lietuvių',
+    'hu': '🇭🇺 Magyar',
+    'nl': '🇳🇱 Nederlands',
+    'no': '🇳🇴 Norsk',
+    'ro': '🇷🇴 Română',
+    'fi': '🇫🇮 Suomi',
     'sv-SE': '🇸🇪 Svenska',
-    'cs'   : '🇨🇿 Čeština',
-    'el'   : '🇬🇷 Ελληνικά',
-    'bg'   : '🇧🇬 Български',
-    'uk'   : '🇺🇦 Українська',
-    'hi'   : '🇮🇳 हिन्दी',
+    'cs': '🇨🇿 Čeština',
+    'el': '🇬🇷 Ελληνικά',
+    'bg': '🇧🇬 Български',
+    'uk': '🇺🇦 Українська',
+    'hi': '🇮🇳 हिन्दी',
 
-    // valorant languages, that discord doesn't support
+    // valorant languages that discord doesn't support
     'ar-AE': '🇸🇦 العربية',
 
     // languages that neither discord nor valorant support
     'tl-PH': '🇵🇭 Tagalog',
-}
+};
 
 export const DEFAULT_LANG = 'en-GB';
 export const DEFAULT_VALORANT_LANG = 'en-US';
 
-const languages = {};
+export const formatString = (s) => {
+    if (typeof s !== "string") return s;
 
-// asLocalized returns a plain string primitive so Discord.js component
-// builders (which check typeof === 'string') always accept the value.
-// .f() template formatting is available via String.prototype.f (see below).
-const asLocalized = (value) => typeof value === 'string' ? value : String(value);
-
-const buildCategoryProxy = (categoryStrings = {}, fallbackCategory = null) => new Proxy(categoryStrings, {
-    get: (target, prop) => {
-        if(prop in target) return asLocalized(target[prop]);
-
-        if(fallbackCategory && prop in fallbackCategory) {
-            return asLocalized(fallbackCategory[prop]);
+    String.prototype.f = function (args, fallbackString) {
+        let str = this;
+        if (args) {
+            for (let key in args) {
+                str = str.replaceAll(`{${key}}`, args[key]);
+            }
         }
+        if (fallbackString && str.includes("{") && str.includes("}")) return fallbackString;
+        return str;
+    };
 
-        return prop;
-    }
-});
+    return s;
+};
 
-const importLanguage = (language) => {
-    let languageStrings;
-    try {
-        languageStrings = JSON.parse(fs.readFileSync(`./languages/${language}.json`, 'utf-8'));
-    } catch (e) {
-        if(language === DEFAULT_LANG) console.error(`Couldn't load ${DEFAULT_LANG}.json! Things will break.`);
-        return;
-    }
+const asLocalized = (value) => {
+    if (typeof value === "string") return formatString(value);
+    return value;
+};
 
-    const languageHandler = {};
-    for(const category in languageStrings) {
-        if(typeof languageStrings[category] !== 'object') continue;
-        const fallbackCategory = language === DEFAULT_LANG ? null : languages[DEFAULT_LANG][category];
-        languageHandler[category] = buildCategoryProxy(languageStrings[category], fallbackCategory);
-    }
-
-    if(language !== DEFAULT_LANG) {
-        for(const category in languages[DEFAULT_LANG]) {
-            if(!languageHandler[category]) languageHandler[category] = languages[DEFAULT_LANG][category];
+const buildCategoryProxy = (categoryStrings = {}, fallbackCategory = null) => {
+    const target = (categoryStrings && typeof categoryStrings === "object") ? categoryStrings : {};
+    return new Proxy(target, {
+        get(targetObj, prop) {
+            if (prop in targetObj) return asLocalized(targetObj[prop]);
+            if (fallbackCategory && prop in fallbackCategory) return asLocalized(fallbackCategory[prop]);
+            return formatString(prop);
         }
-    }
-
-    languages[language] = languageHandler;
-}
-importLanguage(DEFAULT_LANG);
-
-export const formatString = (template, args, interactionOrId=null, hideName=true) => {
-    args = hideUsername(args, interactionOrId, hideName);
-    let str = template;
-    for(let i in args)
-        str = str.replace(`{${i}}`, args[i]);
-    return str;
-}
-
-// Attach .f() to String.prototype so that locale strings returned as
-// plain primitives (typeof === 'string') still support .f({key: val})
-// template formatting throughout the codebase.
-if(!String.prototype.f) {
-    Object.defineProperty(String.prototype, 'f', {
-        value: function(args, interactionOrId=null, hideName=true) {
-            return formatString(this.toString(), args, interactionOrId, hideName);
-        },
-        writable: true,
-        configurable: true,
-        enumerable: false,
     });
-}
+};
 
-// get the strings for a language
+const languages = {};
+export const loadLanguages = () => {
+    for (const language in discLanguageNames) {
+        try {
+            const languageStrings = JSON.parse(fs.readFileSync(`languages/${language}.json`, 'utf-8'));
+            const languageHandler = {};
+
+            for (const category in languageStrings) {
+                const fallbackCategory = language === DEFAULT_LANG ? null : languages[DEFAULT_LANG]?.[category];
+                languageHandler[category] = buildCategoryProxy(languageStrings[category], fallbackCategory);
+            }
+
+            languages[language] = new Proxy(languageHandler, {
+                get(target, prop) {
+                    if (prop in target) return target[prop];
+                    const fallbackCategory = language === DEFAULT_LANG ? null : languages[DEFAULT_LANG]?.[prop];
+                    return buildCategoryProxy({}, fallbackCategory);
+                }
+            });
+        } catch (e) {
+            if (language === DEFAULT_LANG) console.error(`Couldn't load ${DEFAULT_LANG} language file!`, e);
+        }
+    }
+};
+
+loadLanguages();
+
+export const hideUsername = (argsOrUsername, interactionOrId = null, hideName = true) => {
+    if (typeof interactionOrId === "boolean") {
+        hideName = interactionOrId;
+        interactionOrId = null;
+    }
+
+    if (typeof argsOrUsername === "string") {
+        if (!hideName || !argsOrUsername) return argsOrUsername;
+        return argsOrUsername.replace(/#.*$/, "");
+    }
+
+    if (argsOrUsername && typeof argsOrUsername === "object") {
+        if (!argsOrUsername.u) return { ...argsOrUsername, u: s(interactionOrId).info?.NO_USERNAME || "Unknown" };
+        if (!interactionOrId) return argsOrUsername;
+
+        const id = typeof interactionOrId === "string" ? interactionOrId : (interactionOrId.user?.id || interactionOrId.id);
+        const hide = hideName ? getUserSetting(id, "hideIgn", false) : false;
+        if (!hide) return argsOrUsername;
+
+        const hiddenLabel = s(interactionOrId).info?.HIDDEN_USERNAME || "Hidden";
+        return { ...argsOrUsername, u: `||*${hiddenLabel}*||` };
+    }
+
+    return argsOrUsername;
+};
+
+const getUserSetting = (userId, key, defaultValue = null) => {
+    if (!userId) return defaultValue;
+    const user = getUserFromDb(userId);
+    return user?.settings?.[key] ?? defaultValue;
+};
+
 export const s = (input) => {
-    // Fast path: if we already resolved the language for this interaction/user, reuse it
-    if (input && typeof input === 'object' && input._skinpeekLang) return input._skinpeekLang;
+    let discLang = null;
+    let userId = null;
 
-    const discLang = config.localiseText ? resolveDiscordLanguage(input) : DEFAULT_LANG;
-
-    if(!languages[discLang]) importLanguage(discLang);
-    const result = languages[discLang] || languages[DEFAULT_LANG];
-
-    // Cache on the interaction/user object to avoid re-resolving
-    if (input && typeof input === 'object') {
-        try { input._skinpeekLang = result; } catch(e) { /* frozen object, ignore */ }
+    if (typeof input === "string") {
+        if (input in languages) return languages[input];
+        userId = input;
+    } else if (input instanceof BaseInteraction) {
+        userId = input.user?.id;
+        discLang = input.locale;
+    } else if (input && typeof input === "object") {
+        userId = input.id || input.userId;
     }
 
-    return result;
-}
-
-// get the skin/bundle name in a language
-export const l = (names, input) => {
-    let discLocale = config.localiseSkinNames ? resolveDiscordLanguage(input) : DEFAULT_LANG;
-    let valLocale = discToValLang[discLocale];
-    return names[valLocale] || names[DEFAULT_VALORANT_LANG];
-}
-
-// input can be a valorant user, an interaction, a discord id, a language code, or null
-const resolveDiscordLanguage = (input) => {
-    let discLang;
-
-    if(!input) discLang = DEFAULT_LANG;
-    if(typeof input === 'string') {
-        const user = getUser(input);
-        if(user) input = user;
-        else discLang = input;
+    if (userId) {
+        const userLocale = getUserSetting(userId, 'locale');
+        if (userLocale && userLocale !== "Automatic") {
+            discLang = userLocale;
+        }
     }
-    if(input instanceof User) discLang = getSetting(input.id, 'locale');
-    if(input instanceof BaseInteraction) discLang = getSetting(input.user.id, 'locale');
 
-    if(discLang === "Automatic") discLang = input.locale;
-    if(!discLang) discLang = DEFAULT_LANG;
+    if (!discLang || discLang === "Automatic") {
+        discLang = (input instanceof BaseInteraction ? input.locale : null) || DEFAULT_LANG;
+    }
 
-    return discLang;
-}
+    if (discLang in languages) return languages[discLang];
+    return languages[DEFAULT_LANG];
+};
 
-export const hideUsername = (args, interactionOrId, hideName = true) => {
-    if(!args.u) return {...args, u: s(interactionOrId).info.NO_USERNAME};
-    if(!interactionOrId) return args;
+export const l = (languageObject, input, hideName = false) => {
+    if (!languageObject) return "";
 
-    const id = typeof interactionOrId === 'string' ? interactionOrId : interactionOrId.user.id;
-    const hide = hideName ? getSetting(id, 'hideIgn') : false;
-    if(!hide) return args;
+    let discLang = null;
+    let userId = null;
 
-    return {...args, u: `||*${s(interactionOrId).info.HIDDEN_USERNAME}*||`};
-}
+    if (typeof input === "string") {
+        if (input in languages || input in discToValLang) {
+            discLang = input;
+        } else if (input in languageObject) {
+            return formatString(languageObject[input]);
+        } else {
+            userId = input;
+        }
+    } else if (input instanceof BaseInteraction) {
+        userId = input.user?.id;
+    } else if (input && typeof input === "object") {
+        userId = input.id || input.userId;
+    }
+
+    if (userId) {
+        discLang = getUserSetting(userId, 'locale');
+    }
+
+    if (!discLang || discLang === "Automatic") {
+        if (input instanceof BaseInteraction) discLang = input.locale;
+        else discLang = DEFAULT_LANG;
+    }
+
+    const valLang = discToValLang[discLang] || (Object.keys(languageObject).includes(discLang) ? discLang : DEFAULT_VALORANT_LANG);
+    let str = languageObject[valLang] || languageObject[DEFAULT_VALORANT_LANG] || Object.values(languageObject)[0] || "";
+
+    const hide = hideName ? getUserSetting(userId, 'hideIgn', false) : false;
+    return hideUsername(str, hide);
+};

@@ -9,17 +9,14 @@ let isConnected = false;
 // Initialize Redis connections
 export const initRedis = async () => {
     try {
-        // Main Redis client for queue operations
+        // Main Redis client for data caching & queues
         redis = new Redis({
             host: config.redisHost,
             port: config.redisPort,
             password: config.redisPassword,
             db: config.redisDb,
-            retryStrategy: (times) => {
-                const delay = Math.min(times * 50, 2000);
-                return delay;
-            },
-            maxRetriesPerRequest: 3,
+            retryStrategy: (times) => times > 3 ? null : Math.min(times * 100, 1000),
+            maxRetriesPerRequest: 1,
             enableReadyCheck: true,
             lazyConnect: true
         });
@@ -30,6 +27,8 @@ export const initRedis = async () => {
             port: config.redisPort,
             password: config.redisPassword,
             db: config.redisDb,
+            retryStrategy: (times) => times > 3 ? null : Math.min(times * 100, 1000),
+            maxRetriesPerRequest: 1,
             lazyConnect: true
         });
 
@@ -62,209 +61,20 @@ export const initRedis = async () => {
 };
 
 // Check if Redis is available
-export const isRedisAvailable = () => {
-    return isConnected && redis !== null;
-};
+export const isRedisAvailable = () => isConnected && redis !== null;
 
-// Close Redis connections
-export const closeRedis = async () => {
-    if (redis) {
-        await redis.quit();
-        redis = null;
-    }
-    if (subscriber) {
-        await subscriber.quit();
-        subscriber = null;
-    }
-    isConnected = false;
-};
+// ==================== PUB/SUB FOR LOGS ====================
 
-// ==================== AUTH QUEUE OPERATIONS ====================
-
-const AUTH_QUEUE_KEY = "skinpeek:auth:queue";
-const AUTH_RESULT_PREFIX = "skinpeek:auth:result:";
-const AUTH_PROCESSING_KEY = "skinpeek:auth:processing";
-const AUTH_PROCESSING_LOCK = "skinpeek:auth:processing_lock";
-const RESULT_EXPIRY = 300; // 5 minutes
-const LOCK_TTL = 30; // seconds
-
-// Push auth operation to queue
-export const pushAuthQueue = async (operation) => {
-    if (!isRedisAvailable()) throw new Error("Redis not available");
-
-    const queueItem = {
-        ...operation,
-        timestamp: Date.now()
-    };
-
-    await redis.rpush(AUTH_QUEUE_KEY, JSON.stringify(queueItem));
-    return queueItem;
-};
-
-// Pop auth operation from queue (atomic)
-export const popAuthQueue = async () => {
-    if (!isRedisAvailable()) return null;
-
-    const item = await redis.lpop(AUTH_QUEUE_KEY);
-    if (!item) return null;
-
-    try {
-        return JSON.parse(item);
-    } catch (e) {
-        localError("Failed to parse queue item:", e);
-        return null;
-    }
-};
-
-// Get queue length
-export const getAuthQueueLength = async () => {
-    if (!isRedisAvailable()) return 0;
-    return await redis.llen(AUTH_QUEUE_KEY);
-};
-
-// Store auth result
-export const storeAuthResult = async (c, result) => {
-    if (!isRedisAvailable()) throw new Error("Redis not available");
-
-    const key = `${AUTH_RESULT_PREFIX}${c}`;
-    await redis.setex(key, RESULT_EXPIRY, JSON.stringify({
-        result,
-        timestamp: Date.now()
-    }));
-};
-
-// Get auth result (atomic get-and-delete)
-export const getAuthResult = async (c) => {
-    if (!isRedisAvailable()) return null;
-
-    const key = `${AUTH_RESULT_PREFIX}${c}`;
-    const data = await redis.getdel(key); // Atomic operation (Redis 6.2+)
-
-    if (!data) return null;
-
-    try {
-        const parsed = JSON.parse(data);
-        return parsed.result;
-    } catch (e) {
-        localError("Failed to parse auth result:", e);
-        return null;
-    }
-};
-
-// Check if operation is being processed
-export const isAuthProcessing = async (c) => {
-    if (!isRedisAvailable()) return false;
-    const processing = await redis.hget(AUTH_PROCESSING_KEY, c.toString());
-    return processing !== null;
-};
-
-// Mark operation as processing
-export const markAuthProcessing = async (c, shardId) => {
-    if (!isRedisAvailable()) return;
-    await redis.hset(AUTH_PROCESSING_KEY, c.toString(), JSON.stringify({
-        shardId,
-        timestamp: Date.now()
-    }));
-};
-
-// Unmark operation as processing
-export const unmarkAuthProcessing = async (c) => {
-    if (!isRedisAvailable()) return;
-    await redis.hdel(AUTH_PROCESSING_KEY, c.toString());
-};
-
-// Clean up stale processing marks (older than 5 minutes)
-export const cleanupStaleProcessing = async () => {
-    if (!isRedisAvailable()) return;
-
-    const processing = await redis.hgetall(AUTH_PROCESSING_KEY);
-    const now = Date.now();
-    const staleThreshold = 5 * 60 * 1000; // 5 minutes
-
-    for (const [c, data] of Object.entries(processing)) {
-        try {
-            const parsed = JSON.parse(data);
-            if (now - parsed.timestamp > staleThreshold) {
-                await redis.hdel(AUTH_PROCESSING_KEY, c);
-                localLog(`Cleaned up stale processing mark for c=${c}`);
-            }
-        } catch (e) {
-            // Invalid data, delete it
-            await redis.hdel(AUTH_PROCESSING_KEY, c);
-        }
-    }
-};
-
-// ==================== DISTRIBUTED PROCESSING LOCK ====================
-
-// Acquire processing lock (distributed lock for queue processing)
-export const acquireProcessingLock = async (shardId) => {
-    if (!isRedisAvailable()) return false;
-
-    try {
-        // SET key value NX EX ttl - only sets if key doesn't exist (NX), with expiry (EX)
-        // This ensures only one shard can hold the lock at a time
-        const result = await redis.set(AUTH_PROCESSING_LOCK, String(shardId), 'NX', 'EX', LOCK_TTL);
-        return result === 'OK';
-    } catch (e) {
-        localError("Failed to acquire processing lock:", e);
-        return false;
-    }
-};
-
-// Release processing lock
-export const releaseProcessingLock = async () => {
-    if (!isRedisAvailable()) return;
-
-    try {
-        await redis.del(AUTH_PROCESSING_LOCK);
-    } catch (e) {
-        localError("Failed to release processing lock:", e);
-    }
-};
-
-// ==================== COUNTER OPERATIONS ====================
-
-const COUNTER_KEY = "skinpeek:auth:counter";
-
-// Get and increment counter (atomic)
-export const getNextCounter = async () => {
-    if (!isRedisAvailable()) throw new Error("Redis not available");
-    return await redis.incr(COUNTER_KEY);
-};
-
-// ==================== PUB/SUB FOR ALERTS AND LOGS ====================
-
-const ALERT_CHANNEL = "skinpeek:alerts";
 const LOGS_CHANNEL = "skinpeek:logs";
-
-// Publish alert to all shards
-export const publishAlert = async (alertData) => {
-    if (!isRedisAvailable()) return;
-    await redis.publish(ALERT_CHANNEL, JSON.stringify(alertData));
-};
-
-// Subscribe to alerts
-export const subscribeToAlerts = async (callback) => {
-    if (!subscriber) return;
-
-    await subscriber.subscribe(ALERT_CHANNEL);
-    subscriber.on('message', (channel, message) => {
-        if (channel === ALERT_CHANNEL) {
-            try {
-                const data = JSON.parse(message);
-                callback(data);
-            } catch (e) {
-                localError("Failed to parse alert message:", e);
-            }
-        }
-    });
-};
 
 // Publish logs to all shards
 export const publishLogMessages = async (messages) => {
     if (!isRedisAvailable()) return;
-    await redis.publish(LOGS_CHANNEL, JSON.stringify(messages));
+    try {
+        await redis.publish(LOGS_CHANNEL, JSON.stringify(messages));
+    } catch (e) {
+        localError("Failed to publish log messages:", e);
+    }
 };
 
 // Subscribe to logs
@@ -292,24 +102,25 @@ const INVENTORY_CACHE_EXPIRY = 60 * 10; // 10 minutes
 // Store inventory in Redis
 export const setInventoryData = async (userId, target, data) => {
     if (!isRedisAvailable()) return;
-
-    const key = `${INVENTORY_CACHE_PREFIX}${userId}:${target}`;
-    await redis.setex(key, INVENTORY_CACHE_EXPIRY, JSON.stringify(data));
+    try {
+        const key = `${INVENTORY_CACHE_PREFIX}${userId}:${target}`;
+        await redis.setex(key, INVENTORY_CACHE_EXPIRY, JSON.stringify(data));
+    } catch (e) {
+        localError("Failed to set inventory cache:", e);
+    }
 };
 
 // Get inventory from Redis
 export const getInventoryData = async (userId, target) => {
     if (!isRedisAvailable()) return null;
 
-    const key = `${INVENTORY_CACHE_PREFIX}${userId}:${target}`;
-    const data = await redis.get(key);
-
-    if (!data) return null;
-
     try {
+        const key = `${INVENTORY_CACHE_PREFIX}${userId}:${target}`;
+        const data = await redis.get(key);
+        if (!data) return null;
         return JSON.parse(data);
     } catch (e) {
-        localError("Failed to parse inventory cache:", e);
+        localError("Failed to get/parse inventory cache:", e);
         return null;
     }
 };
@@ -340,7 +151,7 @@ export const getRateLimit = async (url) => {
     try {
         const key = `${RATE_LIMIT_PREFIX}${url}`;
         const data = await redis.get(key);
-        return data ? parseInt(data) : null;
+        return data ? parseInt(data, 10) : null;
     } catch (e) {
         localError("Failed to get rate limit from Redis:", e);
         return null;
@@ -359,20 +170,25 @@ const STATS_TTL = 72 * 3600; // 3 days
 export const statsAddStore = async (puuid, items, date) => {
     if (!isRedisAvailable()) return null;
 
-    const usersKey = `${STATS_PREFIX}${date}:users`;
-    const isNew = await redis.sadd(usersKey, puuid);
-    if (!isNew) return false; // already counted today
+    try {
+        const usersKey = `${STATS_PREFIX}${date}:users`;
+        const isNew = await redis.sadd(usersKey, puuid);
+        if (!isNew) return false; // already counted today
 
-    const pipeline = redis.pipeline();
-    pipeline.incr(`${STATS_PREFIX}${date}:shops`);
-    for (const item of items) {
-        pipeline.hincrby(`${STATS_PREFIX}${date}:items`, item, 1);
+        const pipeline = redis.pipeline();
+        pipeline.incr(`${STATS_PREFIX}${date}:shops`);
+        for (const item of items) {
+            pipeline.hincrby(`${STATS_PREFIX}${date}:items`, item, 1);
+        }
+        pipeline.expire(usersKey, STATS_TTL);
+        pipeline.expire(`${STATS_PREFIX}${date}:shops`, STATS_TTL);
+        pipeline.expire(`${STATS_PREFIX}${date}:items`, STATS_TTL);
+        await pipeline.exec();
+        return true;
+    } catch (e) {
+        localError("Failed to record store stats in Redis:", e);
+        return null;
     }
-    pipeline.expire(usersKey, STATS_TTL);
-    pipeline.expire(`${STATS_PREFIX}${date}:shops`, STATS_TTL);
-    pipeline.expire(`${STATS_PREFIX}${date}:items`, STATS_TTL);
-    await pipeline.exec();
-    return true;
 };
 
 // ==================== SHOP DATA CACHE ====================
@@ -382,19 +198,32 @@ const SHOPDATA_TTL = 25 * 3600; // 25 hours (slightly more than daily shop reset
 
 export const setShopData = async (puuid, shopCache) => {
     if (!isRedisAvailable()) return;
-    await redis.setex(`${SHOPDATA_PREFIX}${puuid}`, SHOPDATA_TTL, JSON.stringify(shopCache));
+    try {
+        await redis.setex(`${SHOPDATA_PREFIX}${puuid}`, SHOPDATA_TTL, JSON.stringify(shopCache));
+    } catch (e) {
+        localError("Failed to set shop data in Redis:", e);
+    }
 };
 
 export const getShopData = async (puuid) => {
     if (!isRedisAvailable()) return null;
-    const data = await redis.get(`${SHOPDATA_PREFIX}${puuid}`);
-    if (!data) return null;
-    try { return JSON.parse(data); } catch (e) { return null; }
+    try {
+        const data = await redis.get(`${SHOPDATA_PREFIX}${puuid}`);
+        if (!data) return null;
+        return JSON.parse(data);
+    } catch (e) {
+        localError("Failed to get/parse shop data from Redis:", e);
+        return null;
+    }
 };
 
 export const deleteShopData = async (puuid) => {
     if (!isRedisAvailable()) return;
-    try { await redis.del(`${SHOPDATA_PREFIX}${puuid}`); } catch (e) { }
+    try {
+        await redis.del(`${SHOPDATA_PREFIX}${puuid}`);
+    } catch (e) {
+        localError("Failed to delete shop data from Redis:", e);
+    }
 };
 
 export const clearAllShopData = async (batchSize = 200) => {
@@ -418,28 +247,4 @@ export const clearAllShopData = async (batchSize = 200) => {
     }
 
     return deletedCount;
-};
-
-// ==================== HEALTH CHECK ====================
-
-export const redisHealthCheck = async () => {
-    if (!isRedisAvailable()) return { healthy: false, error: "Not connected" };
-
-    try {
-        const start = Date.now();
-        await redis.ping();
-        const latency = Date.now() - start;
-
-        const queueLength = await getAuthQueueLength();
-        const memory = await redis.info('memory');
-
-        return {
-            healthy: true,
-            latency,
-            queueLength,
-            memory: memory.split(/\r?\n/).find(l => l.startsWith('used_memory_human:'))?.split(':')[1]?.trim()
-        };
-    } catch (e) {
-        return { healthy: false, error: e.message };
-    }
 };

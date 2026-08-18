@@ -36,11 +36,33 @@ import {
     valMaintenancesEmbeds,
     collectionOfWeaponEmbed,
     renderProfile,
-    renderCompetitiveMatchHistory
+    renderCompetitiveMatchHistory,
+    setEmbedClient,
+    fetchChannel,
+    getChannelGuildId,
+    canSendMessages,
+    canEditInteraction,
+    discordTag,
+    defer,
+    deferInteraction,
+    updateInteraction,
+    actionRow,
+    removeAlertButton,
+    removeAlertActionRow,
+    skinNameAndEmoji,
+    isThereANM,
+    fetchShop,
+    fetchBundles,
+    fetchNightMarket,
+    renderBattlepassProgress,
+    renderCollection,
+    handleSettingsViewCommand,
+    handleSettingsSetCommand,
+    handleSettingDropdown
 } from "./embed.js";
 import { authUser, getUser, getUserList, getRegion, getUserInfo, generateWebAuthUrl, redeemWebAuthUrl } from "../valorant/auth.js";
 import { getBalance, clearShopMemoryCache } from "../valorant/shop.js";
-import { getSkin, fetchData, searchSkin, searchBundle, getBundle, clearCache, loadSkinsJSON, flushSkinsJSON, areSkinDataLoaded } from "../valorant/cache.js";
+import { getSkin, fetchData, searchSkin, searchBundle, getBundle, clearCache, loadSkinsJSON, flushSkinsJSON, areSkinDataLoaded, setCacheClient } from "../valorant/cache.js";
 import {
     addAlert,
     alertExists,
@@ -51,29 +73,20 @@ import {
     fetchAlerts,
     filteredAlertsForUser,
     removeAlert,
-    testAlerts
+    testAlerts,
+    setAlertsClient
 } from "./alerts.js";
-import { RadEmoji, VPEmoji, KCEmoji, warmEmojiCache } from "./emoji.js";
-import { startAuthQueue, } from "../valorant/authQueue.js";
-import { waitForAuthQueueResponse } from "./authManager.js";
-import { renderBattlepassProgress } from "../valorant/battlepass.js";
-import { getOverallStats, getStatsFor, flushStats } from "../misc/stats.js";
+import { RadEmoji, VPEmoji, KCEmoji, warmEmojiCache, setEmojiClient } from "./emoji.js";
+import { getOverallStats, getStatsFor, flushStats, setStatsClient } from "../misc/stats.js";
 import {
-    canSendMessages,
-    defer,
-    fetchChannel, fetchMaintenances,
-    removeAlertActionRow,
-    skinNameAndEmoji,
     WeaponTypeUuid,
     WeaponType,
     fetch,
-    calcLength,
     fetchRiotVersionData,
-    deferInteraction,
-    updateInteraction
+    fetchMaintenances
 } from "../misc/util.js";
 import config, { loadConfig, saveConfig } from "../misc/config.js";
-import { localError, localLog, sendConsoleOutput } from "../misc/logger.js";
+import { localError, localLog, sendConsoleOutput, setLoggerClient } from "../misc/logger.js";
 import { DEFAULT_VALORANT_LANG, discToValLang, l, s } from "../misc/languages.js";
 import {
     deleteUser,
@@ -83,17 +96,13 @@ import {
     switchAccount,
     saveUser
 } from "../valorant/accountSwitcher.js";
-import { areAllShardsReady, sendShardMessage } from "../misc/shardMessage.js";
-import { fetchBundles, fetchNightMarket, fetchShop } from "../valorant/shopManager.js";
+import { areAllShardsReady, sendShardMessage, setShardClient, onShardMessage } from "../misc/shardMessage.js";
 import {
     getSetting,
-    handleSettingDropdown,
-    handleSettingsSetCommand,
-    handleSettingsViewCommand, registerInteractionLocale, settingIsVisible, settingName, settings
+    registerInteractionLocale, settingIsVisible, settingName, settings
 } from "../misc/settings.js";
 import fuzzysort from "fuzzysort";
-import { renderCollection, getSkins } from "../valorant/inventory.js";
-import { getLoadout } from "../valorant/inventory.js";
+import { getSkins, getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import {
     fetchLiveGame, selectAgent, lockAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue
@@ -209,6 +218,52 @@ export const client = new Client({
     partials: ["CHANNEL"], // required to receive DMs
     //shards: "auto" // uncomment this to use internal sharding instead of sharding.js
 });
+
+setLoggerClient(client);
+setShardClient(client);
+setStatsClient(client);
+setCacheClient(client);
+setEmojiClient(client);
+setAlertsClient(client);
+setEmbedClient(client);
+
+onShardMessage(async (message) => {
+    switch (message.type) {
+        case "configReload":
+            loadConfig("config.json", false);
+            destroyTasks();
+            scheduleTasks();
+            return true;
+        case "skinsReload": {
+            const wasEmpty = !areSkinDataLoaded();
+            await loadSkinsJSON();
+            if (wasEmpty && areSkinDataLoaded()) localLog("Skins loaded via skinsReload broadcast from shard 0");
+            return true;
+        }
+        case "priceUpdate":
+            if (client?.shard?.ids?.[0] === 0) {
+                const { mergePrices } = await import("../valorant/cache.js");
+                mergePrices(message.prices);
+            }
+            return true;
+        case "settingsInvalidate": {
+            const { clearSettingsCache } = await import("../misc/settings.js");
+            clearSettingsCache(message.userId);
+            return true;
+        }
+        case "riotVersionData": {
+            const { setRiotVersionData } = await import("../misc/util.js");
+            setRiotVersionData(message.data);
+            localLog(`Received Riot version data from shard 0: ${message.data.riotClientVersion}`);
+            return true;
+        }
+        case "processExit":
+            process.exit();
+            return true;
+    }
+    return false;
+});
+
 const cronTasks = [];
 
 // Add error handlers for the Discord client
@@ -312,11 +367,6 @@ export const scheduleTasks = () => {
     // reload skin prices from disk every 30mins (shard 0 only — other shards get updates via skinsReload broadcast)
     if (config.refreshPrices && client.shard.ids[0] === 0) {
         cronTasks.push(cron.schedule(config.refreshPrices, () => loadSkinsJSON()));
-    }
-
-    // if login queue is enabled, process on shard 0 only (all shards submit to the Redis queue, only shard 0 processes)
-    if (config.useLoginQueue && config.loginQueueInterval && client.shard.ids[0] === 0) {
-        startAuthQueue();
     }
 
     // if send console to discord channel is enabled, send console output (all shards gather logs, process forwarding)
@@ -1939,7 +1989,7 @@ client.on("interactionCreate", async (interaction) => {
 
                 const pageInput = new TextInputBuilder()
                     .setMinLength(1)
-                    .setMaxLength(calcLength(max))
+                    .setMaxLength(String(max).length)
                     .setPlaceholder(s(interaction).modal.PAGE_INPUT_PLACEHOLDER)
                     .setRequired(true)
                     .setCustomId('pageIndex')

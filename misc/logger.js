@@ -1,56 +1,68 @@
 import config from "./config.js";
 import { escapeMarkdown } from "discord.js";
-import { client } from "../discord/bot.js";
-import { publishLogMessages } from "./redisQueue.js";
 
 const messagesToLog = [];
-
 const oldLog = console.log;
 const oldError = console.error;
 
-const shardString = () => `[${client.shard.ids[0]}] `;
+let discordClient = null;
+let logPublisher = null;
+
+export const setLoggerClient = (client) => {
+    discordClient = client;
+};
+
+export const setLogPublisher = (publisher) => {
+    logPublisher = publisher;
+};
+
+const shardString = () => {
+    const shardId = discordClient?.shard?.ids?.[0];
+    return shardId !== undefined ? `[${shardId}] ` : `[Main] `;
+};
+
 export const localLog = (...args) => oldLog(shardString(), ...args);
 export const localError = (...args) => oldError(shardString(), ...args);
 
 export const loadLogger = () => {
     console.log = (...args) => {
         oldLog(shardString(), ...args);
-        if (config.logToChannel && (config.verboseLogging || config.logUrls)) messagesToLog.push(shardString() + escapeMarkdown(args.join(" ")));
-    }
+        if (config.logToChannel && (config.verboseLogging || config.logUrls)) {
+            messagesToLog.push(shardString() + escapeMarkdown(args.join(" ")));
+        }
+    };
 
     console.error = (...args) => {
         oldError(shardString(), ...args);
-        if (config.logToChannel) messagesToLog.push("> " + shardString() + escapeMarkdown(args.map(e => (e instanceof Error ? e.stack : e.toString()).split('\n').join('\n> ' + shardString())).join(" ")));
-    }
-}
+        if (config.logToChannel) {
+            messagesToLog.push("> " + shardString() + escapeMarkdown(
+                args.map(e => (e instanceof Error ? e.stack : e.toString()).split('\n').join('\n> ' + shardString())).join(" ")
+            ));
+        }
+    };
+};
 
 export const addMessagesToLog = (messages) => {
-    if (!messages.length) return;
+    if (!messages?.length) return;
+    if (!discordClient || !config.logToChannel) return;
 
-    const channel = client.channels.cache.get(config.logToChannel);
-    if (!channel) {
-        // oldLog(`[Shard ${client.shard.ids[0]}] addMessagesToLog: Ignoring, channel not here.`);
-        return;
-    }
-
-    // oldLog(`[Shard ${client.shard.ids[0]}] addMessagesToLog: Received ${messages.length} messages! Adding to queue...`);
+    const channel = discordClient.channels.cache.get(config.logToChannel);
+    if (!channel) return;
 
     messagesToLog.push(...messages);
-}
+};
 
 export const sendConsoleOutput = () => {
     try {
-        if (!client || client.destroyed || !messagesToLog.length) return;
+        if (!discordClient || discordClient.destroyed || !messagesToLog.length) return;
 
-        // oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Evaluating ${messagesToLog.length} messages.`);
-
-        const channel = client.channels.cache.get(config.logToChannel);
+        const channel = discordClient.channels.cache.get(config.logToChannel);
 
         if (!channel) {
-            // oldLog(`[Shard ${client.shard.ids[0]}] logToChannel: Channel not in cache. Broadcasting via Redis...`);
-            publishLogMessages([...messagesToLog]);
-        }
-        else if (channel) {
+            if (typeof logPublisher === "function") {
+                logPublisher([...messagesToLog]);
+            }
+        } else {
             while (messagesToLog.length) {
                 let s = "";
                 while (messagesToLog.length && s.length + messagesToLog[0].length < 2000) {
@@ -67,8 +79,7 @@ export const sendConsoleOutput = () => {
 
                 if (s.trim().length > 0) {
                     channel.send(s).catch(err => {
-                        oldError("Error when trying to send the console output to the channel!");
-                        oldError(err);
+                        oldError("Error when trying to send console output to Discord log channel:", err);
                     });
                 }
             }
@@ -76,7 +87,6 @@ export const sendConsoleOutput = () => {
 
         messagesToLog.length = 0;
     } catch (e) {
-        oldError("Error when trying to send the console output to the channel!");
-        oldError(e);
+        oldError("Error sending console output to Discord log channel:", e);
     }
-}
+};

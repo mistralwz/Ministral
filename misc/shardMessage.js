@@ -1,79 +1,80 @@
-import { checkAlerts, debugCheckAlerts, sendAlert, sendCredentialsExpired, sendDailyShop } from "../discord/alerts.js";
 import { loadConfig } from "./config.js";
-import { client, destroyTasks, scheduleTasks } from "../discord/bot.js";
-import { localLog } from "./logger.js";
-import { loadSkinsJSON, areSkinDataLoaded } from "../valorant/cache.js";
+import { localLog, localError } from "./logger.js";
+
+let shardClient = null;
 let allShardsReadyCb;
 let allShardsReadyPromise = new Promise(r => allShardsReadyCb = r);
 
-// A4: Channel→shard mapping cache.
-// Maps channelId (string) → shardId (number) so we can skip O(N shards) broadcasts
-// for channels we've successfully delivered to before.
+// Channel→shard mapping cache
 const channelToShardCache = new Map();
 
-export const areAllShardsReady = () => {
-    return allShardsReadyPromise === null;
-}
+export const setShardClient = (client) => {
+    shardClient = client;
+    if (shardClient) {
+        shardClient.skinPeekShardMessageReceived = receiveShardMessage;
+    }
+};
+
+export const areAllShardsReady = () => allShardsReadyPromise === null;
 
 export const sendShardMessage = async (message) => {
     await allShardsReadyPromise;
+    if (!shardClient?.shard) return;
 
-    // I know this is a weird way of doing this, but trust me
-    // client.shard.send() did not want to work for the life of me
-    // and this solution seems to work, so should be fine lol
-    await client.shard.broadcastEval((client, context) => {
-        client.skinPeekShardMessageReceived(context.message);
+    await shardClient.shard.broadcastEval((c, context) => {
+        if (typeof c.skinPeekShardMessageReceived === "function") {
+            c.skinPeekShardMessageReceived(context.message);
+        }
     }, { context: { message } });
-}
+};
 
 /**
  * Send a shard message only to the shard that has a specific channel in its cache.
  * Returns true if any shard processed it, false if no shard has the channel.
- *
- * A4: Uses a channelToShardCache to avoid O(N shards) broadcasts for known channels.
- * On first delivery: full broadcast, cache the winning shard index.
- * On subsequent deliveries: targeted single-shard eval, fall back to broadcast on miss.
  */
 export const sendShardMessageForChannel = async (message, channelId) => {
     await allShardsReadyPromise;
+    if (!shardClient?.shard) return false;
 
-    // A4: Try targeted delivery to the cached shard first
+    // Try targeted delivery to the cached shard first
     const knownShard = channelToShardCache.get(channelId);
     if (knownShard != null) {
         try {
-            const [hasChannel] = await client.shard.broadcastEval((client, context) => {
-                return client.channels.cache.has(context.channelId);
+            const [hasChannel] = await shardClient.shard.broadcastEval((c, context) => {
+                return c.channels.cache.has(context.channelId);
             }, { context: { channelId }, shard: knownShard });
 
             if (hasChannel) {
                 localLog(`Targeted shard ${knownShard} for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
-                await client.shard.broadcastEval((client, context) => {
-                    client.skinPeekShardMessageReceived(context.message);
+                await shardClient.shard.broadcastEval((c, context) => {
+                    if (typeof c.skinPeekShardMessageReceived === "function") {
+                        c.skinPeekShardMessageReceived(context.message);
+                    }
                 }, { context: { message }, shard: knownShard });
                 return true;
             }
-            // Shard no longer has this channel (e.g., bot kicked, resharding) — evict and fall through
             channelToShardCache.delete(channelId);
         } catch (e) {
-            // Shard unavailable — evict and fall through to broadcast
             channelToShardCache.delete(channelId);
         }
     }
 
     localLog(`Broadcasting channel check for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
 
-    // Full broadcast fallback: check channel existence WITHOUT side effects in eval callback
-    const results = await client.shard.broadcastEval((client, context) => {
-        return client.channels.cache.has(context.channelId);
+    // Full broadcast fallback
+    const results = await shardClient.shard.broadcastEval((c, context) => {
+        return c.channels.cache.has(context.channelId);
     }, { context: { channelId } });
 
     const matchIndex = results.findIndex(r => r === true);
     if (matchIndex !== -1) {
-        channelToShardCache.set(channelId, matchIndex); // A4: cache winning shard index for future deliveries
+        channelToShardCache.set(channelId, matchIndex);
         localLog(`Delivering shard message to winning shard ${matchIndex} for channel ${channelId}`);
         try {
-            await client.shard.broadcastEval((client, context) => {
-                client.skinPeekShardMessageReceived(context.message);
+            await shardClient.shard.broadcastEval((c, context) => {
+                if (typeof c.skinPeekShardMessageReceived === "function") {
+                    c.skinPeekShardMessageReceived(context.message);
+                }
             }, { context: { message }, shard: matchIndex });
             return true;
         } catch (e) {
@@ -83,68 +84,31 @@ export const sendShardMessageForChannel = async (message, channelId) => {
     }
 
     return false;
-}
-
-const receiveShardMessage = async (message) => {
-    //oldLog(`Received shard message ${JSON.stringify(message).substring(0, 100)}`);
-    switch (message.type) {
-        case "shardsReady":
-            // also received when a shard dies and respawns
-            if (allShardsReadyPromise === null) return;
-
-            localLog(`All shards are ready!`);
-            allShardsReadyPromise = null;
-            allShardsReadyCb();
-            break;
-
-        case "alert":
-            await sendAlert(message.id, message.account, message.alerts, message.expires, false, message.alertsLength);
-            break;
-        case "dailyShop":
-            await sendDailyShop(message.id, message.shop, message.channelId, message.valorantUser, false);
-            break;
-        case "credentialsExpired":
-            await sendCredentialsExpired(message.id, message.alert, false);
-            break;
-        case "checkAlerts":
-            await checkAlerts();
-            break;
-        case "debugCheckAlerts":
-            await debugCheckAlerts();
-            break;
-        case "configReload":
-            loadConfig("config.json", false); // Don't save during reload to avoid race conditions
-            destroyTasks();
-            scheduleTasks();
-            break;
-        case "skinsReload": {
-            const wasEmpty = !areSkinDataLoaded();
-            await loadSkinsJSON();
-            if (wasEmpty && areSkinDataLoaded()) localLog(`Skins loaded via skinsReload broadcast from shard 0`);
-            break;
-        }
-        case "priceUpdate":
-            // Non-zero shards send discovered prices to shard 0 for persistence
-            if (client.shard.ids[0] === 0) {
-                const { mergePrices } = await import("../valorant/cache.js");
-                mergePrices(message.prices);
-            }
-            break;
-        case "settingsInvalidate": {
-            const { clearSettingsCache } = await import("./settings.js");
-            clearSettingsCache(message.userId);
-            break;
-        }
-
-        case "riotVersionData":
-            const { setRiotVersionData } = await import("./util.js");
-            setRiotVersionData(message.data);
-            localLog(`Received Riot version data from shard 0: ${message.data.riotClientVersion}`);
-            break;
-        case "processExit":
-            process.exit();
-            break;
-    }
 };
 
-setTimeout(() => client.skinPeekShardMessageReceived = receiveShardMessage);
+const customShardMessageHandlers = [];
+export const onShardMessage = (handler) => {
+    customShardMessageHandlers.push(handler);
+};
+
+export const receiveShardMessage = async (message) => {
+    if (!message) return;
+
+    if (message.type === "shardsReady") {
+        if (allShardsReadyPromise !== null) {
+            localLog("All shards are ready!");
+            allShardsReadyPromise = null;
+            if (typeof allShardsReadyCb === "function") allShardsReadyCb();
+        }
+        return;
+    }
+
+    for (const handler of customShardMessageHandlers) {
+        try {
+            const handled = await handler(message);
+            if (handled) return;
+        } catch (e) {
+            localError("Error handling shard message:", e);
+        }
+    }
+};

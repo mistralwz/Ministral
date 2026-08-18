@@ -19,9 +19,7 @@ import { s, discToValLang, DEFAULT_VALORANT_LANG } from "../misc/languages.js";
 import { getSetting } from "../misc/settings.js";
 import config from "../misc/config.js";
 import { resolveAgent, getOwnedAgents, resolveQueueName, resolveQueueIcon, resolveServerName } from "../valorant/livegame.js";
-import { getUser } from "../valorant/auth.js";
-import { agentEmoji, rankEmoji, queueEmoji } from "./emoji.js";
-import { emojiToString } from "../misc/util.js";
+import { agentEmoji, rankEmoji, queueEmoji, emojiToString } from "./emoji.js";
 
 const roleSelections = new Map();
 export const setRoleSelection = (userId, role) => roleSelections.set(userId, role);

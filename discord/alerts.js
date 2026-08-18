@@ -1,26 +1,38 @@
 import {
-    discordTag,
-    fetchChannel,
-    getChannelGuildId,
-    removeAlertActionRow,
     removeDupeAlerts,
-    skinNameAndEmoji,
-    wait,
-    removeAlertButton
+    wait
 } from "../misc/util.js";
 import { authUser, deleteUserAuth, getUser, getUserList, getAlertUserList, beginUserCacheScope, endUserCacheScope, invalidateUserCache } from "../valorant/auth.js";
 import { getOffers } from "../valorant/shop.js";
 import { getSkin } from "../valorant/cache.js";
-import { alertsPageEmbed, authFailureMessage, basicEmbed, renderOffers, VAL_COLOR_1, skinEmbed } from "./embed.js";
-import { client } from "./bot.js";
+import {
+    alertsPageEmbed,
+    authFailureMessage,
+    basicEmbed,
+    renderOffers,
+    VAL_COLOR_1,
+    skinEmbed,
+    fetchChannel,
+    getChannelGuildId,
+    skinNameAndEmoji,
+    removeAlertActionRow,
+    removeAlertButton,
+    discordTag
+} from "./embed.js";
 import config from "../misc/config.js";
 import { l, s } from "../misc/languages.js";
 import { readUserJson, saveUser } from "../valorant/accountSwitcher.js";
 import { beginBatchWrites, commitBatchWrites } from "../misc/userDatabase.js";
-import { sendShardMessageForChannel } from "../misc/shardMessage.js";
+import { sendShardMessageForChannel, onShardMessage } from "../misc/shardMessage.js";
 import { VPEmoji } from "./emoji.js";
 import { getSetting } from "../misc/settings.js";
 import { ActionRowBuilder } from "discord.js";
+
+let alertsClient = null;
+export const setAlertsClient = (client) => {
+    alertsClient = client;
+};
+const getClient = () => alertsClient;
 
 /* Alert format: {
  *     uuid: skin uuid
@@ -30,18 +42,15 @@ import { ActionRowBuilder } from "discord.js";
  */
 
 // Channel validation cache: Map<channelId, {canAccess: boolean, timestamp: number}>
-// Short TTL so stale cross-shard entries (e.g. bot kicked from a guild) expire quickly.
 const channelAccessCache = new Map();
 const CACHE_DURATION = 60 * 1000; // 1 minute
 
 export const canAccessChannel = async (channelId) => {
-    // Check cache first
     const cached = channelAccessCache.get(channelId);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
         return cached.canAccess;
     }
 
-    // Perform the check (same logic as testAlerts)
     try {
         const channel = await fetchChannel(channelId);
         if (!channel) {
@@ -49,8 +58,8 @@ export const canAccessChannel = async (channelId) => {
             return false;
         }
 
-        // Try to send a test message (we won't actually send it, just check permissions)
-        if (channel.guild) {
+        const client = getClient();
+        if (channel.guild && client?.user) {
             const permissions = channel.permissionsFor(client.user);
             if (!permissions || !permissions.has('ViewChannel') || !permissions.has('SendMessages')) {
                 channelAccessCache.set(channelId, { canAccess: false, timestamp: Date.now() });
@@ -65,15 +74,7 @@ export const canAccessChannel = async (channelId) => {
         channelAccessCache.set(channelId, { canAccess: false, timestamp: Date.now() });
         return false;
     }
-}
-
-export const clearChannelAccessCache = (channelId = null) => {
-    if (channelId) {
-        channelAccessCache.delete(channelId);
-    } else {
-        channelAccessCache.clear();
-    }
-}
+};
 
 export const addAlert = (id, alert) => {
     const user = getUser(id);
@@ -106,14 +107,14 @@ export const filteredAlertsForUser = async (interaction) => {
     // bring the alerts in this channel to the top
     const alertPriority = (alert) => {
         if (alert.channel_id === interaction.channelId) return 2;
-        const channel = client.channels.cache.get(alert.channel_id)
-        if (interaction.guild && channel && channel.client.channels.cache.get(alert.channel_id).guildId === interaction.guild.id) return 1;
+        const channel = getClient()?.channels.cache.get(alert.channel_id);
+        if (interaction.guild && channel && channel.guildId === interaction.guild.id) return 1;
         return 0;
-    }
+    };
     alerts.sort((alert1, alert2) => alertPriority(alert2) - alertPriority(alert1));
 
     return alerts;
-}
+};
 
 export const alertsPerChannelPerGuild = async () => {
     const guilds = {};
@@ -169,7 +170,7 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
         }
 
         const valorantUser = getUser(id, i);
-        const discordUser = client.users.cache.get(id);
+        const discordUser = getClient()?.users.cache.get(id);
         const discordUsername = discordUser ? discordUser.username : id;
         console.log(`Checking user ${discordUsername}'s ${valorantUser.username} account (${i}/${accountCount}) for alerts...`);
 
@@ -242,8 +243,9 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
 export const checkAlerts = async () => {
     // C2: Each shard processes its own partition of users (by Discord snowflake modulo).
     // The cron fires on all shards simultaneously — no broadcast needed.
-    const myShardId = client.shard.ids[0];
-    const totalShards = client.shard.count;
+    const client = getClient();
+    const myShardId = client?.shard?.ids?.[0] ?? 0;
+    const totalShards = client?.shard?.count ?? 1;
 
     console.log(`[Shard ${myShardId}] Checking new shop skins for alerts...`);
 
@@ -324,7 +326,7 @@ export const checkAlerts = async () => {
 }
 
 export const sendAlert = async (id, account, alerts, expires, tryOnOtherShard = true, alertsLength = alerts.length) => {
-    const user = client.users.cache.get(id);
+    const user = getClient()?.users.cache.get(id);
     const username = user ? user.username : id;
 
     let filteredAlerts = {};
@@ -383,7 +385,7 @@ export const sendAlert = async (id, account, alerts, expires, tryOnOtherShard = 
             });
         else if (alertsArray.length < alertsLength)
             message.embeds.push({
-                description: s(valorantUser).info.MULTIPLE_ALERT_HAPPENED_ON_DIFF_CHANNEL.f({ i: id, u: valorantUser.username, t: expires, cid: client.application.commands.cache.find(c => c.name === "alerts").id }, id),
+                description: s(valorantUser).info.MULTIPLE_ALERT_HAPPENED_ON_DIFF_CHANNEL.f({ i: id, u: valorantUser.username, t: expires, cid: getClient()?.application?.commands?.cache?.find(c => c.name === "alerts")?.id || "" }, id),
                 color: VAL_COLOR_1
             });
         for (const alert of alertsArray) {
@@ -409,10 +411,10 @@ export const sendAlert = async (id, account, alerts, expires, tryOnOtherShard = 
         await channel.send(message).catch(async e => {
             console.error(`Could not send alert message in #${channel.name}! Do I have the right role?`);
 
-            try { // try to log the alert to the console
-                const user = await client.users.fetch(id).catch(() => { });
-                if (user) console.error(`Please tell ${user.tag} that the skin his want is in their item shop!`); // sorry for that :(
-            } catch (e) { }
+            try {
+                const user = await getClient()?.users.fetch(id).catch(() => null);
+                if (user) console.error(`Please tell ${user.tag} that the skin they want is in their item shop!`);
+            } catch { }
 
             console.error(e);
         });
@@ -428,7 +430,7 @@ export const sendCredentialsExpired = async (id, alert, tryOnOtherShard = true) 
                 id, alert
             }, alert.channel_id);
             if (!delivered) {
-                const user = await client.users.fetch(id).catch(() => { });
+                const user = await getClient()?.users.fetch(id).catch(() => null);
                 if (user) console.error(`Please tell ${user.tag} that their credentials have expired, and that they should /login again. (I can't find the channel where the alert was set up on any shard)`);
             }
             return;
@@ -454,10 +456,10 @@ export const sendCredentialsExpired = async (id, alert, tryOnOtherShard = true) 
     }).catch(async e => {
         console.error(`Could not send message in #${channel.name}! Do I have the right role?`);
 
-        try { // try to log the alert to the console
-            const user = await client.users.fetch(id).catch(() => { });
+        try {
+            const user = await getClient()?.users.fetch(id).catch(() => null);
             if (user) console.error(`Please tell ${user.tag} that their credentials have expired, and that they should /login again. Also tell them that they should fix their perms.`);
-        } catch (e) { }
+        } catch { }
 
         console.error(e);
     });
@@ -472,7 +474,7 @@ export const sendDailyShop = async (id, shop, channelId, valorantUser, tryOnOthe
                 id, shop, channelId, valorantUser
             }, channelId);
             if (!delivered) {
-                const user = await client.users.fetch(id).catch(() => { });
+                const user = await getClient()?.users.fetch(id).catch(() => null);
                 if (user) {
                     console.error(`Cannot access daily shop channel ${channelId} for user ${user.tag} on any shard, attempting to notify via DM...`);
                     await notifyChannelInaccessible(id, channelId, 'dailyShop');
@@ -499,7 +501,7 @@ export const migrateAlertsToUserDM = async (id, channelId) => {
     if (!userJson) return 0;
 
     let migratedCount = 0;
-    const user = await client.users.fetch(id).catch(() => null);
+    const user = await getClient()?.users.fetch(id).catch(() => null);
     const userDMChannelId = user?.dmChannel?.id || (await user?.createDM().catch(() => null))?.id;
 
     if (!userDMChannelId) {
@@ -536,7 +538,7 @@ export const migrateAlertsToUserDM = async (id, channelId) => {
 
 export const notifyChannelInaccessible = async (id, channelId, type = 'alert') => {
     try {
-        const user = await client.users.fetch(id).catch(() => null);
+        const user = await getClient()?.users.fetch(id).catch(() => null);
         if (!user) {
             console.error(`Cannot notify user ${id} - user not found`);
             return false;
@@ -647,7 +649,7 @@ export const debugCheckAlerts = async () => {
                     continue;
                 }
 
-                const discordUser = await client.users.fetch(id).catch(() => null);
+                const discordUser = await getClient()?.users.fetch(id).catch(() => null);
                 const discordUsername = discordUser ? `${discordUser.username} (${id})` : id;
 
                 const accountCount = userJson.accounts.length;
@@ -780,11 +782,12 @@ export const debugCheckAlerts = async () => {
 }
 
 async function diagnoseChannelIssue(channelId, userId) {
+    const client = getClient();
+    if (!client) return 'Client not initialized';
+
     try {
-        // Try to get the channel from cache first
         const cachedChannel = client.channels.cache.get(channelId);
         if (cachedChannel) {
-            // Channel exists in cache, might be a permissions issue
             try {
                 if (cachedChannel.guild) {
                     const permissions = cachedChannel.permissionsFor(client.user);
@@ -797,12 +800,10 @@ async function diagnoseChannelIssue(channelId, userId) {
             }
         }
 
-        // Try to fetch the channel
         try {
             const channel = await client.channels.fetch(channelId);
             if (!channel) return 'Channel not found (may be deleted)';
 
-            // If we got here, channel exists but wasn't in cache
             if (channel.guild) {
                 const bot = await channel.guild.members.fetch(client.user.id).catch(() => null);
                 if (!bot) return 'Bot not in guild (kicked or guild deleted)';
@@ -823,3 +824,24 @@ async function diagnoseChannelIssue(channelId, userId) {
         return `Diagnosis failed: ${e.message}`;
     }
 }
+
+onShardMessage(async (message) => {
+    switch (message.type) {
+        case "alert":
+            await sendAlert(message.id, message.account, message.alerts, message.expires, false, message.alertsLength);
+            return true;
+        case "dailyShop":
+            await sendDailyShop(message.id, message.shop, message.channelId, message.valorantUser, false);
+            return true;
+        case "credentialsExpired":
+            await sendCredentialsExpired(message.id, message.alert, false);
+            return true;
+        case "checkAlerts":
+            await checkAlerts();
+            return true;
+        case "debugCheckAlerts":
+            await debugCheckAlerts();
+            return true;
+    }
+    return false;
+});

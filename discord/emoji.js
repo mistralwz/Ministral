@@ -1,67 +1,69 @@
-import { asyncReadFile, emojiToString, fetch } from "../misc/util.js";
-import { client } from "./bot.js";
+import { fetch } from "../misc/util.js";
 import { s } from "../misc/languages.js";
+import fs from "node:fs/promises";
 
 const VPEmojiName = "ValPointsIcon";
-const VPEmojiFilename = "assets/vp.png"; // https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/largeicon.png
+const VPEmojiFilename = "assets/vp.png";
 
 const RadEmojiName = "RadianiteIcon";
-const RadEmojiFilename = "assets/rad.png"; // https://media.valorant-api.com/currencies/e59aa87c-4cbf-517a-5983-6e81511be9b7/displayicon.png
+const RadEmojiFilename = "assets/rad.png";
 
 const KCEmojiName = "KingdomCreditIcon";
-const KCEmojiFilename = "assets/kc.png"; // https://media.valorant-api.com/currencies/85ca954a-41f2-ce94-9b45-8ca3dd39a00d/displayicon.png
+const KCEmojiFilename = "assets/kc.png";
 
-// tracks in-flight emoji creations to prevent duplicate uploads from concurrent requests
 const pendingCreations = {};
 
-export const VPEmoji = async (interaction) => emojiToString(await getOrCreateEmoji(VPEmojiName, VPEmojiFilename)) || s(interaction).info.PRICE;
-export const RadEmoji = async (interaction) => emojiToString(await getOrCreateEmoji(RadEmojiName, RadEmojiFilename));
-export const KCEmoji = async (interaction) => emojiToString(await getOrCreateEmoji(KCEmojiName, KCEmojiFilename));
+let emojiClient = null;
+export const setEmojiClient = (client) => {
+    emojiClient = client;
+};
 
-export const rarityEmoji = async (name, icon) => emojiToString(await getOrCreateEmoji(`${name}Rarity`, icon));
+const getClient = (interaction = null) => {
+    return interaction?.client || emojiClient;
+};
 
-export const agentEmoji = async (agentName, iconUrl) => {
+export const emojiToString = (emoji) => emoji && `<:${emoji.name}:${emoji.id}>`;
+
+export const VPEmoji = async (interaction) => emojiToString(await getOrCreateEmoji(VPEmojiName, VPEmojiFilename, interaction)) || s(interaction).info.PRICE;
+export const RadEmoji = async (interaction) => emojiToString(await getOrCreateEmoji(RadEmojiName, RadEmojiFilename, interaction));
+export const KCEmoji = async (interaction) => emojiToString(await getOrCreateEmoji(KCEmojiName, KCEmojiFilename, interaction));
+
+export const rarityEmoji = async (name, icon, interaction = null) => emojiToString(await getOrCreateEmoji(`${name}Rarity`, icon, interaction));
+
+export const agentEmoji = async (agentName, iconUrl, interaction = null) => {
     if (!agentName || !iconUrl) return null;
     const emojiName = ("Agent_" + agentName.replace(/[^a-zA-Z0-9]/g, "_")).slice(0, 32);
-    return getOrCreateEmoji(emojiName, iconUrl);
+    return getOrCreateEmoji(emojiName, iconUrl, interaction);
 };
 
-export const queueEmoji = async (queueName, iconUrl) => {
+export const queueEmoji = async (queueName, iconUrl, interaction = null) => {
     if (!queueName || !iconUrl) return null;
     const emojiName = ("Queue_" + queueName.replace(/[^a-zA-Z0-9]/g, "_")).slice(0, 32);
-    return getOrCreateEmoji(emojiName, iconUrl);
+    return getOrCreateEmoji(emojiName, iconUrl, interaction);
 };
 
-export const rankEmoji = async (tier, iconUrl) => {
+export const rankEmoji = async (tier, iconUrl, interaction = null) => {
     if (tier == null || !iconUrl) return null;
-    return getOrCreateEmoji(`Rank_${tier}`, iconUrl);
+    return getOrCreateEmoji(`Rank_${tier}`, iconUrl, interaction);
 };
 
-export const rarityEmojisAvailable = () => {
-    return true; // Application Emojis bypass channel permissions
-};
+const getOrCreateEmoji = async (name, filenameOrUrl, interaction = null) => {
+    if (!name || !filenameOrUrl) return null;
 
-const getOrCreateEmoji = async (name, filenameOrUrl) => {
-    if (!name || !filenameOrUrl) return;
+    const client = getClient(interaction);
+    if (!client?.application?.emojis) return null;
 
-    if (!client.application || !client.application.emojis) {
-        return null; // Not ready or not a bot application
-    }
-
-    // Try finding the emoji in application emojis cache first
     let existing = client.application.emojis.cache.find(e => e.name === name);
     if (existing) return existing;
 
-    // Fallback to fetching
     const appEmojis = await client.application.emojis.fetch();
     existing = appEmojis.find(e => e.name === name);
     if (existing) return existing;
 
-    // Use pendingCreations to prevent duplicate uploads from concurrent requests
     if (pendingCreations[name]) return await pendingCreations[name];
 
     try {
-        pendingCreations[name] = createApplicationEmoji(name, filenameOrUrl);
+        pendingCreations[name] = createApplicationEmoji(name, filenameOrUrl, client);
         const created = await pendingCreations[name];
         delete pendingCreations[name];
         return created;
@@ -70,10 +72,10 @@ const getOrCreateEmoji = async (name, filenameOrUrl) => {
         console.error(`Failed to create application emoji ${name}: ${e.message}`);
         return null;
     }
-}
+};
 
-const createApplicationEmoji = async (name, filenameOrUrl) => {
-    if (!name || !filenameOrUrl) return null;
+const createApplicationEmoji = async (name, filenameOrUrl, client) => {
+    if (!name || !filenameOrUrl || !client?.application?.emojis) return null;
 
     if (client.application.emojis.cache.filter(e => !e.animated).size >= 2000) {
         console.log(`Application Emoji limit of 2000 reached while uploading ${name}!`);
@@ -82,39 +84,35 @@ const createApplicationEmoji = async (name, filenameOrUrl) => {
 
     console.log(`Uploading Application Emoji: ${name}...`);
     try {
-        const attachment = await resolveFilenameOrUrl(filenameOrUrl)
+        const attachment = await resolveFilenameOrUrl(filenameOrUrl);
         return await client.application.emojis.create({ name, attachment });
     } catch (e) {
-        console.error(`Could not create application emoji ${name}!`);
-        console.error(`${e.name}: ${e.message}`);
+        console.error(`Could not create application emoji ${name}:`, e);
         return null;
     }
-}
+};
 
 const resolveFilenameOrUrl = async (filenameOrUrl) => {
-    if (filenameOrUrl.startsWith("http"))
-        return filenameOrUrl;
-    return await asyncReadFile(filenameOrUrl);
-}
+    if (filenameOrUrl.startsWith("http")) return filenameOrUrl;
+    return await fs.readFile(filenameOrUrl);
+};
 
-export const warmEmojiCache = async () => {
-    if (!client.application || !client.application.emojis) return null;
+export const warmEmojiCache = async (client = null) => {
+    const c = client || getClient();
+    if (!c?.application?.emojis) return null;
 
     try {
-        const appEmojis = await client.application.emojis.fetch();
+        const appEmojis = await c.application.emojis.fetch();
         console.log(`Warmed application emoji cache with ${appEmojis.size} emojis.`);
 
-        // Only shard 0 bootstraps missing static emojis to avoid duplicate API calls
-        if (client.shard && client.shard.ids[0] !== 0) return {};
+        if (c.shard && c.shard.ids[0] !== 0) return {};
 
         console.log("Checking for missing default emojis...");
 
-        // 1. Currencies
-        await getOrCreateEmoji(VPEmojiName, VPEmojiFilename);
-        await getOrCreateEmoji(RadEmojiName, RadEmojiFilename);
-        await getOrCreateEmoji(KCEmojiName, KCEmojiFilename);
+        await getOrCreateEmoji(VPEmojiName, VPEmojiFilename, { client: c });
+        await getOrCreateEmoji(RadEmojiName, RadEmojiFilename, { client: c });
+        await getOrCreateEmoji(KCEmojiName, KCEmojiFilename, { client: c });
 
-        // 2. Agents
         try {
             const agentReq = await fetch("https://valorant-api.com/v1/agents?isPlayableCharacter=true");
             if (agentReq.statusCode === 200) {
@@ -122,26 +120,28 @@ export const warmEmojiCache = async () => {
                 for (const agent of agents) {
                     if (agent.displayName && agent.displayIcon) {
                         const emojiName = ("Agent_" + agent.displayName.replace(/[^a-zA-Z0-9]/g, "_")).slice(0, 32);
-                        await getOrCreateEmoji(emojiName, agent.displayIcon);
+                        await getOrCreateEmoji(emojiName, agent.displayIcon, { client: c });
                     }
                 }
             }
-        } catch (e) { console.error("Agent bootstrap failed", e); }
+        } catch (e) {
+            console.error("Agent bootstrap failed", e);
+        }
 
-        // 3. Rarities
         try {
             const rarityReq = await fetch("https://valorant-api.com/v1/contenttiers");
             if (rarityReq.statusCode === 200) {
                 const rarities = JSON.parse(rarityReq.body).data;
                 for (const rarity of rarities) {
                     if (rarity.devName && rarity.displayIcon) {
-                        await getOrCreateEmoji(`${rarity.devName}Rarity`, rarity.displayIcon);
+                        await getOrCreateEmoji(`${rarity.devName}Rarity`, rarity.displayIcon, { client: c });
                     }
                 }
             }
-        } catch (e) { console.error("Rarity bootstrap failed", e); }
+        } catch (e) {
+            console.error("Rarity bootstrap failed", e);
+        }
 
-        // 4. Ranks
         try {
             const rankReq = await fetch("https://valorant-api.com/v1/competitivetiers");
             if (rankReq.statusCode === 200) {
@@ -150,12 +150,14 @@ export const warmEmojiCache = async () => {
                 if (latest && latest.tiers) {
                     for (const tier of latest.tiers) {
                         if (tier.tier >= 3 && tier.largeIcon) {
-                            await getOrCreateEmoji(`Rank_${tier.tier}`, tier.largeIcon);
+                            await getOrCreateEmoji(`Rank_${tier.tier}`, tier.largeIcon, { client: c });
                         }
                     }
                 }
             }
-        } catch (e) { console.error("Rank bootstrap failed", e); }
+        } catch (e) {
+            console.error("Rank bootstrap failed", e);
+        }
 
         console.log("Emoji bootstrap complete.");
         return {};
@@ -163,8 +165,4 @@ export const warmEmojiCache = async () => {
         console.error(`Failed to warm application emoji cache: ${e.message}`);
         return null;
     }
-}
-
-export const populateEmojiCacheFromSnapshot = (snapshot) => {
-    // Ignored in application emojis, they synchronize themselves
-}
+};
