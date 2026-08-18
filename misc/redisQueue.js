@@ -15,8 +15,8 @@ export const initRedis = async () => {
             port: config.redisPort,
             password: config.redisPassword,
             db: config.redisDb,
-            retryStrategy: (times) => Math.min(times * 50, 2000),
-            maxRetriesPerRequest: 3,
+            retryStrategy: (times) => times > 3 ? null : Math.min(times * 100, 1000),
+            maxRetriesPerRequest: 1,
             enableReadyCheck: true,
             lazyConnect: true
         });
@@ -27,6 +27,8 @@ export const initRedis = async () => {
             port: config.redisPort,
             password: config.redisPassword,
             db: config.redisDb,
+            retryStrategy: (times) => times > 3 ? null : Math.min(times * 100, 1000),
+            maxRetriesPerRequest: 1,
             lazyConnect: true
         });
 

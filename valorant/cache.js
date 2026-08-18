@@ -108,6 +108,15 @@ export const getValorantVersion = async () => {
     }
 }
 
+const asyncReadJSONFile = async (filename) => {
+    try {
+        const data = await fs.promises.readFile(filename, 'utf-8');
+        return JSON.parse(data);
+    } catch {
+        return null;
+    }
+};
+
 export const loadSkinsJSON = async (filename = "data/skins.json") => {
     // Reset fast-path flag before the async read so any concurrent getSkin() call
     // that checks dataFullyLoaded will re-enter fetchData() and wait rather than
@@ -115,7 +124,7 @@ export const loadSkinsJSON = async (filename = "data/skins.json") => {
     const wasFullyLoaded = hasAllCoreDataLoaded();
     dataFullyLoaded = false;
 
-    const jsonData = await asyncReadJSONFile(filename).catch(() => { });
+    const jsonData = await asyncReadJSONFile(filename);
     if (!jsonData) {
         dataFullyLoaded = wasFullyLoaded;
         return;
