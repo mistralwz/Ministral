@@ -822,14 +822,16 @@ const inferBundleItems = (bundle) => {
         .trim().toLowerCase();
     if (!code && !name) return bundle;
 
-    const matchesItem = (item) => {
-        if (code && item.assetPath && item.assetPath.toLowerCase().includes("/" + code + "/")) return true;
-        if (!code && name) {
-            const sName = (item.names?.[DEFAULT_VALORANT_LANG] || "").toLowerCase();
-            return sName.startsWith(name + " ") || sName === name;
-        }
-        return false;
+    const matchesCode = (item) => code && item.assetPath && item.assetPath.toLowerCase().includes("/" + code + "/");
+    const matchesName = (item) => {
+        if (!name) return false;
+        const sName = (item.names?.[DEFAULT_VALORANT_LANG] || "").toLowerCase();
+        return sName.startsWith(name + " ") || sName === name;
     };
+
+    let skinMatches = skins ? Object.values(skins).filter(s => typeof s === "object" && s.names && matchesCode(s)) : [];
+    const useCode = skinMatches.length > 0;
+    const matchesItem = (item) => useCode ? matchesCode(item) : matchesName(item);
 
     const TIER_GUN_PRICES = {
         "12683d76-48d7-84a3-4e09-6985794f0445": 875,  // Select
