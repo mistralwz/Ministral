@@ -193,8 +193,7 @@ const loadMapImages = async () => {
         mapNamesCache = {};
         for (const m of json.data) {
             if (m.mapUrl) {
-                // listViewIcon is the compact square thumbnail used in list
-                // views — much smaller than splash or listViewIconTall.
+                // listViewIcon is the compact image used in the embed
                 mapImagesCache[m.mapUrl] = m.listViewIcon ?? m.splash ?? null;
                 if (m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
             }
@@ -208,7 +207,11 @@ const loadMapImages = async () => {
 
 export const resolveMapImage = async (mapId) => {
     await loadMapImages();
-    return mapImagesCache[mapId] ?? null;
+    if (mapImagesCache[mapId]) return mapImagesCache[mapId];
+    if (mapId === "/Game/Maps/Arena/Arena") {
+        return mapImagesCache["/Game/Maps/Poveglia/Range"] ?? mapImagesCache["/Game/Maps/PovegliaV2/RangeV2"] ?? null;
+    }
+    return null;
 };
 
 // ──────────────────────────────────────────────
@@ -800,7 +803,7 @@ export const getPartyData = async (id, account = null) => {
     }
 
     const partyJson = JSON.parse(partyResp.body);
-    const members = (partyJson.Members || []).map(m => ({ puuid: m.Subject, isLeader: m.IsOwner, matchTier: m.CompetitiveTier || 0 }));
+    const members = (partyJson.Members || []).map(m => ({ puuid: m.Subject, isLeader: m.IsOwner, matchTier: m.CompetitiveTier || 0, partyId }));
     const eligibleQueues = partyJson.EligibleQueues || [];
     const inviteCode = partyJson.InviteCode || null;
     const preferredGamePods = partyJson.MatchmakingData?.PreferredGamePods || [];
@@ -1043,6 +1046,8 @@ export const getPreGameData = async (id, account = null) => {
         accountLevel: p.PlayerIdentity?.AccountLevel ?? null,
         isHideAccountLevel: p.PlayerIdentity?.HideAccountLevel ?? false,
         matchTier: p.CompetitiveTier || p.SeasonalBadgeInfo?.Rank || 0,
+        partyId: p.PartyID ?? p.PartyId ?? p.partyId ?? null,
+        isLeader: p.IsPartyOwner ?? false,
     }));
 
     return {
@@ -1117,6 +1122,8 @@ export const getInGameData = async (id, account = null) => {
         accountLevel: p.PlayerIdentity?.AccountLevel ?? null,
         isHideAccountLevel: p.PlayerIdentity?.HideAccountLevel ?? false,
         matchTier: p.Tier || p.SeasonalBadgeInfo?.Rank || 0,
+        partyId: p.PartyID ?? p.PartyId ?? p.partyId ?? null,
+        isLeader: p.IsPartyOwner ?? false,
     }));
 
     return {
@@ -1208,49 +1215,39 @@ const fetchPlayerNames = async (user, puuids) => {
 };
 
 /**
- * Fetch match details and score for multiple players, deduplicating requests.
- * @returns Map<puuid, {win, allyScore, enemyScore}>
+ * Fetch last 5 competitive match results for a list of PUUIDs.
+ * Returns Map<puuid, Array<"win" | "loss" | "tie">>
  */
-const fetchMatchScores = async (user, puuidMatchMap) => {
+const fetchPlayerRecentMatches = async (user, puuids) => {
     const pd = pdUrl(user);
     const headers = authHeaders(user);
-    const matchIds = [...new Set(Object.values(puuidMatchMap).filter(Boolean))];
 
-    // Fetch unique matches
-    const detailsMap = new Map();
     const results = await Promise.allSettled(
-        matchIds.map(matchId =>
-            fetch(`${pd}/match-details/v1/matches/${matchId}`, { headers })
+        puuids.map(puuid =>
+            fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=5&queue=competitive`, { headers })
                 .then(r => r.statusCode === 200 ? JSON.parse(r.body) : null)
         )
     );
 
-    for (let i = 0; i < matchIds.length; i++) {
-        if (results[i].status === "fulfilled" && results[i].value) {
-            detailsMap.set(matchIds[i], results[i].value);
+    const out = new Map();
+    for (let i = 0; i < puuids.length; i++) {
+        const puuid = puuids[i];
+        const raw = results[i].status === "fulfilled" ? results[i].value : null;
+        const matches = raw?.Matches || [];
+        const history = [];
+
+        for (const m of matches) {
+            if (m.RankedRatingEarned > 0 || (m.TierAfterUpdate > m.TierBeforeUpdate)) {
+                history.push("win");
+            } else if (m.RankedRatingEarned < 0 || (m.TierAfterUpdate < m.TierBeforeUpdate)) {
+                history.push("loss");
+            } else if (m.RankedRatingEarned === 0) {
+                history.push("tie");
+            }
         }
+        out.set(puuid, history);
     }
-
-    const scores = new Map();
-    for (const [puuid, matchId] of Object.entries(puuidMatchMap)) {
-        if (!matchId) continue;
-        const json = detailsMap.get(matchId);
-        if (!json) continue;
-
-        const player = json.players?.find(p => p.subject === puuid);
-        if (!player) continue;
-
-        const allyTeam = json.teams?.find(t => t.teamId === player.teamId);
-        const enemyTeam = json.teams?.find(t => t.teamId !== player.teamId);
-        if (allyTeam && enemyTeam) {
-            scores.set(puuid, {
-                win: allyTeam.won !== null ? allyTeam.won : (allyTeam.roundsWon > enemyTeam.roundsWon),
-                allyScore: allyTeam.roundsWon,
-                enemyScore: enemyTeam.roundsWon
-            });
-        }
-    }
-    return scores;
+    return out;
 };
 
 // ──────────────────────────────────────────────
@@ -1271,36 +1268,11 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     // Running them in parallel caused a race where every player appeared Unranked
     // on the first /livegame refresh while already in a match.
     const seasonMap = seasonsCache; // Pre-warmed by fetchLiveGame
-    const [mmrMap, nameMap] = await Promise.all([
+    const [mmrMap, nameMap, recentMatchesMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids.filter(p => !rawPlayers.find(rp => rp.puuid === p)?.incognito)),
+        showCompStats ? fetchPlayerRecentMatches(user, puuids) : Promise.resolve(new Map())
     ]);
-
-    // Competitive updates — one request per player, run in parallel to get matchId
-    const compScoresMap = new Map();
-    if (showCompStats) {
-        const puuidMatchMap = {};
-        const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
-        const now = Date.now();
-
-        for (const puuid of puuids) {
-            const mmr = mmrMap.get(puuid);
-            if (mmr && mmr._rawLatestMatchId && mmr._rawLatestMatchStartTime) {
-                if (mmr._rawLatestMatchStartTime >= now - TWO_MONTHS_MS) {
-                    puuidMatchMap[puuid] = mmr._rawLatestMatchId;
-                } else {
-                    puuidMatchMap[puuid] = null;
-                }
-            } else {
-                puuidMatchMap[puuid] = null;
-            }
-        }
-
-        const scores = await fetchMatchScores(user, puuidMatchMap);
-        for (const [puuid, score] of scores.entries()) {
-            compScoresMap.set(puuid, [score]);
-        }
-    }
 
     // Enrich each player
     const enriched = await Promise.all(rawPlayers.map(async (p, idx) => {
@@ -1324,6 +1296,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             // Identity: incognito players show their locked agent name so the row
             // reads "<agent_emoji>  `AgentName`". "Player N" is the fallback when
             // the agent is not yet known (pre-game, agent not locked).
+            // Normal players show their username without the #tagline.
             riotId: p.incognito
                 // In pre-game, selectionState is an explicit string ("locked" / "").
                 // In-game (core-game), the field is absent (undefined) — agents
@@ -1331,7 +1304,9 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
                 ? (p.agentId && (p.selectionState === "locked" || p.selectionState === undefined) && agentInfo.names
                     ? agentInfo.names["en-US"]
                     : `Player ${idx + 1}`)
-                : (name ?? p.puuid.slice(0, 8)),
+                : (name ? name.split('#')[0] : p.puuid.slice(0, 8)),
+            partyId: p.partyId ?? null,
+            isLeader: p.isLeader ?? false,
             // Agent
             agentName: p.agentId ? agentInfo.names : null,
             agentIcon: p.agentId ? agentInfo.icon : null,
@@ -1355,8 +1330,8 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             // Level
             accountLevel: level,
             levelHidden,
-            // Recent competitive match results ([] if not competitive)
-            recentMatches: compScoresMap.get(p.puuid) ?? [],
+            // Recent competitive match results (Array<"win" | "loss" | "tie">)
+            recentMatches: recentMatchesMap.get(p.puuid) ?? [],
         };
     }));
 

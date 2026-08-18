@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Kirjautuminen vaaditaan",
     "LOGIN_REQUIRED_DESC": "VALORANT-tilisi vahvistaminen epäonnistui. Kirjaudu uudelleen komennolla `/login`.",
     "REFRESH_BUTTON": "Päivitä",
-    "ENEMY_TEAM_DIVIDER": "── Vastustajatiimi ──",
     "QUEUING_TITLE": "🕒 Etsitään ottelua",
     "QUEUING_DESC": "Etsitään ottelua tilassa **{queueName}**...",
     "IDLE_PARTY_TITLE": "Ryhmässä",

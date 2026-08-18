@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Потрібна Авторизація",
     "LOGIN_REQUIRED_DESC": "Не вдалося підтвердити ваш акаунт у VALORANT. Будь ласка, авторизуйтесь знову за допомогою `/login`.",
     "REFRESH_BUTTON": "Оновити",
-    "ENEMY_TEAM_DIVIDER": "── Ворожа Команда ──",
     "QUEUING_TITLE": "🕒 Пошук Гра...",
     "QUEUING_DESC": "Пошук гри в режимі **{queueName}**...",
     "IDLE_PARTY_TITLE": "Очікування в Групі",

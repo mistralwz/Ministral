@@ -211,7 +211,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Giriş gerekli",
                      "LOGIN_REQUIRED_DESC":  "VALORANT hesabın doğrulanamadı. Lütfen `/login` ile tekrar giriş yap.",
                      "REFRESH_BUTTON":  "Yenile",
-                     "ENEMY_TEAM_DIVIDER":  "── Rakip Takım ──",
                      "QUEUING_TITLE":  "🕒 Maç için Sırada",
                      "QUEUING_DESC":  "**{queueName}** modunda maç aranıyor...",
                      "SELECT_AGENT_PLACEHOLDER":  "Kilitlemek için bir Ajan Seçin",

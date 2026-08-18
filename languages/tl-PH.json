@@ -224,7 +224,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Kailangan Mag-login",
                      "LOGIN_REQUIRED_DESC":  "Hindi ma-verify ang iyong VALORANT account. Mangyaring mag-login muli gamit ang `/login`.",
                      "REFRESH_BUTTON":  "Refresh",
-                     "ENEMY_TEAM_DIVIDER":  "── Enemy Team ──",
                      "QUEUING_TITLE":  "🕒 Nakapila para sa Match",
                      "QUEUING_DESC":  "Naghahanap ng match sa **{queueName}**...",
                      "SELECT_AGENT_PLACEHOLDER":  "Pumili ng Agent para i-Lock In",

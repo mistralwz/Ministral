@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Upiši ID",
     "LOGIN_REQUIRED_DESC": "Prijavi val sa /login`.",
     "REFRESH_BUTTON": "Ugl.",
-    "ENEMY_TEAM_DIVIDER": "── Suprotnosti ──",
     "QUEUING_TITLE": "🕒 Rješi partiju",
     "QUEUING_DESC": "Lobi i trazi match...**{queueName}**",
     "IDLE_PARTY_TITLE": "Grupa na ceki,",

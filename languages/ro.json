@@ -194,7 +194,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Autentificare necesară",
                      "LOGIN_REQUIRED_DESC":  "Nu s-a putut verifica contul tău VALORANT. Autentifică-te din nou cu `/login`.",
                      "REFRESH_BUTTON":  "Reîmprospătează",
-                     "ENEMY_TEAM_DIVIDER":  "── Echipa adversă ──",
                      "QUEUING_TITLE":  "🕒 La coadă pentru meci",
                      "QUEUING_DESC":  "Se caută un meci în **{queueName}**...",
                      "SELECT_AGENT_PLACEHOLDER":  "Selectează un agent pentru a confirma",

@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "लॉगिन आवश्यक",
     "LOGIN_REQUIRED_DESC": "आपके VALORANT खाते को सत्यापित करना संभव नहीं था। कृपया `/login` के साथ फिर से लॉगिन करें।",
     "REFRESH_BUTTON": "रीफ़्रेश करें",
-    "ENEMY_TEAM_DIVIDER": "── दुश्मन टीम ──",
     "QUEUING_TITLE": "🕒 कतार में",
     "QUEUING_DESC": "**{queueName}** के लिए मैचमेकिंग...",
     "IDLE_PARTY_TITLE": "पार्टी में निष्क्रिय",

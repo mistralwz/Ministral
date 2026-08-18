@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Login Påkrævet",
     "LOGIN_REQUIRED_DESC": "Kunne ikke bekræfte din konto. Login igen med `/login`.",
     "REFRESH_BUTTON": "Opdater",
-    "ENEMY_TEAM_DIVIDER": "── Modstanderholdet ──",
     "QUEUING_TITLE": "🕒 Søger efter kamp",
     "QUEUING_DESC": "Søger efter en **{queueName}**-kamp...",
     "IDLE_PARTY_TITLE": "I en gruppe",

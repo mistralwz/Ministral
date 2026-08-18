@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Accesso Richiesto",
     "LOGIN_REQUIRED_DESC": "Impossibile verificare il tuo account VALORANT. Accedi di nuovo con `/login`.",
     "REFRESH_BUTTON": "Aggiorna",
-    "ENEMY_TEAM_DIVIDER": "── Squadra Nemica ──",
     "QUEUING_TITLE": "🕒 In coda per la partita",
     "QUEUING_DESC": "Ricerca di una partita in **{queueName}**...",
     "IDLE_PARTY_TITLE": "In attesa nel Gruppo",

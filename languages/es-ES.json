@@ -194,7 +194,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Inicio de sesión requerido",
                      "LOGIN_REQUIRED_DESC":  "No se pudo verificar tu cuenta de VALORANT. Por favor inicia sesión de nuevo con `/login`.",
                      "REFRESH_BUTTON":  "Actualizar",
-                     "ENEMY_TEAM_DIVIDER":  "── Equipo enemigo ──",
                      "QUEUING_TITLE":  "🕒 En cola para partida",
                      "QUEUING_DESC":  "Buscando partida en **{queueName}**...",
                      "SELECT_AGENT_PLACEHOLDER":  "Selecciona un agente para fijar",

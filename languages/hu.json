@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Bejelentkezés szükséges",
     "LOGIN_REQUIRED_DESC": "Nem sikerült ellenőrizni a VALORANT fiókodat. Kérlek, jelentkezz be újra a `/login` paranccsal.",
     "REFRESH_BUTTON": "Frissítés",
-    "ENEMY_TEAM_DIVIDER": "── Ellenséges csapat ──",
     "QUEUING_TITLE": "🕒 Sorban állás folyamatban",
     "QUEUING_DESC": "Meccskeresés a következő módban: **{queueName}**...",
     "IDLE_PARTY_TITLE": "Várakozás a csapatban",

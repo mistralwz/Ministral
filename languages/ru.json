@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Требуется Авторизация",
     "LOGIN_REQUIRED_DESC": "Не удалось проверить ваш аккаунт VALORANT. Пожалуйста, войдите снова при помощи `/login`.",
     "REFRESH_BUTTON": "Обновить",
-    "ENEMY_TEAM_DIVIDER": "── Вражеская Команда ──",
     "QUEUING_TITLE": "🕒 Поиск Матча",
     "QUEUING_DESC": "Поиск игры в **{queueName}**...",
     "IDLE_PARTY_TITLE": "Ожидание В Группе",

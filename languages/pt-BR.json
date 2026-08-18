@@ -224,7 +224,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Login Necessário",
                      "LOGIN_REQUIRED_DESC":  "Não foi possível verificar sua conta VALORANT. Por favor, faça login novamente com `/login`.",
                      "REFRESH_BUTTON":  "Atualizar",
-                     "ENEMY_TEAM_DIVIDER":  "── Equipe Inimiga ──",
                      "QUEUING_TITLE":  "🕒 Na fila para a partida",
                      "QUEUING_DESC":  "Procurando partida em **{queueName}**...",
                      "SELECT_AGENT_PLACEHOLDER":  "Selecione um Agente para Confirmar",

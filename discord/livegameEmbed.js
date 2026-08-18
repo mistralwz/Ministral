@@ -18,6 +18,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, StringSelec
 import { s, discToValLang, DEFAULT_VALORANT_LANG } from "../misc/languages.js";
 import { getSetting } from "../misc/settings.js";
 import config from "../misc/config.js";
+import { getUser } from "../valorant/auth.js";
 import { resolveAgent, getOwnedAgents, resolveQueueName, resolveQueueIcon, resolveServerName } from "../valorant/livegame.js";
 import { agentEmoji, rankEmoji, queueEmoji, emojiToString } from "./emoji.js";
 
@@ -25,8 +26,12 @@ const roleSelections = new Map();
 export const setRoleSelection = (userId, role) => roleSelections.set(userId, role);
 
 // ─── Colours ────────────────────────────────────────────────────────────────
-const COLOR_PREGAME = 0xFFB300;  // amber  — agent select
-const COLOR_ALLY = 0x1E88E5;  // blue   — in-game
+const COLOR_PREGAME = 0xFFB300;   // amber   — agent select & queuing
+const COLOR_ALLY = 0x1E88E5;      // blue    — in-game ally
+const COLOR_PARTY = 0x5865F2;     // blurple — idle party
+const COLOR_OFFLINE = 0x2B2D31;   // dark    — offline / neutral
+const COLOR_WARNING = 0xF59E0B;   // warning — maintenance
+const COLOR_ERROR = 0xED4245;     // red     — rate limited
 
 // ─── State labels ────────────────────────────────────────────────────────────
 const STATE_LABEL = {
@@ -36,79 +41,168 @@ const STATE_LABEL = {
     queuing: "🕒 Queuing",
 };
 
+// ─── Party Color Emojis ─────────────────────────────────────────────────────
+const PARTY_EMOJIS = ["🟥", "🟧", "🟨", "🟩", "🟦"];
+
+/** Assign color emojis to parties with >=2 members in the team. */
+const getPartyColorMap = (players) => {
+    const counts = new Map();
+    for (const p of players) if (p.partyId) counts.set(p.partyId, (counts.get(p.partyId) || 0) + 1);
+
+    const colors = new Map();
+    let idx = 0;
+    for (const p of players) {
+        if (p.partyId && counts.get(p.partyId) >= 2 && !colors.has(p.partyId)) {
+            colors.set(p.partyId, PARTY_EMOJIS[idx++ % PARTY_EMOJIS.length]);
+        }
+    }
+    return colors;
+};
+
+// ─── Server Flags Mapping ───────────────────────────────────────────────────
+const SERVER_FLAGS = {
+    // Americas
+    "Ashburn": "🇺🇸", "Atlanta": "🇺🇸", "Georgia": "🇺🇸", "Chicago": "🇺🇸", "Illinois": "🇺🇸",
+    "Dallas": "🇺🇸", "Texas": "🇺🇸", "Virginia": "🇺🇸", "California": "🇺🇸", "N. California": "🇺🇸",
+    "Oregon": "🇺🇸", "Miami": "🇺🇸", "Santiago": "🇨🇱", "Mexico City": "🇲🇽", "Bogota": "🇨🇴", "Bogotá": "🇨🇴", "Sao Paulo": "🇧🇷",
+    // Europe, Middle East & Africa
+    "Frankfurt": "🇩🇪", "London": "🇬🇧", "Paris": "🇫🇷", "Madrid": "🇪🇸",
+    "Stockholm": "🇸🇪", "Warsaw": "🇵🇱", "Istanbul": "🇹🇷", "Bahrain": "🇧🇭", "Dubai": "🇦🇪", "Cape Town": "🇿🇦",
+    // Asia & Pacific
+    "Tokyo": "🇯🇵", "Seoul": "🇰🇷", "Hong Kong": "🇭🇰", "Singapore": "🇸🇬",
+    "Sydney": "🇦🇺", "Mumbai": "🇮🇳", "Manila": "🇵🇭", "Bangkok": "🇹🇭",
+    "Beijing": "🇨🇳", "Shanghai": "🇨🇳", "Guangzhou": "🇨🇳", "Nanjing": "🇨🇳", "Tianjin": "🇨🇳", "Chongqing": "🇨🇳",
+};
+
+/** Format a single server name with its flag emoji. */
+export const formatServerName = (serverName) => {
+    if (!serverName) return "";
+    const clean = serverName.replace(/^US (East|Central|West) \((.+)\)$/, '$2').replace(/ \d+$/, '');
+    const flag = serverName.startsWith("US ") ? "🇺🇸" : (SERVER_FLAGS[clean] || SERVER_FLAGS[serverName] || "");
+    return flag ? `${flag} ${clean}` : clean;
+};
+
+/** Format preferred game pods grouped by flag, compacting single-server countries to flags only. */
+export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => {
+    if (!preferredGamePods?.length) return `\`${autoText}\``;
+
+    const groups = new Map();
+    for (const pod of preferredGamePods) {
+        const raw = resolveServerName(pod);
+        const name = raw.replace(/^US (East|Central|West) \((.+)\)$/, '$2').replace(/ \d+$/, '');
+        const flag = raw.startsWith("US ") ? "🇺🇸" : (SERVER_FLAGS[name] || "");
+        const key = flag || name;
+        if (!groups.has(key)) groups.set(key, { flag, names: [] });
+        if (!groups.get(key).names.includes(name)) groups.get(key).names.push(name);
+    }
+
+    const multi = [];
+    const singles = [];
+
+    for (const g of groups.values()) {
+        if (!g.flag) {
+            multi.push(g.names.join(", "));
+        } else if (g.names.length > 1) {
+            multi.push(`${g.flag} ${g.names.join(", ")}`);
+        } else {
+            singles.push(g.flag);
+        }
+    }
+
+    const parts = [];
+    if (multi.length) parts.push(multi.join("・"));
+    if (singles.length) parts.push(singles.join(" "));
+
+    return parts.join("・");
+};
+
 // ─── Player row renderer ─────────────────────────────────────────────────────
 
 /**
- * Render one player as a single compact line, placed in the field VALUE.
+ * Render one player as a single compact line.
  *
  * Format (all modes):
- *   <agent>  `RiotId`・<rank> **42 RR**・<peak> (E5A3)
+ *   [PartyEmoji] <agent> `RiotName`・<rank> **42** RR・<peak> `E5A3`
  *
  * Competitive also appends:
- *   ・**46%WR** (13)┊`🔹13:5`
- *
- * Level has been removed.
- * Peak rank is always shown when the player has competitive history.
+ *   ・**46%** WR `(13)`・🔹🔹🔻🔹🔹
  *
  * @param {object}  player
  * @param {Channel} channel       Discord channel (for emoji resolution)
- * @param {boolean} showCompStats Show WR + last match score when true
+ * @param {boolean} showCompStats Show WR + last 5 match results when true
+ * @param {boolean} isPartyLobby  True when rendering party lobby members
+ * @param {string}  partyEmoji    Color indicator for players partied together (e.g. 🟥)
  */
-const formatPlayerRow = async (player, channel, showCompStats = false) => {
+const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLobby = false, partyEmoji = "") => {
+    // Strip tagline from riotId: "Name#TAG" -> "Name"
+    const displayName = (player.riotId || "Unknown").split('#')[0];
+
     // Agent emoji — resolved dynamically from valorant-api.com icon URL.
-    // For incognito players riotId IS the agent name, so we suppress the text
-    // fallback to avoid "Vyse  `Vyse`" when the emoji hasn't uploaded yet.
     const localizedAgentName = player.agentName ? player.agentName["en-US"] || "Unknown" : null;
 
-    const agentEmojiStr = localizedAgentName && player.agentIcon
-        ? (emojiToString(await agentEmoji(localizedAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``))
-        : (player.incognito ? "" : (localizedAgentName ? `\`${localizedAgentName}\`` : ""));
+    let agentEmojiStr = "";
+    if (localizedAgentName && player.agentIcon) {
+        agentEmojiStr = emojiToString(await agentEmoji(localizedAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
+    } else if (player.incognito) {
+        agentEmojiStr = "";
+    } else if (localizedAgentName) {
+        agentEmojiStr = `\`${localizedAgentName}\``;
+    }
 
     // Current rank emoji — tier 0 (Unranked) now has an icon too
     const currentRankEmojiStr = player.currentTierIcon
         ? (emojiToString(await rankEmoji(player.currentTier, player.currentTierIcon)) ?? "")
         : "";
 
+    // Place badge before RR for clean visual scanning: <rank_badge> **42** RR
     const rankPart = player.currentTier > 0
         ? (player.isRankFallback
             ? `${currentRankEmojiStr}`.trim()
-            : `**${player.currentRR}**rr ${currentRankEmojiStr}`.trim())
-        : currentRankEmojiStr || "`Unranked`";
+            : `${currentRankEmojiStr} **${player.currentRR}** RR`.trim())
+        : (currentRankEmojiStr ? `${currentRankEmojiStr} \`Unranked\`` : "`Unranked`");
 
-    // Peak rank — shown in all modes; text fallback when emoji is unavailable
+    // Peak rank — badge before act label: <peak_badge> `E5A3`
     const peakRankEmojiStr = player.peakTier > 0 && player.peakTierIcon
         ? (emojiToString(await rankEmoji(player.peakTier, player.peakTierIcon)) ?? `\`${player.peakTierName}\``)
         : null;
     const peakPart = peakRankEmojiStr
-        ? `\`${player.peakActLabel ?? "—"}\` ${peakRankEmojiStr}`
+        ? `${peakRankEmojiStr} \`${player.peakActLabel ?? "—"}\``
         : null;
 
-    // Competitive-only: win-rate and last match score
-    let matchScoreStr = "";
+    // Competitive-only: win-rate and last 5 match results
+    let recentMatchesStr = "";
     const compParts = [];
     if (showCompStats) {
         if (player.winRate !== null)
-            compParts.push(`**${player.winRate}%**wr \`${player.games}\``);
+            compParts.push(`**${player.winRate}%** WR \`(${player.games})\``);
 
-        const lastMatch = player.recentMatches?.[0];
-        if (lastMatch) {
-            let symbol = lastMatch.allyScore === lastMatch.enemyScore
-                ? "▫️"
-                : (lastMatch.win ? "🔹" : "🔻");
-            matchScoreStr = `┊\`${symbol}${lastMatch.allyScore}:${lastMatch.enemyScore}\``;
+        if (player.recentMatches && player.recentMatches.length > 0) {
+            const symbols = player.recentMatches.map(m => {
+                if (m === "win") return "🔹";
+                if (m === "loss") return "🔻";
+                return "▫️";
+            }).join("");
+            recentMatchesStr = `・${symbols}`;
         }
     }
 
     const rowTails = [rankPart, peakPart, ...compParts].filter(Boolean).join("・");
-    return `${agentEmojiStr}  \`${player.riotId}\`・${rowTails}${matchScoreStr}`;
+    const leaderBadge = (isPartyLobby && player.isLeader) ? "👑 " : "";
+    const agentPrefix = agentEmojiStr ? `${agentEmojiStr} ` : "";
+    const partyPrefix = partyEmoji ? `${partyEmoji} ` : "";
+
+    return `${partyPrefix}${agentPrefix}${leaderBadge}\`${displayName}\`・${rowTails}${recentMatchesStr}`;
 };
 
 /**
  * Build embed fields for a list of players, grouped 5 per field.
  * @param {string} [headerName] Optional name for the first field (defaults to zero-width space).
  */
-const buildPlayerFields = async (players, channel, showCompStats, headerName = "\u200b") => {
-    const rows = await Promise.all(players.map(p => formatPlayerRow(p, channel, showCompStats)));
+const buildPlayerFields = async (players, channel, showCompStats, headerName = "\u200b", isPartyLobby = false) => {
+    const partyColorMap = getPartyColorMap(players);
+    const rows = await Promise.all(players.map(p =>
+        formatPlayerRow(p, channel, showCompStats, isPartyLobby, p.partyId ? partyColorMap.get(p.partyId) : "")
+    ));
     const fields = [];
     for (let i = 0; i < rows.length; i += 5) {
         fields.push({
@@ -125,16 +219,18 @@ const buildPlayerFields = async (players, channel, showCompStats, headerName = "
 /**
  * Build the single embed for any game state.
  *
- * • Two-team modes  → ally player fields, then a divider, then enemy fields.
+ * • Two-team modes  → ally players in description, enemy players in fields with divider header.
  * • Single-team modes (deathmatch, …) → all players listed in `description`.
  */
-const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeInput = null) => {
+const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId = null) => {
     const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
     const showCompStats = data.queueId === "competitive" || data.queueId === "skirmish" || data.queueId === "skirmish 2v2";
     const color = isPreGame ? COLOR_PREGAME : COLOR_ALLY;
-    const mapAndServer = data.serverName
-        ? `${data.mapName}・${data.serverName}`
+
+    const formattedServer = formatServerName(data.serverName);
+    const mapAndServer = formattedServer
+        ? `${data.mapName}・${formattedServer}`
         : data.mapName;
 
     const embed = {
@@ -150,16 +246,19 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, localeIn
 
     if (data.isSingleTeam) {
         // Free-for-all: description block, one player per line
+        const allPlayers = [...allyPlayers, ...enemyPlayers];
+        const partyColorMap = getPartyColorMap(allPlayers);
         const lines = await Promise.all(
-            [...allyPlayers, ...enemyPlayers].map(p => formatPlayerRow(p, channel, showCompStats))
+            allPlayers.map(p => formatPlayerRow(p, channel, showCompStats, false, p.partyId ? partyColorMap.get(p.partyId) : ""))
         );
         embed.description = lines.join("\n");
     } else {
         // Two-team layout: ally players in description, enemy players in fields
+        const allyPartyColorMap = getPartyColorMap(allyPlayers);
         const [allyLines, enemyFields] = await Promise.all([
-            Promise.all(allyPlayers.map(p => formatPlayerRow(p, channel, showCompStats))),
+            Promise.all(allyPlayers.map(p => formatPlayerRow(p, channel, showCompStats, false, p.partyId ? allyPartyColorMap.get(p.partyId) : ""))),
             enemyPlayers.length > 0
-                ? buildPlayerFields(enemyPlayers, channel, showCompStats)
+                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b", false)
                 : Promise.resolve([]),
         ]);
         embed.description = allyLines.join("\n");
@@ -206,33 +305,47 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         roleSelections.delete(userId);
         const hasParty = allyPlayers && allyPlayers.length > 0;
 
-        let title, description, color;
+        let title, description, color, author = undefined;
         const qUpper = liveGameData.queueId?.toUpperCase() || "CUSTOM";
         const dictQ = (s(userId).queues && qUpper in s(userId).queues) ? s(userId).queues[qUpper] : undefined;
         const localizedQueueNameQueueing = dictQ || resolveQueueName(liveGameData.queueId, valLang);
+        const serverFormatted = formatPreferredServers(liveGameData.preferredGamePods, s(userId).livegame.AUTO_SERVERS);
 
         if (state === "queuing") {
-            title = s(userId).livegame.QUEUING_TITLE;
-            description = s(userId).livegame.QUEUING_DESC.f({ queueName: localizedQueueNameQueueing });
+            author = {
+                name: localizedQueueNameQueueing,
+                icon_url: resolveQueueIcon(liveGameData.queueId) ?? undefined,
+            };
+            title = `🕒 ${s(userId).livegame.QUEUING_TITLE}`;
+            description = `🔍 ${s(userId).livegame.QUEUING_DESC.f({ queueName: localizedQueueNameQueueing })}\n\n🌐 **Servers:** ${serverFormatted}`;
+            if (liveGameData.inviteCode) {
+                description += `\n🔑 **${s(userId).livegame.PARTY_CODE}** \`${liveGameData.inviteCode}\``;
+            }
             color = COLOR_PREGAME;
         } else {
-            title = hasParty ? (s(userId).livegame.IDLE_PARTY_TITLE || "Idle in Party") : s(userId).livegame.NOT_IN_MATCH_TITLE;
-            description = hasParty ? (s(userId).livegame.IDLE_PARTY_DESC || "Waiting to queue.") : s(userId).livegame.NOT_IN_MATCH_DESC;
-            color = 0x616161;
+            if (hasParty) {
+                title = `👥 ${s(userId).livegame.IDLE_PARTY_TITLE || "Idle in Party"}`;
+                description = `⏳ ${s(userId).livegame.IDLE_PARTY_DESC || "Waiting to queue."}\n\n🌐 **Servers:** ${serverFormatted}`;
+                if (liveGameData.inviteCode) {
+                    description += `\n🔑 **${s(userId).livegame.PARTY_CODE}** \`${liveGameData.inviteCode}\``;
+                }
+                color = COLOR_PARTY;
+            } else {
+                title = `💤 ${s(userId).livegame.NOT_IN_MATCH_TITLE}`;
+                description = `🎮 ${s(userId).livegame.NOT_IN_MATCH_DESC}\n\n🌐 **Servers:** ${serverFormatted}`;
+                if (liveGameData.inviteCode) {
+                    description += `\n🔑 **${s(userId).livegame.PARTY_CODE}** \`${liveGameData.inviteCode}\``;
+                }
+                color = COLOR_OFFLINE;
+            }
         }
 
-        const serverText = (liveGameData.preferredGamePods && liveGameData.preferredGamePods.length > 0)
-            ? s(userId).livegame.PREFERRED_SERVERS.f({ servers: liveGameData.preferredGamePods.map(resolveServerName).join(", ") })
-            : s(userId).livegame.AUTO_SERVERS;
-
         const embed = {
+            author,
             title,
-            description: liveGameData.inviteCode
-                ? `${description}\n\n${s(userId).livegame.PARTY_CODE} **${liveGameData.inviteCode}**`
-                : description,
+            description,
             color,
-            fields: hasParty ? await buildPlayerFields(allyPlayers, channel, true, (s(userId).livegame.PARTY_MEMBERS || "Party Members")) : undefined,
-            footer: { text: serverText },
+            fields: hasParty ? await buildPlayerFields(allyPlayers, channel, true, (s(userId).livegame.PARTY_MEMBERS || "Party Members"), true) : undefined,
         };
 
         let components = [liveGameRefreshRow(userId)];
@@ -419,13 +532,14 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
  */
 export const renderLiveGameError = (liveGameData, userId = null) => {
     const components = userId ? [liveGameRefreshRow(userId)] : [];
+    const strings = s(userId).livegame;
 
     if (liveGameData.maintenance) {
         return {
             embeds: [{
-                title: s().livegame.MAINTENANCE_TITLE,
-                description: s().livegame.MAINTENANCE_DESC,
-                color: 0x616161,
+                title: `🛠️ ${strings.MAINTENANCE_TITLE}`,
+                description: strings.MAINTENANCE_DESC,
+                color: COLOR_WARNING,
             }],
             components,
             flags: [MessageFlags.Ephemeral]
@@ -434,9 +548,9 @@ export const renderLiveGameError = (liveGameData, userId = null) => {
     if (liveGameData.rateLimit) {
         return {
             embeds: [{
-                title: s().livegame.RATE_LIMITED_TITLE,
-                description: s().livegame.RATE_LIMITED_DESC,
-                color: 0xBF360C,
+                title: `⏳ ${strings.RATE_LIMITED_TITLE}`,
+                description: strings.RATE_LIMITED_DESC,
+                color: COLOR_ERROR,
             }],
             components,
             flags: [MessageFlags.Ephemeral]
@@ -444,9 +558,9 @@ export const renderLiveGameError = (liveGameData, userId = null) => {
     }
     return {
         embeds: [{
-            title: s().livegame.LOGIN_REQUIRED_TITLE,
-            description: s().livegame.LOGIN_REQUIRED_DESC,
-            color: 0x616161,
+            title: `🔐 ${strings.LOGIN_REQUIRED_TITLE}`,
+            description: strings.LOGIN_REQUIRED_DESC,
+            color: COLOR_OFFLINE,
         }],
         components,
         flags: [MessageFlags.Ephemeral]

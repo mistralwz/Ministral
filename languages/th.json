@@ -211,7 +211,6 @@
     "LOGIN_REQUIRED_TITLE": "ต้องเข้าสู่ระบบ",
     "LOGIN_REQUIRED_DESC": "ไม่สามารถยืนยันบัญชี VALORANT ของคุณ กรุณาเข้าสู่ระบบใหม่ด้วย `/login`",
     "REFRESH_BUTTON": "รีเฟรช",
-    "ENEMY_TEAM_DIVIDER": "── ทีมศัตรู ──",
     "QUEUING_TITLE": "🕒 กำลังเข้าคิวหาแมตช์",
     "QUEUING_DESC": "กำลังค้นหาแมตช์ในโหมด **{queueName}**...",
     "SELECT_AGENT_PLACEHOLDER": "เลือกเอเจนท์เพื่อยืนยัน",

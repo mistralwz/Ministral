@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Reikia prisijungti",
     "LOGIN_REQUIRED_DESC": "Nepavyko patvirtinti jūsų VALORANT paskyros. Prisijunkite iš naujo su `/login`.",
     "REFRESH_BUTTON": "Atnaujinti",
-    "ENEMY_TEAM_DIVIDER": "── Priešininkų komanda ──",
     "QUEUING_TITLE": "🕒 Ieškoma rungtynių",
     "QUEUING_DESC": "Ieškoma rungtynių režime **{queueName}**...",
     "IDLE_PARTY_TITLE": "Grupėje",

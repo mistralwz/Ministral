@@ -224,7 +224,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Perlu Login",
                      "LOGIN_REQUIRED_DESC":  "Tidak dapat memverifikasi akun VALORANT kamu. Silakan login lagi dengan `/login`.",
                      "REFRESH_BUTTON":  "Segarkan",
-                     "ENEMY_TEAM_DIVIDER":  "── Tim Musuh ──",
                      "QUEUING_TITLE":  "🕒 Mengantre untuk Pertandingan",
                      "QUEUING_DESC":  "Mencari pertandingan di **{queueName}**...",
                      "SELECT_AGENT_PLACEHOLDER":  "Pilih Agen untuk Mengunci",

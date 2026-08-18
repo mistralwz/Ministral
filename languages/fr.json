@@ -224,7 +224,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Connexion requise",
                      "LOGIN_REQUIRED_DESC":  "Impossible de vérifier votre compte VALORANT. Veuillez vous reconnecter avec `/login`.",
                      "REFRESH_BUTTON":  "Rafraîchir",
-                     "ENEMY_TEAM_DIVIDER":  "── Équipe adverse ──",
                      "QUEUING_TITLE":  "🕒 En file d\u0027attente pour une partie",
                      "QUEUING_DESC":  "Recherche d\u0027une partie en **{queueName}**...",
                      "SELECT_AGENT_PLACEHOLDER":  "Sélectionner un agent à verrouiller",

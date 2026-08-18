@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Inloggen vereist",
     "LOGIN_REQUIRED_DESC": "Kon je VALORANT-account niet verifiëren. Log opnieuw in met `/login`.",
     "REFRESH_BUTTON": "Vernieuwen",
-    "ENEMY_TEAM_DIVIDER": "── Vijandelijk team ──",
     "QUEUING_TITLE": "🕒 Zoeken naar wedstrijd",
     "QUEUING_DESC": "Zoeken naar een wedstrijd in **{queueName}**...",
     "IDLE_PARTY_TITLE": "In party",

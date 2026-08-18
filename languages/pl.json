@@ -224,7 +224,6 @@
                      "LOGIN_REQUIRED_TITLE":  "Wymagane logowanie",
                      "LOGIN_REQUIRED_DESC":  "Nie można zweryfikować Twojego konta VALORANT. Zaloguj się ponownie przy użyciu `/login`.",
                      "REFRESH_BUTTON":  "Odśwież",
-                     "ENEMY_TEAM_DIVIDER":  "── Drużyna wroga ──",
                      "QUEUING_TITLE":  "🕒 W kolejce do meczu",
                      "QUEUING_DESC":  "Szukanie meczu w trybie **{queueName}**...",
                      "SELECT_AGENT_PLACEHOLDER":  "Wybierz agenta do zatwierdzenia",

@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Inloggning krävs",
     "LOGIN_REQUIRED_DESC": "Kunde inte verifiera ditt VALORANT-konto. Logga in igen med `/login`.",
     "REFRESH_BUTTON": "Uppdatera",
-    "ENEMY_TEAM_DIVIDER": "── Motståndarlag ──",
     "QUEUING_TITLE": "🕒 Söker efter match",
     "QUEUING_DESC": "Söker efter en match i **{queueName}**...",
     "IDLE_PARTY_TITLE": "I grupp",

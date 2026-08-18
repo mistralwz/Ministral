@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Krever gyldig innlogging",
     "LOGIN_REQUIRED_DESC": "Beklager men klarte å logge din VALORANT konto til spillet. Du må sjekke og deretter validere `/login` kommando via system-bot",
     "REFRESH_BUTTON": "Mottok oppdateringer",
-    "ENEMY_TEAM_DIVIDER": "── Fiende-team ──",
     "QUEUING_TITLE": "🕒 Søker for server Match-Klar",
     "QUEUING_DESC": "Forsøker matchmaking på **{queueName}**...",
     "IDLE_PARTY_TITLE": "Vente-Modus Parti (Tomgang)",

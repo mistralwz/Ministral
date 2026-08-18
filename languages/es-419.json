@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Se Requiere Ingreso",
     "LOGIN_REQUIRED_DESC": "No se pudo verificar tu cuenta de VALORANT. Por favor inicia sesión de nuevo con `/login`.",
     "REFRESH_BUTTON": "Actualizar",
-    "ENEMY_TEAM_DIVIDER": "── Equipo Enemigo ──",
     "QUEUING_TITLE": "🕒 En Cola para Partida",
     "QUEUING_DESC": "Buscando partida en **{queueName}**...",
     "IDLE_PARTY_TITLE": "Inactivo en Grupo",

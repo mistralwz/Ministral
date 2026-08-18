@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Απαιτείται Σύνδεση",
     "LOGIN_REQUIRED_DESC": "Δεν ήταν δυνατή η επαλήθευση του λογαριασμού σου στο VALORANT. Παρακαλώ συνδέσου ξανά με `%login`.",
     "REFRESH_BUTTON": "Ανανέωση",
-    "ENEMY_TEAM_DIVIDER": "── Εχθρική Ομάδα ──",
     "QUEUING_TITLE": "🕒 Αναζήτηση Παιχνιδιού",
     "QUEUING_DESC": "Ψάχνω για παιχνίδι στο **{queueName}**...",
     "IDLE_PARTY_TITLE": "Αδρανής στην Ομάδα",

@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Трябва Идентификация",
     "LOGIN_REQUIRED_DESC": "Не-валидна Riot-Настройка! Еди се `/login`",
     "REFRESH_BUTTON": "Провери Инфо",
-    "ENEMY_TEAM_DIVIDER": "── Опонентска Стена ──",
     "QUEUING_TITLE": "🕒 Докато чака Игра",
     "QUEUING_DESC": "Вече подготвен за :  **{queueName}**...",
     "IDLE_PARTY_TITLE": "Без Избрана Цел",

@@ -224,7 +224,6 @@
                      "LOGIN_REQUIRED_TITLE":  "로그인 필요",
                      "LOGIN_REQUIRED_DESC":  "발로란트 계정을 확인할 수 없습니다. `/login` 명령어로 다시 로그인하세요.",
                      "REFRESH_BUTTON":  "새로고침",
-                     "ENEMY_TEAM_DIVIDER":  "── 적 팀 ──",
                      "QUEUING_TITLE":  "🕒 대기열 돌리는 중",
                      "QUEUING_DESC":  "**{queueName}** 매칭을 찾는 중입니다...",
                      "IDLE_PARTY_TITLE":  "파티 대기 중",

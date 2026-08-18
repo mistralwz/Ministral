@@ -224,7 +224,6 @@
     "LOGIN_REQUIRED_TITLE": "Vyžadováno Přihlášení",
     "LOGIN_REQUIRED_DESC": "Nepodařilo se ověřit tvůj účet ve VALORANTU. Prosím, přihlas se znovu s `/login`.",
     "REFRESH_BUTTON": "Obnovit",
-    "ENEMY_TEAM_DIVIDER": "── Nepřátelský Tým ──",
     "QUEUING_TITLE": "🕒 Vyhledávání Zápasu",
     "QUEUING_DESC": "Hledání zápasu v **{queueName}**...",
     "IDLE_PARTY_TITLE": "Nečinný ve Skupině",

@@ -211,7 +211,6 @@
     "LOGIN_REQUIRED_TITLE": "Cần đăng nhập",
     "LOGIN_REQUIRED_DESC": "Không thể xác minh tài khoản VALORANT của bạn. Vui lòng đăng nhập lại với `/login`.",
     "REFRESH_BUTTON": "Làm mới",
-    "ENEMY_TEAM_DIVIDER": "── Đội địch ──",
     "QUEUING_TITLE": "🕒 Đang trong hàng chờ",
     "QUEUING_DESC": "Đang tìm trận đấu trong chế độ **{queueName}**...",
     "SELECT_AGENT_PLACEHOLDER": "Chọn Đặc vụ để Khóa lại",
