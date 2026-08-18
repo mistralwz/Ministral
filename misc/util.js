@@ -123,10 +123,10 @@ export const WeaponType = Object.fromEntries(Object.entries(WeaponTypeUuid).map(
 export const itemTypes = {
     SKIN: "e7c63390-eda7-46e0-bb7a-a6abdacd2433",
     BUDDY: "dd3bf334-87f3-40bd-b043-682a57a8dc3a",
-    SPRAY: "d5f120f8-ff8c-4aac-92ea-f2b5acbe9479",
-    CARD: "3f296c07-64c3-494c-923b-fe692a4e1022",
-    TITLE: "de7cf6a8-4c15-49dda24d-4d033b03baf8",
-    FLEX: "5f8a0026-4cec-1f06-8d82-388276f75608"
+    SPRAY: "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475",
+    CARD: "3f296c07-64c3-494c-923b-fe692a4fa1bd",
+    TITLE: "de7caa6b-adf7-4588-bbd1-143831e786c6",
+    FLEX: "03a572de-4234-31ed-d344-ababa488f981"
 };
 
 export const clientPlatformBase64 = "ewogICAgInBsYXRmb3JtVHlwZSI6ICJQQyIsCiAgICAicGxhdGZvcm1PUyI6ICJXaW5kb3dzIiwKICAgICJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwKICAgICJwbGF0Zm9ybUNoaXBzZXQiOiAiVW5rbm93biIKfQ==";
