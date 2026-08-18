@@ -831,13 +831,24 @@ const inferBundleItems = (bundle) => {
         return false;
     };
 
+    const TIER_GUN_PRICES = {
+        "12683d76-48d7-84a3-4e09-6985794f0445": 875,  // Select
+        "0cebb8be-46d7-c12a-d306-e9907bfc5a25": 1275, // Deluxe
+        "60bca009-4182-7998-dee7-b8a2558dc369": 1775, // Premium
+        "e046854e-406c-37f4-6607-19a9ba8426fc": 2175, // Exclusive
+        "411e4a55-4e59-7757-41f0-86a53f101bb5": 2475  // Ultra
+    };
+
     const items = [];
     if (skins) {
         for (const s of Object.values(skins)) {
             if (typeof s !== "object" || !s.names) continue;
             if (matchesItem(s)) {
                 const lvlUuid = s.levels?.[0]?.uuid || s.uuid;
-                const price = prices?.[lvlUuid] || s.price || null;
+                const isMelee = s.weapon === "2f59173c-4bed-b6c3-2191-dea9b58be9c7";
+                const tierPrice = TIER_GUN_PRICES[s.rarity];
+                const defaultPrice = isMelee ? (tierPrice ? (tierPrice > 2175 ? 4950 : tierPrice * 2) : 3550) : tierPrice;
+                const price = prices?.[lvlUuid] || s.price || defaultPrice || null;
                 items.push({ uuid: lvlUuid, type: itemTypes.SKIN, price, basePrice: price, discount: 0, amount: 1 });
             }
         }
@@ -868,7 +879,8 @@ const inferBundleItems = (bundle) => {
     }
     if (items.length) {
         bundle.items = items;
-        if (!bundle.price) bundle.price = items.reduce((acc, i) => acc + (i.price || 0), 0) || null;
+        const gunItems = items.filter(i => i.type === itemTypes.SKIN && skins[i.uuid]?.weapon !== "2f59173c-4bed-b6c3-2191-dea9b58be9c7");
+        if (!bundle.price) bundle.price = (gunItems.length ? gunItems : items).reduce((acc, i) => acc + (i.price || 0), 0) || null;
     }
     return bundle;
 };
