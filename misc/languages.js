@@ -158,9 +158,30 @@ export const loadLanguages = () => {
 
 loadLanguages();
 
-export const hideUsername = (username, hide = true) => {
-    if (!hide || !username) return username;
-    return username.replace(/#.*$/, "");
+export const hideUsername = (argsOrUsername, interactionOrId = null, hideName = true) => {
+    if (typeof interactionOrId === "boolean") {
+        hideName = interactionOrId;
+        interactionOrId = null;
+    }
+
+    if (typeof argsOrUsername === "string") {
+        if (!hideName || !argsOrUsername) return argsOrUsername;
+        return argsOrUsername.replace(/#.*$/, "");
+    }
+
+    if (argsOrUsername && typeof argsOrUsername === "object") {
+        if (!argsOrUsername.u) return { ...argsOrUsername, u: s(interactionOrId).info?.NO_USERNAME || "Unknown" };
+        if (!interactionOrId) return argsOrUsername;
+
+        const id = typeof interactionOrId === "string" ? interactionOrId : (interactionOrId.user?.id || interactionOrId.id);
+        const hide = hideName ? getUserSetting(id, "hideIgn", false) : false;
+        if (!hide) return argsOrUsername;
+
+        const hiddenLabel = s(interactionOrId).info?.HIDDEN_USERNAME || "Hidden";
+        return { ...argsOrUsername, u: `||*${hiddenLabel}*||` };
+    }
+
+    return argsOrUsername;
 };
 
 const getUserSetting = (userId, key, defaultValue = null) => {
