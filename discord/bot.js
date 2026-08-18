@@ -833,7 +833,8 @@ client.on("messageCreate", async (message) => {
 
 
             git.on('close', async (code) => {
-                await message.reply('```\n' + stdout + '\n```');
+                const trimmedOutput = stdout.length > 1950 ? `...${stdout.slice(-1940)}` : stdout;
+                await message.reply('```\n' + (trimmedOutput || "(no output)") + '\n```');
 
                 if (code !== 0) {
                     localError(`git pull failed with exit code ${code}!`);

@@ -398,7 +398,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             fields: hasParty ? await buildPlayerFields(allyPlayers, channel, true, (s(userId).livegame?.PARTY_MEMBERS || "Party Members"), true) : undefined,
         };
 
-        let components = [liveGameRefreshRow(userId, liveGameData.inviteCode, true)];
+        let components = [liveGameRefreshRow(userId, liveGameData.inviteCode, hasParty)];
 
         // UI Controls for party leader
         if (hasParty && liveGameData.matchId) {
