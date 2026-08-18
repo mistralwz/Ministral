@@ -1,15 +1,50 @@
 import Database from "better-sqlite3";
 import { localLog, localError } from "./logger.js";
 
-let db = null;
+/**
+ * @typedef {Object} AuthTokens
+ * @property {string} [rso]
+ * @property {string} [ent]
+ * @property {string} [idt]
+ * @property {string} [refresh_token]
+ * @property {number} [refresh_token_obtained]
+ * @property {string} [cookies]
+ */
 
-// Pre-prepared statements (initialized once, reused for all queries)
+/**
+ * @typedef {Object} AlertItem
+ * @property {string} uuid
+ * @property {string} channel_id
+ */
+
+/**
+ * @typedef {Object} AccountData
+ * @property {string} id Discord User ID
+ * @property {string} puuid Riot PUUID
+ * @property {string} username Riot name#tag
+ * @property {string} [region]
+ * @property {AuthTokens} auth
+ * @property {AlertItem[]} alerts
+ * @property {number} [authFailures]
+ * @property {number} [lastFetchedData]
+ * @property {string} [lastNoticeSeen]
+ * @property {number} [lastSawEasterEgg]
+ */
+
+/**
+ * @typedef {Object} UserData
+ * @property {string} id
+ * @property {AccountData[]} accounts
+ * @property {number} currentAccount
+ * @property {Record<string, any>} settings
+ */
+
+let db = null;
 let stmts = {};
 let saveUserToDbInTransaction = null;
 
-// Batch write state: accumulate user saves and flush in one transaction
 let batchMode = false;
-let batchQueue = new Map(); // userId -> user (last write wins per user)
+const batchQueue = new Map();
 
 const safeJsonParse = (value, fallback, context) => {
     try {
@@ -23,14 +58,11 @@ const safeJsonParse = (value, fallback, context) => {
 export const initUserDatabase = (dbPath = "data/users.db") => {
     try {
         db = new Database(dbPath);
-        db.pragma('journal_mode = WAL'); // Write-Ahead Logging for better concurrency
+        db.pragma('journal_mode = WAL');
         db.pragma('foreign_keys = ON');
 
-        // Create tables if they don't exist
         createTables();
-        // Prepare all statements once
         prepareStatements();
-        // Precompile reusable write transaction (avoids allocating a new wrapper on each save)
         saveUserToDbInTransaction = db.transaction(saveUserToDbTransaction);
         localLog(`User database initialized at ${dbPath}`);
         return true;
@@ -41,7 +73,6 @@ export const initUserDatabase = (dbPath = "data/users.db") => {
 };
 
 const createTables = () => {
-    // Users table (one per Discord user)
     db.exec(`
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
@@ -52,7 +83,6 @@ const createTables = () => {
         )
     `);
 
-    // Accounts table (multiple per user)
     db.exec(`
         CREATE TABLE IF NOT EXISTS accounts (
             puuid TEXT PRIMARY KEY,
@@ -71,7 +101,6 @@ const createTables = () => {
         )
     `);
 
-    // Create index for faster lookups
     db.exec(`CREATE INDEX IF NOT EXISTS idx_accounts_userId ON accounts(userId)`);
 };
 
@@ -86,27 +115,22 @@ const prepareStatements = () => {
         getAccountByPuuid: db.prepare(`SELECT * FROM accounts WHERE puuid = ?`),
         getAllUserIds: db.prepare(`SELECT id FROM users`),
         deleteAccount: db.prepare(`DELETE FROM accounts WHERE puuid = ?`),
-        updateAccountAuth: db.prepare(`UPDATE accounts SET auth = ?, updatedAt = ? WHERE puuid = ?`),
-        countUsers: db.prepare(`SELECT COUNT(*) as count FROM users`),
-        getAccountsByUserId: db.prepare(`SELECT * FROM accounts WHERE userId = ?`),
-        // Targeted single-account update (avoids rewriting all accounts)
         updateSingleAccount: db.prepare(`UPDATE accounts SET username = ?, region = ?, auth = ?, alerts = ?, authFailures = ?, lastFetchedData = ?, lastNoticeSeen = ?, lastSawEasterEgg = ?, updatedAt = ? WHERE puuid = ?`),
-        // Only users that have at least one account with alerts, or a dailyShop setting
         getUserIdsWithAlertsOrDailyShop: db.prepare(`SELECT DISTINCT u.id FROM users u LEFT JOIN accounts a ON a.userId = u.id WHERE (a.alerts IS NOT NULL AND a.alerts != '[]') OR (u.settings LIKE '%"dailyShop"%')`),
-
     };
 };
 
-// ==================== USER OPERATIONS ====================
-
+/**
+ * @param {string} id
+ * @returns {UserData|null}
+ */
 export const getUserFromDb = (id) => {
+    if (!db || !stmts?.getUser) return null;
     const userRow = stmts.getUser.get(id);
     if (!userRow) return null;
 
-    // Get all accounts for this user
-    const accountRows = stmts.getAccounts.all(id);
+    const accountRows = stmts.getAccounts ? stmts.getAccounts.all(id) : [];
 
-    // Reconstruct the user object
     return {
         id: userRow.id,
         accounts: accountRows.map(row => ({
@@ -126,11 +150,9 @@ export const getUserFromDb = (id) => {
     };
 };
 
-// Wrap saveUserToDb in an explicit transaction so all account upserts share a single fsync
 const saveUserToDbTransaction = (user) => {
     const now = Date.now();
 
-    // Save/update user
     stmts.upsertUser.run(
         user.id,
         user.currentAccount || 1,
@@ -139,7 +161,6 @@ const saveUserToDbTransaction = (user) => {
         now
     );
 
-    // Save/update each account
     for (const account of user.accounts || []) {
         stmts.upsertAccount.run(
             account.puuid,
@@ -160,12 +181,9 @@ const saveUserToDbTransaction = (user) => {
 
 export const saveUserToDb = (user) => {
     if (batchMode) {
-        // Buffer the write; last mutation wins if the same user is saved twice
         batchQueue.set(user.id, user);
         return;
     }
-    // If already inside a transaction (e.g. runUserDbTransaction), just run directly.
-    // Otherwise wrap in a transaction so multiple account upserts share one fsync.
     if (db.inTransaction) {
         saveUserToDbTransaction(user);
     } else {
@@ -173,19 +191,11 @@ export const saveUserToDb = (user) => {
     }
 };
 
-/**
- * Begin accumulating saveUserToDb calls into a buffer.
- * Call commitBatchWrites() to flush them all in a single transaction.
- */
 export const beginBatchWrites = () => {
     batchMode = true;
     batchQueue.clear();
 };
 
-/**
- * Flush all buffered user saves in a single SQLite transaction, then exit batch mode.
- * Safe to call even if beginBatchWrites was not called (no-op).
- */
 export const commitBatchWrites = () => {
     if (!batchMode) return;
     batchMode = false;
@@ -207,7 +217,6 @@ export const commitBatchWrites = () => {
 };
 
 export const deleteUserFromDb = (id) => {
-    // Also delete associated accounts atomically
     const transaction = db.transaction(() => {
         stmts.deleteUserAccounts.run(id);
         stmts.deleteUser.run(id);
@@ -215,11 +224,8 @@ export const deleteUserFromDb = (id) => {
     transaction();
 };
 
-// ==================== ACCOUNT OPERATIONS ====================
-
 export const getAccountByPuuid = (puuid) => {
     const row = stmts.getAccountByPuuid.get(puuid);
-
     if (!row) return null;
 
     return {
@@ -240,10 +246,6 @@ export const getAllUserIds = () => {
     return stmts.getAllUserIds.all().map(row => row.id);
 };
 
-/**
- * Returns only user IDs that have at least one account with non-empty alerts,
- * or a dailyShop setting configured. Skips completely inactive users.
- */
 export const getUserIdsWithAlertsOrDailyShop = () => {
     return stmts.getUserIdsWithAlertsOrDailyShop.all().map(row => row.id);
 };
@@ -252,11 +254,6 @@ export const deleteAccountFromDb = (puuid) => {
     stmts.deleteAccount.run(puuid);
 };
 
-/**
- * Update a single account in the DB without reading/rewriting the entire user.
- * The account must already exist (identified by puuid).
- * Returns true if the row was updated, false if puuid was not found.
- */
 export const updateSingleAccountInDb = (account) => {
     const result = stmts.updateSingleAccount.run(
         account.username || "",
@@ -273,76 +270,15 @@ export const updateSingleAccountInDb = (account) => {
     return result.changes > 0;
 };
 
-export const updateAccountAuthFromDb = (puuid, auth) => {
-    stmts.updateAccountAuth.run(JSON.stringify(auth), Date.now(), puuid);
-};
-
-// ==================== QUERY OPERATIONS ====================
-
-export const countAllUsers = () => {
-    return stmts.countUsers.get().count;
-};
-
-export const getUsersByUserId = (userId) => {
-    const rows = stmts.getAccountsByUserId.all(userId);
-
-    return rows.map(row => ({
-        puuid: row.puuid,
-        username: row.username,
-        region: row.region,
-        auth: safeJsonParse(row.auth, {}, "account.auth"),
-        alerts: row.alerts ? safeJsonParse(row.alerts, [], "account.alerts") : [],
-        authFailures: row.authFailures,
-        lastFetchedData: row.lastFetchedData,
-        lastNoticeSeen: row.lastNoticeSeen,
-        lastSawEasterEgg: row.lastSawEasterEgg
-    }));
-};
-
-// ==================== TRANSACTION HELPERS ====================
-
-export const transactionUpdateUser = (userId, updateFn) => {
-    const transaction = db.transaction(() => {
-        const user = getUserFromDb(userId);
-        if (!user) return null;
-
-        const updated = updateFn(user);
-        if (updated) {
-            saveUserToDb(updated);
-        }
-        return updated;
-    });
-
-    return transaction();
-};
-
 export const runUserDbTransaction = (fn) => {
     const transaction = db.transaction(fn);
     return transaction();
 };
 
-// ==================== MAINTENANCE ====================
-
 export const closeUserDatabase = () => {
     if (db) {
         db.close();
         db = null;
+        stmts = {};
     }
-};
-
-export const backupUserDatabase = async (backupPath = "data/users.db.backup") => {
-    if (!db) return false;
-
-    try {
-        await db.backup(backupPath);
-        localLog(`User database backed up to ${backupPath}`);
-        return true;
-    } catch (e) {
-        localError("Failed to backup user database:", e);
-        return false;
-    }
-};
-
-export const isUserDatabaseReady = () => {
-    return db !== null;
 };

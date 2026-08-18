@@ -7,25 +7,225 @@ import {
     getSpray,
     getTitle,
     getFlex,
-    getWeapon
+    getWeapon,
+    getRarity
 } from "../valorant/cache.js";
 import {
-    skinNameAndEmoji,
     itemTypes,
-    removeAlertActionRow,
-    removeAlertButton,
-    fetchChannel, isDefaultSkin, WeaponTypeUuid
+    isDefaultSkin,
+    isToday,
+    WeaponTypeUuid
 } from "../misc/util.js";
 import config from "../misc/config.js";
-import { DEFAULT_VALORANT_LANG, discToValLang, l, s, hideUsername } from "../misc/languages.js";
+import { DEFAULT_LANG, DEFAULT_VALORANT_LANG, discToValLang, l, s, hideUsername } from "../misc/languages.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, escapeMarkdown, EmbedBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, PermissionsBitField } from "discord.js";
 import { getStatsFor } from "../misc/stats.js";
 import { getUser } from "../valorant/auth.js";
 import { readUserJson, saveUser } from "../valorant/accountSwitcher.js";
-import { getSetting, humanifyValue, settingIsVisible, settingName } from "../misc/settings.js";
-import { VPEmoji } from "./emoji.js";
-import { getNextNightMarketTimestamp } from "../valorant/shop.js";
-import { isThereANM } from "../valorant/shopManager.js";
+import { getSetting, humanifyValue, settingIsVisible, settingName, settings, setSetting } from "../misc/settings.js";
+import { VPEmoji, KCEmoji, rarityEmoji } from "./emoji.js";
+import { getOffers, getBundles, getNightMarket, getNextNightMarketTimestamp, NMTimestamp } from "../valorant/shop.js";
+import { getBattlepassProgress } from "../valorant/battlepass.js";
+import { getLoadout, getSkins } from "../valorant/inventory.js";
+
+let embedClient = null;
+export const setEmbedClient = (client) => {
+    embedClient = client;
+};
+const getClient = (interaction = null) => interaction?.client || embedClient;
+
+const channelGuildCache = new Map();
+const CHANNEL_GUILD_CACHE_TTL_MS = 10 * 60 * 1000;
+
+export const fetchChannel = async (channelId, interaction = null) => {
+    try {
+        const client = getClient(interaction);
+        if (!client) return null;
+        return await client.channels.fetch(channelId);
+    } catch {
+        return null;
+    }
+};
+
+export const getChannelGuildId = async (channelId, interaction = null) => {
+    const cached = channelGuildCache.get(channelId);
+    if (cached && Date.now() - cached.at < CHANNEL_GUILD_CACHE_TTL_MS) return cached.guildId;
+
+    const client = getClient(interaction);
+    if (!client?.shard) return null;
+
+    let guildId;
+    const f = c => {
+        const channel = c.channels.cache.get(channelId);
+        if (channel) return channel.guildId;
+    };
+    const results = await client.shard.broadcastEval(f);
+    guildId = results.find(result => result);
+
+    if (guildId) channelGuildCache.set(channelId, { guildId, at: Date.now() });
+    return guildId;
+};
+
+export const canSendMessages = (channel, interaction = null) => {
+    if (!channel || !channel.guild) return true;
+    const client = getClient(interaction);
+    const me = channel.guild.members.me || (client?.user ? channel.guild.members.cache.get(client.user.id) : null);
+    if (!me) return true;
+    const permissions = channel.permissionsFor(me);
+    return permissions.has(PermissionsBitField.Flags.ViewChannel) &&
+        permissions.has(PermissionsBitField.Flags.SendMessages) &&
+        permissions.has(PermissionsBitField.Flags.EmbedLinks);
+};
+
+export const canEditInteraction = (interaction) => Date.now() - interaction.createdTimestamp < 14.8 * 60 * 1000;
+
+export const discordTag = (id, interaction = null) => {
+    const client = getClient(interaction);
+    const user = client?.users?.cache?.get(id);
+    return user ? `${user.username}#${user.discriminator}` : id;
+};
+
+export const defer = async (interaction, ephemeral = false) => {
+    await interaction.deferReply({ flags: ephemeral ? [MessageFlags.Ephemeral] : [] });
+    interaction.deferred = true;
+};
+
+export const deferInteraction = async (interaction) => {
+    if (config.deferInteractions) await interaction.deferUpdate();
+};
+
+export const updateInteraction = async (interaction, data) => {
+    if (config.deferInteractions || interaction.deferred) await interaction.editReply(data);
+    else await interaction.update(data);
+};
+
+export const skinNameAndEmoji = async (skin, channel, localeOrInteraction = DEFAULT_LANG) => {
+    const name = l(skin.names, localeOrInteraction);
+    if (!skin.rarity) return name;
+
+    const rarity = await getRarity(skin.rarity, channel);
+    if (!rarity) return name;
+
+    const rarityIcon = await rarityEmoji(rarity.name, rarity.icon);
+    return rarityIcon ? `${rarityIcon} ${name}` : name;
+};
+
+export const actionRow = (button) => new ActionRowBuilder().addComponents(button);
+
+export const removeAlertButton = (id, uuid, buttonText) => new ButtonBuilder()
+    .setCustomId(`removealert/${uuid}/${id}/${Math.round(Math.random() * 100000)}`)
+    .setStyle(ButtonStyle.Danger)
+    .setLabel(buttonText)
+    .setEmoji("✖");
+
+export const removeAlertActionRow = (id, uuid, buttonText) => new ActionRowBuilder().addComponents(removeAlertButton(id, uuid, buttonText));
+
+export const isThereANM = () => {
+    return NMTimestamp ? isToday(NMTimestamp) : false;
+};
+
+export const fetchShop = async (interaction, user, targetId = interaction.user.id, accessory = null) => {
+    const channel = interaction.channel || await fetchChannel(interaction.channelId, interaction);
+    const emojiPromise = VPEmoji(interaction, channel);
+    const KCEmojiPromise = KCEmoji(interaction, channel);
+
+    let shop = await getOffers(targetId);
+    user = getUser(user);
+    if (accessory === "daily" || !accessory) {
+        return await renderOffers(shop, interaction, user, await emojiPromise, targetId);
+    } else {
+        return await renderAccessoryOffers(shop, interaction, user, await KCEmojiPromise, targetId);
+    }
+};
+
+export const fetchBundles = async (interaction) => {
+    const channel = interaction.channel || await fetchChannel(interaction.channelId, interaction);
+    const emojiPromise = VPEmoji(interaction, channel);
+
+    let bundles = await getBundles(interaction.user.id);
+    return await renderBundles(bundles, interaction, await emojiPromise);
+};
+
+export const fetchNightMarket = async (interaction, user) => {
+    const channel = interaction.channel || await fetchChannel(interaction.channelId, interaction);
+    const emojiPromise = VPEmoji(interaction, channel);
+
+    let market = await getNightMarket(interaction.user.id);
+    return await renderNightMarket(market, interaction, user, await emojiPromise);
+};
+
+export const renderBattlepassProgress = async (interaction, targetId = interaction.user.id) => {
+    const maxlevel = (interaction.options && interaction.options.getInteger("maxlevel")) || 50;
+    const battlepassProgress = await getBattlepassProgress(interaction, maxlevel, targetId);
+    return await renderBattlepass(battlepassProgress, maxlevel, interaction, targetId);
+};
+
+export const renderCollection = async (interaction, targetId = interaction.user.id, weaponName = null) => {
+    const user = getUser(targetId);
+    if (!user) return await interaction.reply({ embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED)] });
+
+    if (weaponName) return await renderCollectionOfWeapon(interaction, targetId, weaponName);
+
+    const loadout = await getLoadout(user);
+    if (!loadout.success) return errorFetchingCollection(loadout, interaction, targetId);
+
+    return await skinCollectionSingleEmbed(interaction, targetId, user, loadout);
+};
+
+const renderCollectionOfWeapon = async (interaction, targetId, weaponName) => {
+    const user = getUser(targetId);
+    const skins = await getSkins(user);
+    if (!skins.success) return errorFetchingCollection(skins, interaction, targetId);
+
+    return await collectionOfWeaponEmbed(interaction, targetId, user, WeaponTypeUuid[weaponName], skins.skins);
+};
+
+const errorFetchingCollection = (result, interaction, targetId) => {
+    if (!result.success) {
+        let errorText;
+        if (targetId && targetId !== interaction.user.id) errorText = s(interaction).error.AUTH_ERROR_COLLECTION_OTHER.f({ u: `<@${targetId}>` });
+        else errorText = s(interaction).error.AUTH_ERROR_COLLECTION;
+
+        return authFailureMessage(interaction, result, errorText);
+    }
+};
+
+export const handleSettingsViewCommand = async (interaction) => {
+    const { getSettings } = await import("../misc/settings.js");
+    const userSettings = getSettings(interaction.user.id);
+    await interaction.reply(settingsEmbed(userSettings, interaction));
+};
+
+export const handleSettingsSetCommand = async (interaction) => {
+    const setting = interaction.options.getString("setting");
+    const settingValues = settings[setting].values;
+    const choices = settings[setting].choices?.(interaction) || [];
+
+    const row = new ActionRowBuilder();
+    const options = settingValues.slice(0, 25).map(value => {
+        return {
+            label: humanifyValue(choices.shift() || value, setting, interaction),
+            value: `${setting}/${value}`
+        };
+    });
+
+    row.addComponents(new StringSelectMenuBuilder().setCustomId("set-setting").addOptions(options));
+
+    await interaction.reply({
+        embeds: [secondaryEmbed(s(interaction).settings.SET_QUESTION.f({ s: settingName(setting, interaction) }))],
+        components: [row]
+    });
+};
+
+export const handleSettingDropdown = async (interaction) => {
+    const [setting, value] = interaction.values[0].split('/');
+    const valueSet = await setSetting(interaction, setting, value, true);
+
+    await interaction.update({
+        embeds: [basicEmbed(s(interaction).settings.CONFIRMATION.f({ s: settingName(setting, interaction), v: humanifyValue(valueSet, setting, interaction) }))],
+        components: []
+    });
+};
 
 export const VAL_COLOR_1 = 0xFD4553;
 export const VAL_COLOR_2 = 0x202225;
@@ -865,21 +1065,21 @@ export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeU
 
     const weaponName = await getWeapon(weaponTypeUuid).then(weapon => l(weapon.names, interaction));
     const embeds = [basicEmbed(s(interaction).info.COLLECTION_WEAPON_HEADER.f({ u: usernameText, w: weaponName, p: pageIndex + 1, t: maxPages }, id))];
-    const skinEmbed = async (skin) => ({
+    const renderWeaponSkinCard = async (skin) => ({
         title: await skinNameAndEmoji(skin, interaction.channel, interaction),
         description: `${emoji} ${skin.price || 'N/A'}`,
         color: VAL_COLOR_2,
         thumbnail: {
             url: skin.icon
         }
-    })
+    });
     if (filteredSkins.length === 0) {
         const weapon = await getWeapon(weaponTypeUuid);
         const skin = await getSkinFromSkinUuid(weapon.defaultSkinUuid);
-        embeds.push(await skinEmbed(skin));
+        embeds.push(await renderWeaponSkinCard(skin));
     }
     else for (const skin of filteredSkins.slice(pageIndex * embedsPerPage, (pageIndex + 1) * embedsPerPage)) {
-        embeds.push(await skinEmbed(skin));
+        embeds.push(await renderWeaponSkinCard(skin));
     }
 
     const weaponTypeIndex = Object.values(WeaponTypeUuid).indexOf(weaponTypeUuid);

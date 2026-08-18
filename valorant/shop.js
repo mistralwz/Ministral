@@ -1,20 +1,61 @@
-import { authUser, deleteUserAuth, getUser } from "./auth.js";
+import { authUser, deleteUserAuth, getUser, getPuuid } from "./auth.js";
 import {
-    discordTag,
     fetch,
-    formatBundle,
-    formatNightMarket,
-    getPuuid,
-    isMaintenance, isSameDay,
+    isMaintenance,
+    isSameDay,
     userRegion,
     riotClientHeaders,
 } from "../misc/util.js";
-import { addBundleData, getSkin, getSkinFromSkinUuid, addPricesFromShop, getBundle } from "./cache.js";
+import { addBundleData, getSkin, getSkinFromSkinUuid, addPricesFromShop, getBundle, getItem } from "./cache.js";
 import { addStore } from "../misc/stats.js";
 import config from "../misc/config.js";
 import { deleteUser, saveUser } from "./accountSwitcher.js";
-// In-memory shop cache to avoid repeated fs.readFileSync on every cache check
+
 const memoryShopCache = new Map();
+
+export const formatBundle = async (rawBundle) => {
+    const bundle = {
+        uuid: rawBundle.DataAssetID,
+        expires: Math.floor(Date.now() / 1000) + rawBundle.DurationRemainingInSeconds,
+        items: []
+    };
+
+    let price = 0;
+    let basePrice = 0;
+    for (const rawItem of rawBundle.Items) {
+        const item = {
+            uuid: rawItem.Item.ItemID,
+            type: rawItem.Item.ItemTypeID,
+            item: await getItem(rawItem.Item.ItemID, rawItem.Item.ItemTypeID),
+            amount: rawItem.Item.Amount,
+            price: rawItem.DiscountedPrice,
+            basePrice: rawItem.BasePrice,
+            discount: rawItem.DiscountPercent
+        };
+
+        price += item.price;
+        basePrice += item.basePrice;
+        bundle.items.push(item);
+    }
+
+    bundle.price = price;
+    bundle.basePrice = basePrice;
+    return bundle;
+};
+
+export const formatNightMarket = (rawNightMarket) => {
+    if (!rawNightMarket) return null;
+
+    return {
+        offers: rawNightMarket.BonusStoreOffers.map(offer => ({
+            uuid: offer.Offer.OfferID,
+            realPrice: offer.Offer.Cost["85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741"],
+            nmPrice: offer.DiscountCosts["85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741"],
+            percent: offer.DiscountPercent
+        })),
+        expires: Math.floor(Date.now() / 1000) + rawNightMarket.BonusStoreRemainingDurationInSeconds
+    };
+};
 
 export const getShop = async (id, account = null) => {
     const authSuccess = await authUser(id, account);
@@ -23,7 +64,6 @@ export const getShop = async (id, account = null) => {
     const user = getUser(id, account);
     if (config.logUrls) console.log(`Fetching shop for ${user.username}...`);
 
-    // https://github.com/techchrism/valorant-api-docs/blob/trunk/docs/Store/GET%20Store_GetStorefrontV2.md
     const req = await fetch(`https://pd.${userRegion(user)}.a.pvp.net/store/v3/storefront/${user.puuid}`, {
         method: "POST",
         headers: {
@@ -33,7 +73,6 @@ export const getShop = async (id, account = null) => {
         },
         body: JSON.stringify({})
     });
-    console.assert(req.statusCode === 200, `Valorant skins offers code is ${req.statusCode}!`, req);
 
     const json = JSON.parse(req.body);
     if (req.statusCode !== 200) {
@@ -44,29 +83,22 @@ export const getShop = async (id, account = null) => {
         return { success: false, networkError: true };
     }
 
-    // shop stats tracking
     try {
         await addStore(user.puuid, json.SkinsPanelLayout.SingleItemOffers);
     } catch (e) {
-        console.error("Error adding shop stats!");
-        console.error(e);
-        console.error(json);
+        console.error("Error adding shop stats:", e);
     }
 
-    // add to shop cache
     addShopCache(user.puuid, json);
-
-    // collect prices from shop data (gradual price building)
     addPricesFromShop(json);
 
-    // save bundle data & prices
     Promise.all(json.FeaturedBundle.Bundles.map(rawBundle => formatBundle(rawBundle))).then(async bundles => {
         for (const bundle of bundles)
             await addBundleData(bundle);
     }).catch(e => console.error("Error processing shop bundles:", e?.message || e));
 
     return { success: true, shop: json };
-}
+};
 
 export const getOffers = async (id, account = null) => {
     const puuid = getPuuid(id, account);
@@ -83,17 +115,15 @@ export const getOffers = async (id, account = null) => {
         offers: resp.shop.SkinsPanelLayout.SingleItemOffers,
         expires: Math.floor(Date.now() / 1000) + resp.shop.SkinsPanelLayout.SingleItemOffersRemainingDurationInSeconds,
         accessory: {
-            offers: ((resp.shop.AccessoryStore && resp.shop.AccessoryStore.AccessoryStoreOffers) || []).map(rawAccessory => {
-                return {
-                    cost: rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"],
-                    rewards: rawAccessory.Offer.Rewards,
-                    contractID: rawAccessory.ContractID
-                }
-            }),
+            offers: ((resp.shop.AccessoryStore && resp.shop.AccessoryStore.AccessoryStoreOffers) || []).map(rawAccessory => ({
+                cost: rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"],
+                rewards: rawAccessory.Offer.Rewards,
+                contractID: rawAccessory.ContractID
+            })),
             expires: Math.floor(Date.now() / 1000) + (resp.shop.AccessoryStore ? resp.shop.AccessoryStore.AccessoryStoreRemainingDurationInSeconds : 0)
         }
     });
-}
+};
 
 export const getBundles = async (id, account = null) => {
     const puuid = getPuuid(id, account);
@@ -116,9 +146,8 @@ export const getBundles = async (id, account = null) => {
     if (!resp.success) return resp;
 
     const formatted = await Promise.all(resp.shop.FeaturedBundle.Bundles.map(rawBundle => formatBundle(rawBundle)));
-
     return { success: true, bundles: formatted };
-}
+};
 
 export const getNightMarket = async (id, account = null) => {
     const puuid = getPuuid(id, account);
@@ -133,10 +162,10 @@ export const getNightMarket = async (id, account = null) => {
     if (!resp.shop.BonusStore) return {
         success: true,
         offers: false
-    }
+    };
 
     return { success: true, ...formatNightMarket(resp.shop.BonusStore) };
-}
+};
 
 export const getBalance = async (id, account = null) => {
     const authSuccess = await authUser(id, account);
@@ -145,7 +174,6 @@ export const getBalance = async (id, account = null) => {
     const user = getUser(id, account);
     console.log(`Fetching balance for ${user.username}...`);
 
-    // https://github.com/techchrism/valorant-api-docs/blob/trunk/docs/Store/GET%20Store_GetWallet.md
     const req = await fetch(`https://pd.${userRegion(user)}.a.pvp.net/store/v1/wallet/${user.puuid}`, {
         headers: {
             "Authorization": "Bearer " + user.auth.rso,
@@ -153,7 +181,6 @@ export const getBalance = async (id, account = null) => {
             ...riotClientHeaders(),
         }
     });
-    console.assert(req.statusCode === 200, `Valorant balance code is ${req.statusCode}!`, req);
 
     const json = JSON.parse(req.body);
     if (req.statusCode !== 200) {
@@ -170,80 +197,42 @@ export const getBalance = async (id, account = null) => {
         rad: json.Balances["e59aa87c-4cbf-517a-5983-6e81511be9b7"],
         kc: json.Balances["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"]
     };
-}
+};
 
 let nextNMTimestamp = null, nextNMTimestampUpdated = 0;
 export const getNextNightMarketTimestamp = async () => {
-    // only fetch every 5 minutes
     if (nextNMTimestampUpdated > Date.now() - 5 * 60 * 1000) return nextNMTimestamp;
 
-    // thx Mistral for maintaining this!
-    const req = await fetch("https://gist.githubusercontent.com/mistralwz/17bb10db4bb77df5530024bcb0385042/raw/nmdate.txt");
-
-    const [timestamp] = req.body.split("\n");
-    nextNMTimestamp = parseInt(timestamp);
-    if (isNaN(nextNMTimestamp) || nextNMTimestamp < Date.now() / 1000) nextNMTimestamp = null;
-
-    nextNMTimestampUpdated = Date.now();
+    try {
+        const req = await fetch("https://gist.githubusercontent.com/mistralwz/17bb10db4bb77df5530024bcb0385042/raw/nmdate.txt");
+        const [timestamp] = req.body.split("\n");
+        nextNMTimestamp = parseInt(timestamp, 10);
+        if (isNaN(nextNMTimestamp) || nextNMTimestamp < Date.now() / 1000) nextNMTimestamp = null;
+        nextNMTimestampUpdated = Date.now();
+    } catch (e) {
+        console.error("Failed to fetch next night market timestamp:", e);
+    }
     return nextNMTimestamp;
-}
+};
 
 export let NMTimestamp = null;
-/** Shop cache format:
- * {
- *     offers: {
- *         offers: [...],
- *         expires: timestamp,
- *         accessory: {
- *              offers: [{
- *                  "cost": 4000,
- *                  "rewards": [{
- *                      "ItemTypeID": uuid,
- *                      "ItemID": uuid,
- *                      "Quantity": number
- *                      }],
- *                  "contractID": uuid
- *                  },...],
- *              expires: timestamp
- *          }
- *     },
- *     bundles: [{
- *         uuid: uuid,
- *         expires: timestamp
- *     }, {...}],
- *     night_market?: {
- *         offers: [{
- *             uuid: uuid,
- *             realPrice: 5000,
- *             nmPrice: 1000,
- *             percent: 80
- *         }, {...}],
- *         expires: timestamp
- *     },
- *     timestamp: timestamp
- * }
- */
 
 export const getShopCache = async (puuid, target = "offers", print = true) => {
     if (!config.useShopCache) return null;
 
     try {
-        // L1: in-memory cache
         let shopCache = memoryShopCache.get(puuid);
 
         if (!shopCache) {
-            // L2: Redis cache (cross-shard)
             const { getShopData } = await import("../misc/redisQueue.js");
             const redisCache = await getShopData(puuid);
             if (redisCache) {
-                memoryShopCache.set(puuid, redisCache); // warm L1
+                memoryShopCache.set(puuid, redisCache);
                 shopCache = redisCache;
             }
         }
 
-        if (!shopCache) {
-            return null;
-        }
+        if (!shopCache) return null;
 
         let expiresTimestamp;
         if (target === "offers") expiresTimestamp = shopCache[target].expires;
@@ -253,18 +242,17 @@ export const getShopCache = async (puuid, target = "offers", print = true) => {
             const nmExpires = shopCache.night_market ? shopCache.night_market.expires : getMidnightTimestamp(shopCache.timestamp);
             expiresTimestamp = Math.min(shopCache.offers.expires, ...shopCache.bundles.map(bundle => bundle.expires), get9PMTimetstamp(Date.now()), nmExpires);
         }
-        else console.error("Invalid target for shop cache! " + target);
 
         if (Date.now() / 1000 > expiresTimestamp) {
-            memoryShopCache.delete(puuid); // expired, evict from memory
+            memoryShopCache.delete(puuid);
             return null;
         }
 
-        if (print) console.log(`Fetched shop cache for user ${discordTag(puuid)}`);
+        if (print) console.log(`Fetched shop cache for user ${puuid}`);
 
         if (!shopCache.offers.accessory) {
             memoryShopCache.delete(puuid);
-            return null; // If there are no accessories in the cache, it returns null so that the user's shop is checked again.
+            return null;
         }
 
         return shopCache;
@@ -272,7 +260,7 @@ export const getShopCache = async (puuid, target = "offers", print = true) => {
         console.error(`Failed to get shop cache for ${puuid}:`, e);
     }
     return null;
-}
+};
 
 const addShopCache = async (puuid, shopJson) => {
     if (!config.useShopCache) return;
@@ -283,39 +271,32 @@ const addShopCache = async (puuid, shopJson) => {
             offers: shopJson.SkinsPanelLayout ? shopJson.SkinsPanelLayout.SingleItemOffers : [],
             expires: Math.floor(now / 1000) + (shopJson.SkinsPanelLayout ? shopJson.SkinsPanelLayout.SingleItemOffersRemainingDurationInSeconds : 0),
             accessory: {
-                offers: ((shopJson.AccessoryStore && shopJson.AccessoryStore.AccessoryStoreOffers) || []).map(rawAccessory => {
-                    return {
-                        cost: rawAccessory.Offer?.Cost ? rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"] : 0,
-                        rewards: rawAccessory.Offer?.Rewards || [],
-                        contractID: rawAccessory.ContractID
-                    }
-                }),
+                offers: ((shopJson.AccessoryStore && shopJson.AccessoryStore.AccessoryStoreOffers) || []).map(rawAccessory => ({
+                    cost: rawAccessory.Offer?.Cost ? rawAccessory.Offer.Cost["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"] : 0,
+                    rewards: rawAccessory.Offer?.Rewards || [],
+                    contractID: rawAccessory.ContractID
+                })),
                 expires: Math.floor(now / 1000) + (shopJson.AccessoryStore ? shopJson.AccessoryStore.AccessoryStoreRemainingDurationInSeconds : 0)
             }
         },
-        bundles: (shopJson.FeaturedBundle?.Bundles || []).map(rawBundle => {
-            return {
-                uuid: rawBundle.DataAssetID,
-                expires: Math.floor(now / 1000) + rawBundle.DurationRemainingInSeconds,
-            }
-        }),
+        bundles: (shopJson.FeaturedBundle?.Bundles || []).map(rawBundle => ({
+            uuid: rawBundle.DataAssetID,
+            expires: Math.floor(now / 1000) + rawBundle.DurationRemainingInSeconds,
+        })),
         night_market: formatNightMarket(shopJson.BonusStore),
         timestamp: now
-    }
+    };
 
-    if (shopJson.BonusStore) NMTimestamp = now
+    if (shopJson.BonusStore) NMTimestamp = now;
 
-    // L1: in-memory
     memoryShopCache.set(puuid, shopCache);
 
-    // L2: Redis (primary, cross-shard)
     const { setShopData } = await import("../misc/redisQueue.js");
     setShopData(puuid, shopCache).catch(e => console.error(`Failed to write shop to Redis for ${puuid}:`, e.message));
 
-    console.log(`Added shop cache for user ${discordTag(puuid)}`);
-}
+    console.log(`Added shop cache for user ${puuid}`);
+};
 
-// Clear all in-memory shop caches and Redis shop snapshots (e.g., on !config clearcache)
 export const clearShopMemoryCache = async () => {
     const memoryEntries = memoryShopCache.size;
     memoryShopCache.clear();
@@ -327,21 +308,19 @@ export const clearShopMemoryCache = async () => {
     } catch (e) {
         console.error("Failed to clear Redis shop cache:", e?.message || e);
     }
-}
+};
 
 const getMidnightTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999) / 1000;
-}
+};
 
-const get9PMTimetstamp = (timestamp) => { // new bundles appear at 9PM UTC
+const get9PMTimetstamp = (timestamp) => {
     const date = new Date(timestamp);
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 20, 59, 59, 999) / 1000;
-}
-
+};
 
 const easterEggOffers = async (id, account, offers) => {
-    // shhh...
     try {
         const _offers = { ...offers, offers: [...offers.offers] };
         const user = getUser(id, account);
@@ -349,7 +328,6 @@ const easterEggOffers = async (id, account, offers) => {
         const sawEasterEgg = isSameDay(user.lastSawEasterEgg, Date.now());
         const isApril1st = new Date().getMonth() === 3 && new Date().getDate() === 1;
         if (isApril1st && !sawEasterEgg) {
-
             for (const [i, uuid] of Object.entries(_offers.offers)) {
                 const skin = await getSkin(uuid);
                 const defaultSkin = await getSkinFromSkinUuid(skin.defaultSkinUuid);
@@ -358,10 +336,10 @@ const easterEggOffers = async (id, account, offers) => {
 
             user.lastSawEasterEgg = Date.now();
             saveUser(user);
-            return _offers
+            return _offers;
         }
     } catch (e) {
-        console.error(e);
+        console.error("Easter egg error:", e);
     }
     return offers;
-}
+};

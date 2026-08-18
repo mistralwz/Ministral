@@ -1,19 +1,13 @@
 import {
     fetch,
-    extractTokensFromUri,
     tokenExpiry,
     decodeToken,
     wait
 } from "../misc/util.js";
 import config from "../misc/config.js";
-import { client } from "../discord/bot.js";
 import { addUser, getAccountWithPuuid, getUserJson, readUserJson, saveUser } from "./accountSwitcher.js";
-import { checkRateLimit, isRateLimited } from "../misc/rateLimit.js";
-import { waitForAuthQueueResponse } from "../discord/authManager.js";
 import { getAllUserIds, getUserIdsWithAlertsOrDailyShop } from "../misc/userDatabase.js";
 
-// Short-lived cache for getUser() lookups within a single tick/request cycle.
-// Call beginUserCacheScope() before a batch of operations, endUserCacheScope() after.
 let userCache = null;
 
 export const beginUserCacheScope = () => {
@@ -40,6 +34,8 @@ export class User {
 }
 
 export const getUser = (id, account = null) => {
+    if (!id) return null;
+
     if (id instanceof User) {
         const user = id;
         const userJson = readUserJson(user.id);
@@ -49,7 +45,6 @@ export const getUser = (id, account = null) => {
         return userData && new User(userData);
     }
 
-    // Check short-lived cache if a scope is active
     const cacheKey = `${id}:${account ?? ''}`;
     if (userCache) {
         const cached = userCache.get(cacheKey);
@@ -65,36 +60,33 @@ export const getUser = (id, account = null) => {
         if (userCache) userCache.set(cacheKey, null);
         return null;
     }
-}
+};
 
-/**
- * Invalidate a specific user in the cache (call after saveUser or auth changes).
- */
+export const getPuuid = (id, account = null) => {
+    const user = getUser(id, account);
+    return user ? user.puuid : null;
+};
+
 export const invalidateUserCache = (id) => {
     if (!userCache) return;
     for (const key of userCache.keys()) {
         if (key.startsWith(`${id}:`)) userCache.delete(key);
     }
-}
+};
 
 export const getUserList = () => {
     const userIds = getAllUserIds();
     if (config.logUrls) console.log(`[getUserList] Retrieved ${userIds.length} users from database`);
     return userIds;
-}
+};
 
-/**
- * Like getUserList(), but only returns users that have alerts or dailyShop configured.
- * Used by checkAlerts() to skip inactive users entirely.
- */
 export const getAlertUserList = () => {
     const userIds = getUserIdsWithAlertsOrDailyShop();
     if (config.logUrls) console.log(`[getAlertUserList] Retrieved ${userIds.length} active alert users from database`);
     return userIds;
-}
+};
 
 export const authUser = async (id, account = null) => {
-    // doesn't check if token is valid, only checks it hasn't expired
     const user = getUser(id, account);
     if (!user || !user.auth || !user.auth.rso) return { success: false };
 
@@ -102,18 +94,14 @@ export const authUser = async (id, account = null) => {
     const timeRemaining = rsoExpiry - Date.now();
     const minutesRemaining = Math.floor(timeRemaining / 60000);
 
-    // Check if auto-refresh is enabled
     if (!config.autoRefreshTokens) {
-        // No auto-refresh: only check if token is still valid (not expired)
         if (timeRemaining > 0) {
-            if (config.logUrls) console.log(`[authUser] Token valid for ${minutesRemaining} more minutes (auto-refresh disabled) (${user.username})`);
+            if (config.logUrls) console.log(`[authUser] Token valid for ${minutesRemaining} more minutes (${user.username})`);
             return { success: true };
         }
-        if (config.logUrls) console.log(`[authUser] Token expired, cannot proceed (auto-refresh disabled) (${user.username})`);
         return { success: false };
     }
 
-    // Auto-refresh enabled: refresh if below buffer threshold
     const bufferMs = (config.tokenRefreshBufferMinutes || 5) * 60 * 1000;
     if (timeRemaining > bufferMs) {
         if (config.logUrls) console.log(`[authUser] Token valid for ${minutesRemaining} more minutes (${user.username})`);
@@ -122,9 +110,7 @@ export const authUser = async (id, account = null) => {
 
     if (config.logUrls) console.log(`[authUser] Token expires in ${minutesRemaining} minutes, refreshing now (${user.username})`);
     return await refreshToken(id, account);
-}
-
-
+};
 
 export const getUserInfo = async (user) => {
     const req = await fetch("https://auth.riotgames.com/userinfo", {
@@ -132,16 +118,21 @@ export const getUserInfo = async (user) => {
             'Authorization': "Bearer " + user.auth.rso
         }
     });
-    console.assert(req.statusCode === 200, `User info status code is ${req.statusCode}!`, req);
+
+    if (req.statusCode !== 200) {
+        console.error(`User info status code is ${req.statusCode}`);
+        return null;
+    }
 
     const json = JSON.parse(req.body);
     if (json.acct) return {
         puuid: json.sub,
         username: json.acct.game_name && json.acct.game_name + "#" + json.acct.tag_line
-    }
-}
+    };
+    return null;
+};
 
-const getEntitlements = async (user) => {
+export const fetchEntitlementsToken = async (user) => {
     const req = await fetch("https://entitlements.auth.riotgames.com/api/token/v1", {
         method: "POST",
         headers: {
@@ -149,11 +140,15 @@ const getEntitlements = async (user) => {
             'Authorization': "Bearer " + user.auth.rso
         }
     });
-    console.assert(req.statusCode === 200, `Auth status code is ${req.statusCode}!`, req);
+
+    if (req.statusCode !== 200) {
+        console.error(`Entitlements token status code is ${req.statusCode}`);
+        return null;
+    }
 
     const json = JSON.parse(req.body);
     return json.entitlements_token;
-}
+};
 
 export const getRegion = async (user) => {
     const req = await fetch("https://riot-geo.pas.si.riotgames.com/pas/v1/product/valorant", {
@@ -166,20 +161,23 @@ export const getRegion = async (user) => {
             'id_token': user.auth.idt,
         })
     });
-    console.assert(req.statusCode === 200, `PAS token status code is ${req.statusCode}!`, req);
+
+    if (req.statusCode !== 200) {
+        console.error(`PAS token status code is ${req.statusCode}`);
+        return null;
+    }
 
     const json = JSON.parse(req.body);
     return json.affinities.live;
-}
+};
 
 export const refreshToken = async (id, account = null) => {
-    if (config.logUrls) console.log(`Refreshing token for ${id}...`)
-    let response = { success: false }
+    if (config.logUrls) console.log(`Refreshing token for ${id}...`);
+    let response = { success: false };
 
     let user = getUser(id, account);
     if (!user) return response;
 
-    // 1. Try refresh_token first (from code flow / offline_access)
     if (user.auth.refresh_token) {
         if (config.logUrls) console.log(`[refreshToken] User has refresh_token, attempting refresh`);
         try {
@@ -188,14 +186,12 @@ export const refreshToken = async (id, account = null) => {
                 const tokenData = refreshRes.tokenData;
                 user.auth.rso = tokenData.access_token;
                 if (tokenData.id_token) user.auth.idt = tokenData.id_token;
-                // Riot may rotate refresh tokens — always store the latest one
                 if (tokenData.refresh_token) {
                     user.auth.refresh_token = tokenData.refresh_token;
                     user.auth.refresh_token_obtained = Date.now();
                 }
-                // Re-fetch entitlements with the new access token
                 try {
-                    user.auth.ent = await getEntitlements(user);
+                    user.auth.ent = await fetchEntitlementsToken(user);
                 } catch (e) {
                     console.error(`[refreshToken] Failed to re-fetch entitlements:`, e);
                 }
@@ -208,88 +204,36 @@ export const refreshToken = async (id, account = null) => {
                 if (config.logUrls) console.log(`[refreshToken] Refresh token success for ${user.username} — new token expires in ${expiresIn} minutes`);
                 return { success: true };
             } else if (refreshRes.invalidToken) {
-                if (config.logUrls) console.log(`[refreshToken] Refresh token invalid or revoked for ${user.username}`);
+                console.error(`[refreshToken] Refresh token is invalid/expired for ${user.username} (HTTP ${refreshRes.invalidToken ? 'invalid_grant' : 'error'})`);
                 deleteUserAuth(user);
                 return { success: false, authFailure: true };
-            } else {
-                if (config.logUrls) console.log(`[refreshToken] Refresh token failed due to network error for ${user.username}`);
-                return { success: false, networkError: true };
             }
         } catch (e) {
-            console.error(`[refreshToken] Unexpected error using refresh token for ${user.username}:`, e);
-            return { success: false, networkError: true };
+            console.error(`[refreshToken] Exception during refresh_token flow:`, e);
         }
     }
 
-    return response;
-}
-
-
-
-
-const getUserAgent = async () => {
-    // temporary bypass for Riot adding hCaptcha (see github issue #93)
-    return "ShooterGame/13 Windows/10.0.19043.1.256.64bit";
-}
-
-const detectCloudflareBlock = (req) => {
-    const blocked = req.statusCode === 403 && req.headers["x-frame-options"] === "SAMEORIGIN";
-
-    if (blocked) {
-        console.error("[ !!! ] Error 1020: Your bot might be rate limited, it's best to check if your IP address/your hosting service is blocked by Riot - try hosting on your own PC to see if it solves the issue?")
-    }
-
-    return blocked;
-}
+    deleteUserAuth(user);
+    return { success: false, authFailure: true };
+};
 
 export const deleteUserAuth = (user) => {
-    user.auth = null;
+    user.auth = {};
     saveUser(user);
-}
+    invalidateUserCache(user.id);
+};
 
-/**
- * Get token status information for a user
- * Returns: { hasToken, hasRefreshToken, expiresAt, expiresInMinutes, needsRefresh }
- */
-export const getTokenStatus = (id, account = null) => {
-    const user = getUser(id, account);
-    if (!user || !user.auth || !user.auth.rso) {
-        return { hasToken: false, hasRefreshToken: false };
+export const getUserAgent = async () => {
+    const { getRiotVersionData, fetchRiotVersionData } = await import("../misc/util.js");
+    let versionData = getRiotVersionData();
+    if (!versionData) {
+        versionData = await fetchRiotVersionData();
     }
-
-    const rsoExpiry = tokenExpiry(user.auth.rso);
-    const timeRemaining = rsoExpiry - Date.now();
-    const minutesRemaining = Math.floor(timeRemaining / 60000);
-    const expiresAt = new Date(rsoExpiry);
-    const needsRefresh = timeRemaining <= 30 * 60 * 1000; // Less than 30 minutes
-
-    const status = {
-        hasToken: true,
-        hasRefreshToken: !!user.auth.refresh_token,
-        hasCookies: false,
-        expiresAt: expiresAt.toISOString(),
-        expiresInMinutes: minutesRemaining,
-        needsRefresh: needsRefresh,
-        canAutoRefresh: !!user.auth.refresh_token
-    };
-
-    // Add refresh token age if available
-    if (user.auth.refresh_token && user.auth.refresh_token_obtained) {
-        const tokenAge = Date.now() - user.auth.refresh_token_obtained;
-        const daysOld = Math.floor(tokenAge / (1000 * 60 * 60 * 24));
-        const hoursOld = Math.floor((tokenAge % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        status.refreshTokenObtainedAt = new Date(user.auth.refresh_token_obtained).toISOString();
-        status.refreshTokenAge = `${daysOld}d ${hoursOld}h`;
-    }
-
-    return status;
-}
-
-// Web-based OAuth login flow
-// Generates an auth URL that user opens in browser, logs in, then pastes the redirect URL back
+    const version = versionData ? versionData.riotClientVersion : "release-10.00-shipping-0-0000000";
+    return `RiotClient/${version} rso-auth (Windows;10;;Professional, x64)`;
+};
 
 export const generateWebAuthUrl = () => {
-    // Generate a random nonce for security
     const nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
     const params = new URLSearchParams({
@@ -304,27 +248,18 @@ export const generateWebAuthUrl = () => {
         url: `https://auth.riotgames.com/authorize?${params.toString()}`,
         nonce: nonce
     };
-}
+};
 
-/**
- * Extract the authorization code from a callback URL.
- * Code flow redirects to: http://localhost/redirect?code=XXXXX
- */
 const extractCodeFromUri = (uri) => {
     try {
         const url = new URL(uri);
         return url.searchParams.get("code");
     } catch {
-        // Try regex fallback for malformed URLs
         const match = uri.match(/[?&]code=([^&]+)/);
         return match ? match[1] : null;
     }
-}
+};
 
-/**
- * Exchange an authorization code for access_token, id_token, and refresh_token
- * via a server-to-server POST to the Riot token endpoint.
- */
 const exchangeCodeForTokens = async (code) => {
     const req = await fetch("https://auth.riotgames.com/token", {
         method: "POST",
@@ -346,18 +281,9 @@ const exchangeCodeForTokens = async (code) => {
     }
 
     const json = JSON.parse(req.body);
-    // json should contain: access_token, id_token, refresh_token, token_type, expires_in, scope
-    // Log available fields (without token values for security)
-    const fields = Object.keys(json).filter(k => !k.includes('token') && !k.includes('secret'));
-    console.log(`[exchangeCodeForTokens] Response fields: ${fields.join(', ')}`);
-    if (json.expires_in) console.log(`[exchangeCodeForTokens] Access token expires in ${json.expires_in} seconds (${Math.floor(json.expires_in / 60)} minutes)`);
     return json;
-}
+};
 
-/**
- * Use a refresh token to obtain a new access_token (and possibly a rotated refresh_token).
- * Returns the full token response or null on failure.
- */
 export const refreshWithRefreshToken = async (refreshToken) => {
     try {
         const req = await fetch("https://auth.riotgames.com/token", {
@@ -381,33 +307,27 @@ export const refreshWithRefreshToken = async (refreshToken) => {
                 if (json.error === "invalid_grant" || json.error === "bad_claims" || req.statusCode === 400 || req.statusCode === 401) {
                     invalidToken = true;
                 }
-            } catch (e) {
+            } catch {
                 if (req.statusCode === 400 || req.statusCode === 401) invalidToken = true;
             }
             return { success: false, invalidToken };
         }
 
         const json = JSON.parse(req.body);
-        const fields = Object.keys(json).filter(k => !k.includes('token') && !k.includes('secret'));
-        console.log(`[refreshWithRefreshToken] Response fields: ${fields.join(', ')}`);
-        if (json.expires_in) console.log(`[refreshWithRefreshToken] New access token expires in ${json.expires_in} seconds (${Math.floor(json.expires_in / 60)} minutes)`);
         return { success: true, tokenData: json };
     } catch (e) {
         console.error(`[refreshWithRefreshToken] Exception during token refresh:`, e);
         return { success: false, networkError: true };
     }
-}
+};
 
 export const redeemWebAuthUrl = async (id, callbackUrl) => {
     try {
-        // Extract the authorization code from the callback URL
         const code = extractCodeFromUri(callbackUrl);
-
         if (!code) {
             return { success: false, error: "Could not extract authorization code from URL. Make sure you copied the full URL from the browser address bar." };
         }
 
-        // Exchange the code for tokens server-to-server
         const tokenData = await exchangeCodeForTokens(code);
         if (!tokenData || !tokenData.access_token) {
             return { success: false, error: "Failed to exchange authorization code for tokens. The code may have expired (they are single-use)." };
@@ -415,9 +335,8 @@ export const redeemWebAuthUrl = async (id, callbackUrl) => {
 
         const rso = tokenData.access_token;
         const idt = tokenData.id_token;
-        const refresh_token = tokenData.refresh_token; // long-lived, from offline_access scope
+        const refresh_token = tokenData.refresh_token;
 
-        // Create a new user with the tokens
         const user = new User({ id });
         user.auth = {
             rso: rso,
@@ -428,7 +347,6 @@ export const redeemWebAuthUrl = async (id, callbackUrl) => {
 
         user.puuid = decodeToken(rso).sub;
 
-        // Check if this account already exists
         const existingAccount = getAccountWithPuuid(id, user.puuid);
         if (existingAccount) {
             user.username = existingAccount.username;
@@ -438,7 +356,7 @@ export const redeemWebAuthUrl = async (id, callbackUrl) => {
 
         const [userInfo, entitlements, region] = await Promise.all([
             getUserInfo(user),
-            user.auth.ent ? Promise.resolve(user.auth.ent) : getEntitlements(user),
+            user.auth.ent ? Promise.resolve(user.auth.ent) : fetchEntitlementsToken(user),
             user.region ? Promise.resolve(user.region) : getRegion(user)
         ]);
 
@@ -450,12 +368,6 @@ export const redeemWebAuthUrl = async (id, callbackUrl) => {
         user.auth.ent = entitlements;
         user.region = region;
 
-        if (refresh_token) {
-            console.log(`[redeemWebAuthUrl] Code flow login successful for ${user.username} (has refresh token - auto-refresh enabled)`);
-        } else {
-            console.log(`[redeemWebAuthUrl] Code flow login successful for ${user.username} (no refresh token returned)`);
-        }
-
         user.lastFetchedData = Date.now();
         user.authFailures = 0;
 
@@ -466,4 +378,4 @@ export const redeemWebAuthUrl = async (id, callbackUrl) => {
         console.error("Error redeeming web auth URL:", e);
         return { success: false, error: e.message || "Unknown error occurred" };
     }
-}
+};

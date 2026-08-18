@@ -69,13 +69,14 @@ if (isMainThread) {
 } else {
     // Worker Thread Logic
     const { startBot } = await import("./discord/bot.js");
-    const { loadLogger, addMessagesToLog } = await import("./misc/logger.js");
-    const { initRedis, subscribeToLogMessages } = await import("./misc/redisQueue.js");
+    const { loadLogger, addMessagesToLog, setLogPublisher } = await import("./misc/logger.js");
+    const { initRedis, subscribeToLogMessages, publishLogMessages } = await import("./misc/redisQueue.js");
     const { initUserDatabase } = await import("./misc/userDatabase.js");
 
     const config = loadConfig();
     if (config) {
         loadLogger();
+        setLogPublisher(publishLogMessages);
 
         if (!initUserDatabase()) {
             console.error("User database initialization failed. Cannot start bot.");

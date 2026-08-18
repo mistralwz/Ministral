@@ -66,9 +66,6 @@ export const loadConfig = (filename = "config.json", saveAfterLoad = true) => {
     applyConfig(loadedConfig, "livegamePollingInterval", 5000);
     applyConfig(loadedConfig, "deferInteractions", false);
     applyConfig(loadedConfig, "useShopCache", true);
-    applyConfig(loadedConfig, "useLoginQueue", false);
-    applyConfig(loadedConfig, "loginQueueInterval", 3000);
-    applyConfig(loadedConfig, "loginQueuePollRate", 2000);
     applyConfig(loadedConfig, "authFailureStrikes", 2);
     applyConfig(loadedConfig, "maxAccountsPerUser", 5);
     applyConfig(loadedConfig, "autoRefreshTokens", true);

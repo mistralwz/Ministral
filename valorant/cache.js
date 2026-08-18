@@ -1,10 +1,15 @@
-import { asyncReadJSONFile, fetch, itemTypes } from "../misc/util.js";
+import { fetch, itemTypes } from "../misc/util.js";
 import config from "../misc/config.js";
 import fuzzysort from "fuzzysort";
 import fs from "fs";
 import { DEFAULT_VALORANT_LANG, discToValLang } from "../misc/languages.js";
-import { client } from "../discord/bot.js";
 import { sendShardMessage } from "../misc/shardMessage.js";
+
+let cacheClient = null;
+export const setCacheClient = (c) => {
+    cacheClient = c;
+};
+const isShardZero = () => !cacheClient?.shard || cacheClient.shard.ids[0] === 0;
 
 const formatVersion = 16;
 let gameVersion;
@@ -156,10 +161,8 @@ export const saveSkinsJSON = (filename = "data/skins.json") => {
 }
 
 const debouncedSaveSkinsJSON = () => {
-    // Only shard 0 writes to disk — other shards keep in-memory state but
-    // don't contend on the shared skins.json file. Shard 0 broadcasts
-    // skinsReload when data changes so other shards pick up the new data.
-    if (client.shard.ids[0] !== 0) return;
+    // Only shard 0 writes to disk
+    if (!isShardZero()) return;
 
     skinsSaveDirty = true;
     if (skinsSaveTimer) return;
@@ -171,7 +174,7 @@ const debouncedSaveSkinsJSON = () => {
 
 // Force flush pending skins.json writes (call on shutdown, shard 0 only)
 export const flushSkinsJSON = () => {
-    if (client.shard.ids[0] !== 0) return;
+    if (!isShardZero()) return;
     if (skinsSaveTimer) {
         clearTimeout(skinsSaveTimer);
         skinsSaveTimer = null;
@@ -408,7 +411,7 @@ export const addPricesFromShop = (shopJson) => {
         allSkinsCache = null; 
         console.log(`Updated ${changedPrices} skin prices (added: ${addedPrices}, changed: ${updatedPrices}) (Total: ${Object.keys(prices).length - 2} prices)`);
 
-        if (client?.shard && client.shard.ids[0] !== 0) {
+        if (!isShardZero()) {
             // Only send the newly discovered prices
             sendShardMessage({ type: "priceUpdate", prices: newPriceData });
         } else {
