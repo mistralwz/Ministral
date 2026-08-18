@@ -12,7 +12,8 @@ import {
     ordinalSuffix,
     removeDupeAlerts,
     WeaponType,
-    WeaponTypeUuid
+    WeaponTypeUuid,
+    WEAPON_CATEGORIES
 } from "../misc/util.js";
 
 import {
@@ -47,7 +48,7 @@ import {
 
 import { User, getPuuid } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
-import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton } from "../discord/embed.js";
+import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown } from "../discord/embed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -244,3 +245,54 @@ test("discord embed: basic and secondary embed builders", () => {
     const row = actionRow(button);
     assert.ok(row);
 });
+
+test("collection: weapon categories completeness & uniqueness", () => {
+    assert.equal(WEAPON_CATEGORIES.length, 5);
+
+    const allCategoryWeapons = WEAPON_CATEGORIES.flatMap(cat => cat.weapons);
+    const uniqueCategoryWeapons = new Set(allCategoryWeapons);
+
+    // Ensure no duplicates across categories
+    assert.equal(allCategoryWeapons.length, uniqueCategoryWeapons.size);
+
+    // Ensure all 19 unique weapons in WeaponTypeUuid are accounted for
+    const uniqueWeaponTypeUuids = new Set(
+        Object.entries(WeaponTypeUuid)
+            .filter(([key]) => key !== "Melee")
+            .map(([, uuid]) => uuid)
+    );
+
+    assert.equal(uniqueCategoryWeapons.size, uniqueWeaponTypeUuids.size);
+    assert.equal(uniqueWeaponTypeUuids.size, 19);
+    for (const uuid of uniqueWeaponTypeUuids) {
+        assert.ok(uniqueCategoryWeapons.has(uuid), `Weapon UUID ${uuid} missing from WEAPON_CATEGORIES!`);
+    }
+});
+
+test("collection: mode buttons and select dropdown builders", async () => {
+    const mockInteraction = {
+        locale: "en-GB",
+        user: { id: "user-123" }
+    };
+
+    // Test loadout mode buttons
+    const loadoutRow = collectionModeButtons(mockInteraction, "user-123", "loadout");
+    assert.equal(loadoutRow.components.length, 3);
+    assert.equal(loadoutRow.components[0].data.disabled, true); // loadout disabled when active
+    assert.equal(loadoutRow.components[1].data.disabled, false);
+    assert.equal(loadoutRow.components[2].data.disabled, false);
+
+    // Test stats mode buttons
+    const statsRow = collectionModeButtons(mockInteraction, "user-123", "stats");
+    assert.equal(statsRow.components[0].data.disabled, false);
+    assert.equal(statsRow.components[1].data.disabled, true); // stats disabled when active
+    assert.equal(statsRow.components[2].data.disabled, false);
+
+    // Test dropdown builder
+    const dropdownRow = await weaponSelectDropdown(mockInteraction, "user-123", null, WeaponTypeUuid.Vandal);
+    assert.equal(dropdownRow.components.length, 1);
+    const selectMenu = dropdownRow.components[0];
+    assert.equal(selectMenu.data.custom_id, "cl_select_weapon/user-123");
+    assert.equal(selectMenu.options.length, 19);
+});
+

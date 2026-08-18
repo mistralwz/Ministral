@@ -14,7 +14,9 @@ import {
     itemTypes,
     isDefaultSkin,
     isToday,
-    WeaponTypeUuid
+    WeaponTypeUuid,
+    WeaponType,
+    WEAPON_CATEGORIES
 } from "../misc/util.js";
 import config from "../misc/config.js";
 import { DEFAULT_LANG, DEFAULT_VALORANT_LANG, discToValLang, l, s, hideUsername } from "../misc/languages.js";
@@ -160,24 +162,33 @@ export const renderBattlepassProgress = async (interaction, targetId = interacti
     return await renderBattlepass(battlepassProgress, maxlevel, interaction, targetId);
 };
 
-export const renderCollection = async (interaction, targetId = interaction.user.id, weaponName = null) => {
+export const renderCollection = async (interaction, targetId = interaction.user.id, weaponName = null, mode = "loadout") => {
     const user = getUser(targetId);
     if (!user) return await interaction.reply({ embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED)] });
 
     if (weaponName) return await renderCollectionOfWeapon(interaction, targetId, weaponName);
 
+    if (mode === "stats") {
+        return await collectionStatsEmbed(interaction, targetId, user);
+    }
+
     const loadout = await getLoadout(user);
     if (!loadout.success) return errorFetchingCollection(loadout, interaction, targetId);
+
+    if (mode === "gallery") {
+        return await skinCollectionPageEmbed(interaction, targetId, user, loadout);
+    }
 
     return await skinCollectionSingleEmbed(interaction, targetId, user, loadout);
 };
 
-const renderCollectionOfWeapon = async (interaction, targetId, weaponName) => {
+export const renderCollectionOfWeapon = async (interaction, targetId, weaponName, viewType = "card", pageIndex = 0) => {
     const user = getUser(targetId);
     const skins = await getSkins(user);
     if (!skins.success) return errorFetchingCollection(skins, interaction, targetId);
 
-    return await collectionOfWeaponEmbed(interaction, targetId, user, WeaponTypeUuid[weaponName], skins.skins);
+    const weaponUuid = WeaponTypeUuid[weaponName] || weaponName;
+    return await collectionOfWeaponEmbed(interaction, targetId, user, weaponUuid, skins.skins, pageIndex, viewType);
 };
 
 const errorFetchingCollection = (result, interaction, targetId) => {
@@ -854,108 +865,317 @@ const titleEmbed = async (uuid, price, locale, emojiString) => {
 }
 
 
+export const weaponSelectDropdown = async (interaction, id, ownedSkins = null, selectedWeaponUuid = null) => {
+    // Unique weapons (skip duplicate Melee entry)
+    const uniqueWeapons = Object.entries(WeaponTypeUuid).filter(([k]) => k !== "Melee");
+
+    // Tally skins per weapon if ownedSkins array passed
+    const skinCounts = {};
+    if (ownedSkins && Array.isArray(ownedSkins)) {
+        const skinsData = await Promise.all(ownedSkins.map(sUuid => getSkin(sUuid, false)));
+        for (const s of skinsData) {
+            if (s?.weapon) skinCounts[s.weapon] = (skinCounts[s.weapon] || 0) + 1;
+        }
+    }
+
+    const options = await Promise.all(uniqueWeapons.map(async ([name, uuid]) => {
+        const weaponObj = await getWeapon(uuid);
+        const displayName = weaponObj ? l(weaponObj.names, interaction) : name;
+        const count = skinCounts[uuid];
+        const label = count !== undefined ? `${displayName} (${count})` : displayName;
+        const weaponIndex = Object.values(WeaponTypeUuid).indexOf(uuid);
+        const opt = new StringSelectMenuOptionBuilder()
+            .setLabel(label.slice(0, 100))
+            .setValue(`${weaponIndex}`)
+            .setDescription(`Browse owned ${displayName} skins`.slice(0, 100));
+        if (uuid === selectedWeaponUuid) opt.setDefault(true);
+        return opt;
+    }));
+
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`cl_select_weapon/${id}`)
+            .setPlaceholder(s(interaction).info.COLLECTION_SELECT_WEAPON || "Select weapon to browse inventory...")
+            .addOptions(options.slice(0, 25))
+    );
+};
+
+export const collectionModeButtons = (interaction, id, currentMode = "loadout") => {
+    const loadoutBtn = new ButtonBuilder()
+        .setCustomId(`cl_mode/loadout/${id}`)
+        .setStyle(currentMode === "loadout" ? ButtonStyle.Primary : ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.COLLECTION_LOADOUT_BUTTON || "Equipped Loadout")
+        .setEmoji("🎒")
+        .setDisabled(currentMode === "loadout");
+
+    const statsBtn = new ButtonBuilder()
+        .setCustomId(`cl_mode/stats/${id}`)
+        .setStyle(currentMode === "stats" ? ButtonStyle.Primary : ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.COLLECTION_STATS_BUTTON || "Account Stats")
+        .setEmoji("📊")
+        .setDisabled(currentMode === "stats");
+
+    const galleryBtn = new ButtonBuilder()
+        .setCustomId(`cl_mode/gallery/${id}`)
+        .setStyle(currentMode === "gallery" ? ButtonStyle.Primary : ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.COLLECTION_GALLERY_BUTTON || "Visual Gallery")
+        .setEmoji("🖼️")
+        .setDisabled(currentMode === "gallery");
+
+    return new ActionRowBuilder().addComponents(loadoutBtn, statsBtn, galleryBtn);
+};
+
+const RUNNIN_ON_EMPTY_SPRAY = "https://media.valorant-api.com/sprays/0471249b-439f-798a-213c-758e578c2e64/fulltransparenticon.png";
+
 export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout, favorites }) => {
     const someoneElseUsedCommand = interaction.message ?
         interaction.message.interaction && interaction.message.interaction.user.id !== user.id :
         interaction.user.id !== user.id;
 
     let totalValue = 0;
+    let favoritesCount = 0;
     const skinsUuid = [];
-    const createField = async (weaponUuid, inline = true) => {
+
+    const formatWeaponLine = async (weaponUuid) => {
         const weapon = await getWeapon(weaponUuid);
-        const skinUuid = loadout.Guns.find(gun => gun.ID === weaponUuid)?.SkinID
-        if (!skinUuid) return {
-            name: weapon ? l(weapon.names, interaction) : 'No information available',
-            value: 'Login to the game for display',
-            inline: inline
+        const weaponName = weapon ? l(weapon.names, interaction) : 'Weapon';
+        const gunData = loadout?.Guns?.find(gun => gun.ID === weaponUuid);
+        const skinUuid = gunData?.SkinID;
+
+        if (!skinUuid) {
+            return `• Standard ${weaponName}`;
         }
+
         const skin = await getSkinFromSkinUuid(skinUuid);
         if (!skin) {
-            return {
-                name: weapon ? l(weapon.names, interaction) : 'No information available',
-                value: 'Unknown Skin',
-                inline: inline
+            return `• Standard ${weaponName}`;
+        }
+
+        skinsUuid.push(skin);
+        if (skin.price) totalValue += skin.price;
+
+        const isFavorited = favorites?.FavoritedContent?.[skin.skinUuid];
+        if (isFavorited) favoritesCount++;
+        const starEmoji = isFavorited ? "⭐ " : "";
+
+        const skinFormatted = await skinNameAndEmoji(skin, interaction.channel, interaction);
+
+        // Check equipped chroma / variant
+        let chromaText = "";
+        if (gunData?.ChromaID && skin.chromas && skin.chromas.length > 1) {
+            const chroma = skin.chromas.find(c => c.uuid === gunData.ChromaID);
+            if (chroma && chroma.uuid !== skin.chromas[0].uuid) {
+                const rawChromaName = l(chroma.displayName, interaction);
+                const match = rawChromaName.match(/\((.+?)\)/);
+                const variantName = match ? match[1] : rawChromaName.replace(l(skin.names, interaction), '').replace(/[\r\n]+/g, ' ').trim();
+                if (variantName) chromaText = ` *(${variantName})*`;
             }
         }
-        skinsUuid.push(skin);
-        totalValue += skin.price || 0;
 
-        const starEmoji = favorites.FavoritedContent[skin.skinUuid] ? "⭐ " : "";
-        return {
-            name: weapon ? l(weapon.names, interaction) : 'Unknown Weapon',
-            value: `${starEmoji}${await skinNameAndEmoji(skin, interaction.channel, interaction)}`,
-            inline: inline
+        // Check equipped gun buddy
+        let buddyText = "";
+        const charmUuid = gunData?.CharmLevelID || gunData?.CharmID || (gunData?.Sockets && Object.values(gunData.Sockets).map(s => s?.Item?.ID).find(i => i));
+        if (charmUuid) {
+            const buddy = await getBuddy(charmUuid);
+            if (buddy) {
+                const bName = l(buddy.names, interaction);
+                buddyText = ` · 🧸 *${bName}*`;
+            }
         }
-    }
 
-    const emptyField = {
-        name: "\u200b",
-        value: "\u200b",
-        inline: true
-    }
+        const displayName = skin.rarity ? `**${skinFormatted}**` : skinFormatted;
+        return `• ${starEmoji}${displayName}${chromaText}${buddyText}`;
+    };
 
-    const fields = await Promise.all([
-        createField(WeaponTypeUuid.Vandal),
-        createField(WeaponTypeUuid.Phantom),
-        createField(WeaponTypeUuid.Operator),
-
-        createField(WeaponTypeUuid.Knife),
-        createField(WeaponTypeUuid.Sheriff),
-        createField(WeaponTypeUuid.Spectre),
-
-        createField(WeaponTypeUuid.Classic),
-        createField(WeaponTypeUuid.Ghost),
-        createField(WeaponTypeUuid.Frenzy),
-
-        createField(WeaponTypeUuid.Bulldog),
-        createField(WeaponTypeUuid.Guardian),
-        createField(WeaponTypeUuid.Marshal),
-
-        createField(WeaponTypeUuid.Outlaw),
-
-        createField(WeaponTypeUuid.Stinger),
-        createField(WeaponTypeUuid.Ares),
-        createField(WeaponTypeUuid.Odin),
-
-        createField(WeaponTypeUuid.Shorty),
-        createField(WeaponTypeUuid.Bucky),
-        createField(WeaponTypeUuid.Judge),
-    ]);
+    const categoryFields = await Promise.all(WEAPON_CATEGORIES.map(async (cat) => {
+        const lines = await Promise.all(cat.weapons.map(wUuid => formatWeaponLine(wUuid)));
+        const catName = s(interaction).info[cat.nameKey] || cat.defaultName;
+        return {
+            name: `${cat.emoji} ${catName}`,
+            value: lines.join('\n'),
+            inline: false
+        };
+    }));
 
     const emoji = await VPEmoji(interaction);
-    fields.push(emptyField, {
-        name: s(interaction).info.COLLECTION_VALUE,
-        value: `${emoji} ${totalValue}`,
-        inline: true
-    }, emptyField);
+    const summaryLine = totalValue === 0
+        ? `💰 **${s(interaction).info.COLLECTION_EQUIPPED_VALUE || "Equipped Value"}:** ${emoji} **0** *(Runnin' on Empty)*  |  ⭐ **${s(interaction).info.COLLECTION_FAVORITES_EQUIPPED || "Favorites Equipped"}:** **${favoritesCount}/19**`
+        : `💰 **${s(interaction).info.COLLECTION_EQUIPPED_VALUE || "Equipped Value"}:** ${emoji} **${totalValue.toLocaleString()}**  |  ⭐ **${s(interaction).info.COLLECTION_FAVORITES_EQUIPPED || "Favorites Equipped"}:** **${favoritesCount}/19**`;
 
     let usernameText;
     if (someoneElseUsedCommand) {
         usernameText = `<@${id}>`;
-
         const json = readUserJson(id);
         if (json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({ n: json.currentAccount });
+    } else {
+        usernameText = user.username;
     }
-    else usernameText = user.username;
-
 
     const embed = {
-        description: s(interaction).info.COLLECTION_HEADER.f({ u: usernameText }, id),
+        title: s(interaction).info.COLLECTION_HEADER.f({ u: usernameText }, id),
+        description: summaryLine,
         color: VAL_COLOR_1,
-        fields: fields
-    }
+        fields: categoryFields,
+        ...(totalValue === 0 ? { thumbnail: { url: RUNNIN_ON_EMPTY_SPRAY } } : {})
+    };
 
-    const components = [new ActionRowBuilder().addComponents(collectionSwitchEmbedButton(interaction, true, id)),]
-    if (!someoneElseUsedCommand) components.push(...switchAccountButtons(interaction, "cl", false, false, id))
+    // Retrieve owned skins to populate dropdown counters
+    const skinsResponse = await getSkins(user);
+    const ownedSkins = skinsResponse.success ? skinsResponse.skins : null;
 
+    const components = [];
+    // Row 1: Weapon Dropdown
+    components.push(await weaponSelectDropdown(interaction, id, ownedSkins));
+    // Row 2: Mode Switch
+    components.push(collectionModeButtons(interaction, id, "loadout"));
+
+    // Row 3: Video levels dropdown
     const levels = await getSkinLevels(skinsUuid.map(item => item.uuid), interaction);
-    if (levels) components.unshift(levels);
+    if (levels) components.push(levels);
+
+    // Row 4: Switch Account buttons
+    if (!someoneElseUsedCommand) components.push(...switchAccountButtons(interaction, "cl", false, false, id));
 
     return {
         embeds: [embed],
-        components: components
+        components: components.slice(0, 5)
+    };
+};
+
+export const collectionStatsEmbed = async (interaction, id, user) => {
+    const someoneElseUsedCommand = interaction.message ?
+        interaction.message.interaction && interaction.message.interaction.user.id !== user.id :
+        interaction.user.id !== user.id;
+
+    const skinsResponse = await getSkins(user);
+    if (!skinsResponse.success) return errorFetchingCollection(skinsResponse, interaction, id);
+
+    const loadoutResponse = await getLoadout(user);
+    const loadout = loadoutResponse.success ? loadoutResponse.loadout : null;
+
+    const allSkinsData = await Promise.all(skinsResponse.skins.map(uuid => getSkin(uuid, false)));
+    const validSkins = allSkinsData.filter(s => s && s.weapon);
+
+    let totalCollectionValue = 0;
+    const tierCounts = {
+        ultra: 0,
+        exclusive: 0,
+        premium: 0,
+        deluxe: 0,
+        select: 0,
+        other: 0
+    };
+    const weaponCounts = {};
+
+    for (const skin of validSkins) {
+        if (skin.price) totalCollectionValue += skin.price;
+
+        if (skin.weapon) {
+            weaponCounts[skin.weapon] = (weaponCounts[skin.weapon] || 0) + 1;
+        }
+
+        switch (skin.rarity) {
+            case "411e4a55-4e59-7757-41f0-86a53f101bb5": tierCounts.ultra++; break;
+            case "e046854e-406c-37f4-6607-19a9ba8426fc": tierCounts.exclusive++; break;
+            case "60bca009-4182-7998-dee7-b8a2558dc369": tierCounts.premium++; break;
+            case "0cebb8be-46d7-c12a-d306-e9907bfc5a25": tierCounts.deluxe++; break;
+            case "12683d76-48d7-84a3-4e09-6985794f0445": tierCounts.select++; break;
+            default: tierCounts.other++; break;
+        }
     }
-}
+
+    const totalCount = validSkins.length || 1;
+    const emoji = await VPEmoji(interaction);
+
+    // Resolve custom rarity emojis from the bot
+    const channel = interaction.channel || await fetchChannel(interaction.channelId, interaction);
+    const [ultraRarity, exclRarity, premRarity, dlxRarity, selRarity] = await Promise.all([
+        getRarity("411e4a55-4e59-7757-41f0-86a53f101bb5", channel),
+        getRarity("e046854e-406c-37f4-6607-19a9ba8426fc", channel),
+        getRarity("60bca009-4182-7998-dee7-b8a2558dc369", channel),
+        getRarity("0cebb8be-46d7-c12a-d306-e9907bfc5a25", channel),
+        getRarity("12683d76-48d7-84a3-4e09-6985794f0445", channel),
+    ]);
+
+    const [ultraEmoji, exclEmoji, premEmoji, dlxEmoji, selEmoji] = await Promise.all([
+        ultraRarity ? rarityEmoji(ultraRarity.name, ultraRarity.icon, interaction) : "🟡",
+        exclRarity ? rarityEmoji(exclRarity.name, exclRarity.icon, interaction) : "🟡",
+        premRarity ? rarityEmoji(premRarity.name, premRarity.icon, interaction) : "🟣",
+        dlxRarity ? rarityEmoji(dlxRarity.name, dlxRarity.icon, interaction) : "🔵",
+        selRarity ? rarityEmoji(selRarity.name, selRarity.icon, interaction) : "⚪",
+    ]);
+
+    // Format top 5 weapons
+    const sortedWeapons = Object.entries(weaponCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const topWeaponsLines = await Promise.all(sortedWeapons.map(async ([wUuid, count]) => {
+        const weaponObj = await getWeapon(wUuid);
+        const wName = weaponObj ? l(weaponObj.names, interaction) : 'Weapon';
+
+        let equippedName = "";
+        if (loadout?.Guns) {
+            const equippedGun = loadout.Guns.find(g => g.ID === wUuid);
+            if (equippedGun?.SkinID) {
+                const equippedSkin = await getSkinFromSkinUuid(equippedGun.SkinID);
+                if (equippedSkin) equippedName = ` *(Equipped: ${l(equippedSkin.names, interaction)})*`;
+            }
+        }
+        return `• **${wName}:** **${count}** skins${equippedName}`;
+    }));
+
+    const rarityLines = [
+        `${ultraEmoji || '🟡'} **Ultra Edition:** ${tierCounts.ultra} (${Math.round(tierCounts.ultra / totalCount * 100)}%)`,
+        `${exclEmoji || '🟡'} **Exclusive Edition:** ${tierCounts.exclusive} (${Math.round(tierCounts.exclusive / totalCount * 100)}%)`,
+        `${premEmoji || '🟣'} **Premium Edition:** ${tierCounts.premium} (${Math.round(tierCounts.premium / totalCount * 100)}%)`,
+        `${dlxEmoji || '🔵'} **Deluxe Edition:** ${tierCounts.deluxe} (${Math.round(tierCounts.deluxe / totalCount * 100)}%)`,
+        `${selEmoji || '⚪'} **Select Edition:** ${tierCounts.select} (${Math.round(tierCounts.select / totalCount * 100)}%)`,
+        `🟢 **Battlepass / Standard:** ${tierCounts.other} (${Math.round(tierCounts.other / totalCount * 100)}%)`
+    ];
+
+    let usernameText;
+    if (someoneElseUsedCommand) {
+        usernameText = `<@${id}>`;
+        const json = readUserJson(id);
+        if (json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({ n: json.currentAccount });
+    } else {
+        usernameText = user.username;
+    }
+
+    const descriptionText = totalCollectionValue === 0
+        ? `💰 **${s(interaction).info.COLLECTION_TOTAL_VALUE || "Total Collection Value"}:** ${emoji} **0** *(Runnin' on Empty)*\n🎒 **${s(interaction).info.COLLECTION_TOTAL_SKINS || "Total Skins Owned"}:** **${validSkins.length}** skins *(Standard/Battlepass only)*`
+        : `💰 **${s(interaction).info.COLLECTION_TOTAL_VALUE || "Total Collection Value"}:** ${emoji} **${totalCollectionValue.toLocaleString()}**\n🎒 **${s(interaction).info.COLLECTION_TOTAL_SKINS || "Total Skins Owned"}:** **${validSkins.length}** skins across **${Object.keys(weaponCounts).length}** weapons`;
+
+    const embed = {
+        title: s(interaction).info.COLLECTION_STATS_HEADER.f({ u: usernameText }, id),
+        description: descriptionText,
+        color: VAL_COLOR_1,
+        fields: [
+            {
+                name: `👑 ${s(interaction).info.COLLECTION_RARITY_BREAKDOWN || "Rarity Breakdown"}`,
+                value: rarityLines.join('\n'),
+                inline: true
+            },
+            {
+                name: `🎯 ${s(interaction).info.COLLECTION_TOP_WEAPONS || "Top Weapon Locker"}`,
+                value: topWeaponsLines.join('\n') || "No skins found",
+                inline: true
+            }
+        ],
+        ...(totalCollectionValue === 0 ? { thumbnail: { url: RUNNIN_ON_EMPTY_SPRAY } } : {})
+    };
+
+    const components = [];
+    // Row 1: Weapon Dropdown
+    components.push(await weaponSelectDropdown(interaction, id, skinsResponse.skins));
+    // Row 2: Mode Navigation
+    components.push(collectionModeButtons(interaction, id, "stats"));
+    // Row 3: Account switcher
+    if (!someoneElseUsedCommand) components.push(...switchAccountButtons(interaction, "clstats", false, false, id));
+
+    return {
+        embeds: [embed],
+        components: components.slice(0, 5)
+    };
+};
 
 export const skinCollectionPageEmbed = async (interaction, id, user, { loadout, favorites }, pageIndex = 0) => {
     const someoneElseUsedCommand = interaction.message ?
@@ -965,17 +1185,21 @@ export const skinCollectionPageEmbed = async (interaction, id, user, { loadout, 
     let totalValue = 0;
     const emoji = await VPEmoji(interaction);
 
-
     const createEmbed = async (weaponUuid) => {
         const weapon = await getWeapon(weaponUuid);
-        const skinUuid = loadout.Guns.find(gun => gun.ID === weaponUuid)?.SkinID
+        const skinUuid = loadout.Guns.find(gun => gun.ID === weaponUuid)?.SkinID;
         if (!skinUuid) return {
-            title: 'No information available',
+            title: weapon ? l(weapon.names, interaction) : 'No information available',
             description: 'Login to the game for display',
             color: VAL_COLOR_1,
-        }
+        };
         const skin = await getSkinFromSkinUuid(skinUuid);
-        totalValue += skin.price;
+        if (!skin) return {
+            title: weapon ? l(weapon.names, interaction) : 'No information available',
+            description: 'Unknown Skin',
+            color: VAL_COLOR_1,
+        };
+        totalValue += skin.price || 0;
 
         const starEmoji = favorites.FavoritedContent[skin.skinUuid] ? " ⭐" : "";
         return {
@@ -985,8 +1209,8 @@ export const skinCollectionPageEmbed = async (interaction, id, user, { loadout, 
             thumbnail: {
                 url: skin.icon
             }
-        }
-    }
+        };
+    };
 
     const pages = [
         [WeaponTypeUuid.Vandal, WeaponTypeUuid.Phantom, WeaponTypeUuid.Operator, WeaponTypeUuid.Outlaw, WeaponTypeUuid.Knife],
@@ -1002,32 +1226,39 @@ export const skinCollectionPageEmbed = async (interaction, id, user, { loadout, 
     let usernameText;
     if (someoneElseUsedCommand) {
         usernameText = `<@${id}>`;
-
         const json = readUserJson(id);
         if (json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({ n: json.currentAccount });
+    } else {
+        usernameText = user.username;
     }
-    else usernameText = user.username;
 
     const embeds = [basicEmbed(s(interaction).info.COLLECTION_HEADER.f({ u: usernameText }, id))];
     const pageEmbedPromises = pages[pageIndex].map(weapon => createEmbed(weapon));
     embeds.push(...await Promise.all(pageEmbedPromises));
 
-    const firstRowButtons = [collectionSwitchEmbedButton(interaction, false, id)];
-    firstRowButtons.push(...(pageButtons("clpage", id, pageIndex, pages.length).components))
+    const skinsResponse = await getSkins(user);
+    const ownedSkins = skinsResponse.success ? skinsResponse.skins : null;
 
-    const components = [new ActionRowBuilder().setComponents(...firstRowButtons)]
+    const components = [];
+    // Row 1: Weapon Dropdown
+    components.push(await weaponSelectDropdown(interaction, id, ownedSkins));
+    // Row 2: Mode navigation buttons
+    components.push(collectionModeButtons(interaction, id, "gallery"));
+    // Row 3: Page Buttons
+    components.push(pageButtons("clpage", id, pageIndex, pages.length));
+    // Row 4: Switch Account
     if (!someoneElseUsedCommand) components.push(...switchAccountButtons(interaction, "cl", false, false, id));
 
-    return { embeds, components }
-}
+    return { embeds, components: components.slice(0, 5) };
+};
 
 const collectionSwitchEmbedButton = (interaction, switchToPage, id) => {
     const label = s(interaction).info[switchToPage ? "COLLECTION_VIEW_IMAGES" : "COLLECTION_VIEW_ALL"];
     const customId = `clswitch/${switchToPage ? "p" : "s"}/${id}`;
     return new ButtonBuilder().setEmoji('🔍').setLabel(label).setStyle(ButtonStyle.Primary).setCustomId(customId);
-}
+};
 
-export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeUuid, skins, pageIndex = 0) => {
+export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeUuid, skins, pageIndex = 0, viewType = "card") => {
     const someoneElseUsedCommand = interaction.message ?
         interaction.message.interaction && interaction.message.interaction.user.id !== user.id :
         interaction.user.id !== user.id;
@@ -1037,16 +1268,15 @@ export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeU
     let usernameText;
     if (someoneElseUsedCommand) {
         usernameText = `<@${id}>`;
-
         const json = readUserJson(id);
         if (json.accounts.length > 1) usernameText += ' ' + s(interaction).info.SWITCH_ACCOUNT_BUTTON.f({ n: json.currentAccount });
+    } else {
+        usernameText = user.username;
     }
-    else usernameText = user.username;
 
-    // note: some of these are null for some reason
     const skinsData = await Promise.all(skins.map(skinUuid => getSkin(skinUuid, false)));
     const filteredSkins = skinsData.filter(skin => skin?.weapon === weaponTypeUuid);
-    filteredSkins.sort((a, b) => { // sort by price, then rarity
+    filteredSkins.sort((a, b) => {
         const priceDiff = (b.price || 0) - (a.price || 0);
         if (priceDiff !== 0) return priceDiff;
 
@@ -1060,42 +1290,146 @@ export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeU
         return rarityOrder.indexOf(b.rarity) - rarityOrder.indexOf(a.rarity);
     });
 
-    const embedsPerPage = 5;
-    const maxPages = Math.ceil(filteredSkins.length / embedsPerPage);
-
-    if (pageIndex < 0) pageIndex = maxPages - 1;
-    if (pageIndex >= maxPages) pageIndex = 0;
-
-    const weaponName = await getWeapon(weaponTypeUuid).then(weapon => l(weapon.names, interaction));
-    const embeds = [basicEmbed(s(interaction).info.COLLECTION_WEAPON_HEADER.f({ u: usernameText, w: weaponName, p: pageIndex + 1, t: maxPages }, id))];
-    const renderWeaponSkinCard = async (skin) => ({
-        title: await skinNameAndEmoji(skin, interaction.channel, interaction),
-        description: `${emoji} ${skin.price || 'N/A'}`,
-        color: VAL_COLOR_2,
-        thumbnail: {
-            url: skin.icon
-        }
-    });
-    if (filteredSkins.length === 0) {
-        const weapon = await getWeapon(weaponTypeUuid);
-        const skin = await getSkinFromSkinUuid(weapon.defaultSkinUuid);
-        embeds.push(await renderWeaponSkinCard(skin));
-    }
-    else for (const skin of filteredSkins.slice(pageIndex * embedsPerPage, (pageIndex + 1) * embedsPerPage)) {
-        embeds.push(await renderWeaponSkinCard(skin));
-    }
-
+    const weaponObj = await getWeapon(weaponTypeUuid);
+    const weaponName = weaponObj ? l(weaponObj.names, interaction) : "Weapon";
     const weaponTypeIndex = Object.values(WeaponTypeUuid).indexOf(weaponTypeUuid);
 
-    const actionRows = [];
-    if (maxPages > 1) actionRows.push(pageButtons(`clwpage/${weaponTypeIndex}`, id, pageIndex, maxPages));
-    if (!someoneElseUsedCommand) actionRows.push(...switchAccountButtons(interaction, `clw-${weaponTypeIndex}`, false, false, id));
+    const loadoutResponse = await getLoadout(user);
+    const equippedSkinId = loadoutResponse.success ? loadoutResponse.loadout?.Guns?.find(g => g.ID === weaponTypeUuid)?.SkinID : null;
+    const favorites = loadoutResponse.success ? loadoutResponse.favorites : null;
 
-    const levels = await getSkinLevels(filteredSkins.slice(pageIndex * embedsPerPage, (pageIndex + 1) * embedsPerPage).map(item => item.uuid), interaction);
-    if (levels) actionRows.unshift(levels);
+    let embeds = [];
+    let actionRows = [];
 
-    return { embeds, components: actionRows }
-}
+    if (viewType === "list") {
+        const embedsPerPage = 10;
+        const maxPages = Math.ceil(filteredSkins.length / embedsPerPage) || 1;
+
+        if (pageIndex < 0) pageIndex = maxPages - 1;
+        if (pageIndex >= maxPages) pageIndex = 0;
+
+        const pageSkins = filteredSkins.slice(pageIndex * embedsPerPage, (pageIndex + 1) * embedsPerPage);
+        const skinLines = await Promise.all(pageSkins.map(async (skin) => {
+            const formatted = await skinNameAndEmoji(skin, interaction.channel, interaction);
+            const isEquipped = equippedSkinId && skin.skinUuid === equippedSkinId;
+            const isFavorited = favorites?.FavoritedContent?.[skin.skinUuid];
+            const star = isFavorited ? "⭐ " : "";
+            const equipBadge = isEquipped ? " `[EQUIPPED]`" : "";
+            return `• ${star}${formatted} · ${emoji} ${skin.price || 'N/A'}${equipBadge}`;
+        }));
+
+        if (skinLines.length === 0) {
+            skinLines.push("• *Standard Skin*");
+        }
+
+        const totalWeaponValue = filteredSkins.reduce((acc, s) => acc + (s.price || 0), 0);
+
+        const listEmbed = {
+            title: s(interaction).info.COLLECTION_WEAPON_HEADER.f({ u: usernameText, w: weaponName, p: pageIndex + 1, t: maxPages }, id),
+            description: `🎯 **Owned Skins:** **${filteredSkins.length}**  |  💰 **Total Value:** ${emoji} **${totalWeaponValue.toLocaleString()}**\n\n${skinLines.join('\n')}`,
+            color: VAL_COLOR_1
+        };
+        embeds.push(listEmbed);
+
+        // Dropdown menu (Row 1)
+        actionRows.push(await weaponSelectDropdown(interaction, id, skins, weaponTypeUuid));
+
+        // Navigation & View Toggle (Row 2)
+        const row2Buttons = [
+            new ButtonBuilder()
+                .setCustomId(`clw_view/${weaponTypeIndex}/${id}/card/${pageIndex}`)
+                .setStyle(ButtonStyle.Primary)
+                .setLabel(s(interaction).info.COLLECTION_CARD_VIEW || "Showcase View")
+                .setEmoji("🖼️"),
+            new ButtonBuilder()
+                .setCustomId(`cl_mode/loadout/${id}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setLabel(s(interaction).info.COLLECTION_LOADOUT_BUTTON || "Loadout")
+                .setEmoji("🎒")
+        ];
+        if (maxPages > 1) {
+            row2Buttons.push(
+                new ButtonBuilder().setStyle(ButtonStyle.Secondary).setEmoji("◀").setCustomId(`clwpage/${weaponTypeIndex}/${id}/${pageIndex - 1}/list`),
+                new ButtonBuilder().setStyle(ButtonStyle.Secondary).setEmoji("▶").setCustomId(`clwpage/${weaponTypeIndex}/${id}/${pageIndex + 1}/list`)
+            );
+        }
+        actionRows.push(new ActionRowBuilder().addComponents(row2Buttons));
+
+        // Video levels (Row 3)
+        const levels = await getSkinLevels(pageSkins.map(item => item.uuid), interaction);
+        if (levels) actionRows.push(levels);
+
+        // Account Switcher (Row 4)
+        if (!someoneElseUsedCommand) actionRows.push(...switchAccountButtons(interaction, `clw-${weaponTypeIndex}`, false, false, id));
+    } else {
+        // Card Showcase Mode
+        const embedsPerPage = 4;
+        const maxPages = Math.ceil(filteredSkins.length / embedsPerPage) || 1;
+
+        if (pageIndex < 0) pageIndex = maxPages - 1;
+        if (pageIndex >= maxPages) pageIndex = 0;
+
+        embeds.push(basicEmbed(s(interaction).info.COLLECTION_WEAPON_HEADER.f({ u: usernameText, w: weaponName, p: pageIndex + 1, t: maxPages }, id)));
+
+        const renderWeaponSkinCard = async (skin) => {
+            const isEquipped = equippedSkinId && skin.skinUuid === equippedSkinId;
+            const isFavorited = favorites?.FavoritedContent?.[skin.skinUuid];
+            const star = isFavorited ? " ⭐" : "";
+            const equipBadge = isEquipped ? " `[EQUIPPED]`" : "";
+            return {
+                title: `${await skinNameAndEmoji(skin, interaction.channel, interaction)}${star}${equipBadge}`,
+                description: `${emoji} ${skin.price || 'N/A'}`,
+                color: VAL_COLOR_2,
+                thumbnail: {
+                    url: skin.icon
+                }
+            };
+        };
+
+        const pageSkins = filteredSkins.slice(pageIndex * embedsPerPage, (pageIndex + 1) * embedsPerPage);
+        if (pageSkins.length === 0) {
+            const defaultSkin = await getSkinFromSkinUuid(weaponObj?.defaultSkinUuid);
+            if (defaultSkin) embeds.push(await renderWeaponSkinCard(defaultSkin));
+        } else {
+            for (const skin of pageSkins) {
+                embeds.push(await renderWeaponSkinCard(skin));
+            }
+        }
+
+        // Dropdown menu (Row 1)
+        actionRows.push(await weaponSelectDropdown(interaction, id, skins, weaponTypeUuid));
+
+        // Navigation & View Toggle (Row 2)
+        const row2Buttons = [
+            new ButtonBuilder()
+                .setCustomId(`clw_view/${weaponTypeIndex}/${id}/list/${pageIndex}`)
+                .setStyle(ButtonStyle.Primary)
+                .setLabel(s(interaction).info.COLLECTION_LIST_VIEW || "List View")
+                .setEmoji("📋"),
+            new ButtonBuilder()
+                .setCustomId(`cl_mode/loadout/${id}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setLabel(s(interaction).info.COLLECTION_LOADOUT_BUTTON || "Loadout")
+                .setEmoji("🎒")
+        ];
+        if (maxPages > 1) {
+            row2Buttons.push(
+                new ButtonBuilder().setStyle(ButtonStyle.Secondary).setEmoji("◀").setCustomId(`clwpage/${weaponTypeIndex}/${id}/${pageIndex - 1}/card`),
+                new ButtonBuilder().setStyle(ButtonStyle.Secondary).setEmoji("▶").setCustomId(`clwpage/${weaponTypeIndex}/${id}/${pageIndex + 1}/card`)
+            );
+        }
+        actionRows.push(new ActionRowBuilder().addComponents(row2Buttons));
+
+        // Video levels (Row 3)
+        const levels = await getSkinLevels(pageSkins.map(item => item.uuid), interaction);
+        if (levels) actionRows.push(levels);
+
+        // Account Switcher (Row 4)
+        if (!someoneElseUsedCommand) actionRows.push(...switchAccountButtons(interaction, `clw-${weaponTypeIndex}`, false, false, id));
+    }
+
+    return { embeds, components: actionRows.slice(0, 5) };
+};
 
 export const botInfoEmbed = (interaction, client, guildCount, userCount, registeredUserCount, ownerString, status) => {
     const fields = [

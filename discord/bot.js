@@ -33,8 +33,10 @@ import {
     switchAccountButtons,
     skinCollectionPageEmbed,
     skinCollectionSingleEmbed,
+    collectionStatsEmbed,
     valMaintenancesEmbeds,
     collectionOfWeaponEmbed,
+    renderCollectionOfWeapon,
     renderProfile,
     renderCompetitiveMatchHistory,
     setEmbedClient,
@@ -1496,7 +1498,25 @@ client.on("interactionCreate", async (interaction) => {
             if (interaction.customId.startsWith("livegame/select_agent")) selectType = "livegame/select_agent";
             if (interaction.customId.startsWith("livegame/select_role")) selectType = "livegame/select_role";
             if (interaction.customId.startsWith("livegame/select_queue")) selectType = "livegame/select_queue";
+            if (interaction.customId.startsWith("cl_select_weapon")) selectType = "cl_select_weapon";
             switch (selectType) {
+                case "cl_select_weapon": {
+                    const [, id] = interaction.customId.split('/');
+                    const weaponTypeIndex = interaction.values[0];
+                    const weaponType = Object.values(WeaponTypeUuid)[parseInt(weaponTypeIndex)];
+
+                    let user;
+                    if (id !== interaction.user.id) user = getUser(id);
+                    else user = valorantUser;
+
+                    await deferInteraction(interaction);
+
+                    const skinsResponse = await getSkins(user);
+                    if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+
+                    await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, 0, "card"));
+                    break;
+                }
                 case "skin-select": {
                     if (interaction.message.interaction.user.id !== interaction.user.id) {
                         return await interaction.reply({
@@ -1797,6 +1817,40 @@ client.on("interactionCreate", async (interaction) => {
                 await deferInteraction(interaction);
 
                 await updateInteraction(interaction, await allStatsEmbed(interaction, await getOverallStats(), parseInt(pageIndex)));
+            } else if (interaction.customId.startsWith("cl_mode/")) {
+                const [, mode, id] = interaction.customId.split('/');
+
+                let user;
+                if (id !== interaction.user.id) user = getUser(id);
+                else user = valorantUser;
+
+                await deferInteraction(interaction);
+
+                if (mode === "stats") {
+                    await updateInteraction(interaction, await collectionStatsEmbed(interaction, id, user));
+                } else if (mode === "gallery") {
+                    const loadoutResponse = await getLoadout(user);
+                    if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                    await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, id, user, loadoutResponse));
+                } else {
+                    const loadoutResponse = await getLoadout(user);
+                    if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                    await updateInteraction(interaction, await skinCollectionSingleEmbed(interaction, id, user, loadoutResponse));
+                }
+            } else if (interaction.customId.startsWith("clw_view/")) {
+                const [, weaponTypeIndex, id, viewType, pageIndex] = interaction.customId.split('/');
+                const weaponType = Object.values(WeaponTypeUuid)[parseInt(weaponTypeIndex)];
+
+                let user;
+                if (id !== interaction.user.id) user = getUser(id);
+                else user = valorantUser;
+
+                await deferInteraction(interaction);
+
+                const skinsResponse = await getSkins(user);
+                if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+
+                await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, parseInt(pageIndex || 0), viewType));
             } else if (interaction.customId.startsWith("clpage")) {
                 const [, id, pageIndex] = interaction.customId.split('/');
 
@@ -1826,7 +1880,7 @@ client.on("interactionCreate", async (interaction) => {
                 if (switchToPage) await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, id, user, loadoutResponse));
                 else await updateInteraction(interaction, await skinCollectionSingleEmbed(interaction, id, user, loadoutResponse));
             } else if (interaction.customId.startsWith("clwpage")) {
-                const [, weaponTypeIndex, id, pageIndex] = interaction.customId.split('/');
+                const [, weaponTypeIndex, id, pageIndex, viewType] = interaction.customId.split('/');
                 const weaponType = Object.values(WeaponTypeUuid)[parseInt(weaponTypeIndex)];
 
                 let user;
@@ -1838,7 +1892,7 @@ client.on("interactionCreate", async (interaction) => {
                 const skinsResponse = await getSkins(user);
                 if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
-                await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, parseInt(pageIndex)));
+                await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, parseInt(pageIndex), viewType || "card"));
             } else if (interaction.customId.startsWith("clwswitch")) {
                 const [, weaponTypeIndex, switchTo, id] = interaction.customId.split('/');
                 const weaponType = Object.values(WeaponTypeUuid)[parseInt(weaponTypeIndex)];
@@ -1853,8 +1907,7 @@ client.on("interactionCreate", async (interaction) => {
                 const skinsResponse = await getSkins(user);
                 if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
-                if (switchToPage) await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins));
-                else await updateInteraction(interaction, await singleWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins));
+                await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, 0, switchToPage ? "card" : "list"));
             } else if (interaction.customId.startsWith("viewbundle")) {
                 const [, id, uuid] = interaction.customId.split('/');
 
@@ -1921,6 +1974,7 @@ client.on("interactionCreate", async (interaction) => {
                     case "bp": newMessage = await renderBattlepassProgress(interaction, id); break;
                     case "alerts": newMessage = await fetchAlerts(interaction); break;
                     case "cl": newMessage = await renderCollection(interaction, id); break;
+                    case "clstats": newMessage = await collectionStatsEmbed(interaction, id, getUser(id)); break;
                     case "profile": newMessage = await renderProfile(interaction, await getAccountInfo(getUser(id)), id); break;
                     case "comphistory": newMessage = await renderCompetitiveMatchHistory(interaction, await getAccountInfo(getUser(id)), await fetchMatchHistory(interaction, getUser(id), "competitive"), id); break;
                 }

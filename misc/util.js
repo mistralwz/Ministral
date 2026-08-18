@@ -121,6 +121,63 @@ export const WeaponTypeUuid = {
 
 export const WeaponType = Object.fromEntries(Object.entries(WeaponTypeUuid).map(([k, v]) => [v, k]));
 
+export const WEAPON_CATEGORIES = [
+    {
+        nameKey: "COLLECTION_CATEGORY_SIDEARMS",
+        defaultName: "Sidearms",
+        emoji: "🔫",
+        weapons: [
+            WeaponTypeUuid.Classic,
+            WeaponTypeUuid.Shorty,
+            WeaponTypeUuid.Frenzy,
+            WeaponTypeUuid.Ghost,
+            WeaponTypeUuid.Sheriff
+        ]
+    },
+    {
+        nameKey: "COLLECTION_CATEGORY_SMGS_SHOTGUNS",
+        defaultName: "SMGs & Shotguns",
+        emoji: "💥",
+        weapons: [
+            WeaponTypeUuid.Stinger,
+            WeaponTypeUuid.Spectre,
+            WeaponTypeUuid.Bucky,
+            WeaponTypeUuid.Judge
+        ]
+    },
+    {
+        nameKey: "COLLECTION_CATEGORY_RIFLES",
+        defaultName: "Rifles",
+        emoji: "🎯",
+        weapons: [
+            WeaponTypeUuid.Bulldog,
+            WeaponTypeUuid.Guardian,
+            WeaponTypeUuid.Phantom,
+            WeaponTypeUuid.Vandal
+        ]
+    },
+    {
+        nameKey: "COLLECTION_CATEGORY_SNIPERS_HEAVIES",
+        defaultName: "Snipers & Heavies",
+        emoji: "🔭",
+        weapons: [
+            WeaponTypeUuid.Marshal,
+            WeaponTypeUuid.Outlaw,
+            WeaponTypeUuid.Operator,
+            WeaponTypeUuid.Ares,
+            WeaponTypeUuid.Odin
+        ]
+    },
+    {
+        nameKey: "COLLECTION_CATEGORY_MELEE",
+        defaultName: "Melee",
+        emoji: "🔪",
+        weapons: [
+            WeaponTypeUuid.Knife
+        ]
+    }
+];
+
 export const itemTypes = {
     SKIN: "e7c63390-eda7-46e0-bb7a-a6abdacd2433",
     BUDDY: "dd3bf334-87f3-40bd-b043-682a57a8dc3a",
