@@ -105,7 +105,7 @@ import fuzzysort from "fuzzysort";
 import { getSkins, getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import {
-    fetchLiveGame, selectAgent, lockAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue
+    fetchLiveGame, selectAgent, lockAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode
 } from "../valorant/livegame.js";
 import { renderLiveGame, renderLiveGameError, setRoleSelection } from "./livegameEmbed.js";
 
@@ -2042,6 +2042,27 @@ client.on("interactionCreate", async (interaction) => {
                     : renderLiveGameError(liveGameData, interaction.user.id);
 
                 await updateInteraction(interaction, payload);
+            } else if (interaction.customId.startsWith("livegame/join_party/")) {
+                const [, , inviteCode] = interaction.customId.split('/');
+                if (!inviteCode || inviteCode === "closed") {
+                    return await interaction.reply({
+                        embeds: [basicEmbed(s(interaction).livegame?.PARTY_CLOSED_DESC || "This party is closed.")],
+                        flags: [MessageFlags.Ephemeral]
+                    });
+                }
+
+                await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+                const success = await joinPartyByCode(interaction.user.id, null, inviteCode);
+                if (success) {
+                    await interaction.editReply({
+                        embeds: [basicEmbed(s(interaction).livegame?.JOIN_PARTY_SUCCESS || "✅ Successfully joined the party!")]
+                    });
+                } else {
+                    await interaction.editReply({
+                        embeds: [basicEmbed(s(interaction).livegame?.JOIN_PARTY_FAIL || "❌ Failed to join the party. Ensure your VALORANT client is open, logged in, and in the same region.")]
+                    });
+                }
             } else if (interaction.customId.startsWith("livegame/refresh/")) {
                 const [, , targetId] = interaction.customId.split('/');
 

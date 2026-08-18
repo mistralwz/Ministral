@@ -865,6 +865,19 @@ export const removePartyCode = async (id, account, partyId) => {
     return resp.statusCode === 200;
 };
 
+export const joinPartyByCode = async (id, account, inviteCode) => {
+    const user = getUser(id, account);
+    const base = glzUrl(user);
+    const headers = { ...authHeaders(user), "Content-Type": "application/json" };
+    const resp = await fetch(`${base}/parties/v1/players/joinbycode/${inviteCode}`, {
+        method: "POST",
+        headers,
+        body: "{}"
+    });
+    console.log(`[livegame] joinPartyByCode for ${inviteCode} on ${base} returned:`, resp.statusCode);
+    return resp.statusCode === 200;
+};
+
 // ──────────────────────────────────────────────
 // Agent endpoints
 // ──────────────────────────────────────────────
@@ -1270,14 +1283,16 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const seasonMap = seasonsCache; // Pre-warmed by fetchLiveGame
     const [mmrMap, nameMap, recentMatchesMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
-        fetchPlayerNames(user, puuids.filter(p => !rawPlayers.find(rp => rp.puuid === p)?.incognito)),
+        fetchPlayerNames(user, puuids),
         showCompStats ? fetchPlayerRecentMatches(user, puuids) : Promise.resolve(new Map())
     ]);
+
+    const myPartyId = rawPlayers.find(rp => rp.puuid === user.puuid)?.partyId;
 
     // Enrich each player
     const enriched = await Promise.all(rawPlayers.map(async (p, idx) => {
         const mmr = mmrMap.get(p.puuid);
-        const name = !p.incognito ? (nameMap.get(p.puuid) ?? null) : null;
+        const name = nameMap.get(p.puuid) ?? null;
         const actualCurrentTier = mmr?.currentTier || p.matchTier || 0;
 
         // Resolve agent and tier icons/names in parallel
@@ -1291,13 +1306,14 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
         const level = p.accountLevel ?? null;
         const levelHidden = p.isHideAccountLevel ?? false;
 
+        const isPartyMemberOfUser = p.puuid === user.puuid || (myPartyId && p.partyId && p.partyId === myPartyId);
+        const shouldHideName = p.incognito && !isPartyMemberOfUser;
+
         return {
             ...p,
-            // Identity: incognito players show their locked agent name so the row
-            // reads "<agent_emoji>  `AgentName`". "Player N" is the fallback when
-            // the agent is not yet known (pre-game, agent not locked).
-            // Normal players show their username without the #tagline.
-            riotId: p.incognito
+            // Identity: incognito players show their locked agent name for strangers.
+            // For party members and the user themselves, their real username is always shown.
+            riotId: shouldHideName
                 // In pre-game, selectionState is an explicit string ("locked" / "").
                 // In-game (core-game), the field is absent (undefined) — agents
                 // are always locked once the match starts, so treat undefined as locked.

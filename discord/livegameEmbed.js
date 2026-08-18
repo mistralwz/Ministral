@@ -82,38 +82,65 @@ export const formatServerName = (serverName) => {
     return flag ? `${flag} ${clean}` : clean;
 };
 
-/** Format preferred game pods grouped by flag, compacting single-server countries to flags only. */
+/**
+ * Formats a list of preferred game pods into a flag-grouped string.
+ *
+ * Rules:
+ * - 0 servers / empty: `Auto`
+ * - 1 server total: `${flag} ${name}` (e.g. `🇩🇪 Frankfurt` or `🇺🇸 Virginia`)
+ * - 2-3 servers total:
+ *   - Grouped by country: `${flag} ${name1, name2}` (e.g. `🇺🇸 Virginia, Texas` or `🇩🇪 Frankfurt・🇬🇧 London`)
+ * - >3 servers total:
+ *   - If all from same country: `${flag} ${name1, name2, ...}`
+ *   - If across multiple countries: compact flags only `🇸🇬 🇯🇵 🇦🇺 🇮🇳 🇭🇰`
+ */
 export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => {
     if (!preferredGamePods?.length) return `\`${autoText}\``;
 
-    const groups = new Map();
-    for (const pod of preferredGamePods) {
+    const pods = preferredGamePods.map(pod => {
         const raw = resolveServerName(pod);
         const name = raw.replace(/^US (East|Central|West) \((.+)\)$/, '$2').replace(/ \d+$/, '');
         const flag = raw.startsWith("US ") ? "🇺🇸" : (SERVER_FLAGS[name] || "");
-        const key = flag || name;
-        if (!groups.has(key)) groups.set(key, { flag, names: [] });
-        if (!groups.get(key).names.includes(name)) groups.get(key).names.push(name);
-    }
+        return { name, flag };
+    });
 
-    const multi = [];
-    const singles = [];
-
-    for (const g of groups.values()) {
-        if (!g.flag) {
-            multi.push(g.names.join(", "));
-        } else if (g.names.length > 1) {
-            multi.push(`${g.flag} ${g.names.join(", ")}`);
-        } else {
-            singles.push(g.flag);
+    const unique = [];
+    const seen = new Set();
+    for (const p of pods) {
+        const key = `${p.flag}:${p.name}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(p);
         }
     }
 
-    const parts = [];
-    if (multi.length) parts.push(multi.join("・"));
-    if (singles.length) parts.push(singles.join(" "));
+    if (unique.length === 0) return `\`${autoText}\``;
 
-    return parts.join("・");
+    const groups = new Map();
+    for (const item of unique) {
+        const key = item.flag || item.name;
+        if (!groups.has(key)) groups.set(key, { flag: item.flag, names: [] });
+        groups.get(key).names.push(item.name);
+    }
+
+    if (unique.length === 1) {
+        const item = unique[0];
+        return item.flag ? `${item.flag} ${item.name}` : item.name;
+    }
+
+    if (unique.length <= 3) {
+        return [...groups.values()]
+            .map(g => g.flag ? `${g.flag} ${g.names.join(", ")}` : g.names.join(", "))
+            .join("・");
+    }
+
+    if (groups.size === 1) {
+        const [g] = groups.values();
+        return g.flag ? `${g.flag} ${g.names.join(", ")}` : g.names.join(", ");
+    }
+
+    const flags = [...groups.values()].map(g => g.flag || g.names[0]);
+    return flags.join(" ");
 };
 
 // ─── Player row renderer ─────────────────────────────────────────────────────
@@ -122,10 +149,10 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  * Render one player as a single compact line.
  *
  * Format (all modes):
- *   [PartyEmoji] <agent> `RiotName`・<rank> **42** RR・<peak> `E5A3`
+ *   [PartyEmoji] <agent> `RiotName`・<rank>**42**rr・<peak>`E5A3`
  *
  * Competitive also appends:
- *   ・**46%** WR `(13)`・🔹🔹🔻🔹🔹
+ *   ・**46%**wr `13`・`🔹🔹🔻🔹🔹`
  *
  * @param {object}  player
  * @param {Channel} channel       Discord channel (for emoji resolution)
@@ -154,19 +181,19 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
         ? (emojiToString(await rankEmoji(player.currentTier, player.currentTierIcon)) ?? "")
         : "";
 
-    // Place badge before RR for clean visual scanning: <rank_badge> **42** RR
+    // Place badge before RR for clean visual scanning: <rank_badge>**42**rr
     const rankPart = player.currentTier > 0
         ? (player.isRankFallback
             ? `${currentRankEmojiStr}`.trim()
-            : `${currentRankEmojiStr} **${player.currentRR}** RR`.trim())
-        : (currentRankEmojiStr ? `${currentRankEmojiStr} \`Unranked\`` : "`Unranked`");
+            : `${currentRankEmojiStr}**${player.currentRR}**rr`.trim())
+        : (currentRankEmojiStr ? `${currentRankEmojiStr}\`Unranked\`` : "`Unranked`");
 
-    // Peak rank — badge before act label: <peak_badge> `E5A3`
+    // Peak rank — badge before act label: <peak_badge>`E5A3`
     const peakRankEmojiStr = player.peakTier > 0 && player.peakTierIcon
         ? (emojiToString(await rankEmoji(player.peakTier, player.peakTierIcon)) ?? `\`${player.peakTierName}\``)
         : null;
     const peakPart = peakRankEmojiStr
-        ? `${peakRankEmojiStr} \`${player.peakActLabel ?? "—"}\``
+        ? `${peakRankEmojiStr}\`${player.peakActLabel ?? "—"}\``
         : null;
 
     // Competitive-only: win-rate and last 5 match results
@@ -174,7 +201,7 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
     const compParts = [];
     if (showCompStats) {
         if (player.winRate !== null)
-            compParts.push(`**${player.winRate}%** WR \`(${player.games})\``);
+            compParts.push(`**${player.winRate}%**wr \`${player.games}\``);
 
         if (player.recentMatches && player.recentMatches.length > 0) {
             const symbols = player.recentMatches.map(m => {
@@ -182,14 +209,14 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
                 if (m === "loss") return "🔻";
                 return "▫️";
             }).join("");
-            recentMatchesStr = `・${symbols}`;
+            recentMatchesStr = `・\`${symbols}\``;
         }
     }
 
     const rowTails = [rankPart, peakPart, ...compParts].filter(Boolean).join("・");
     const leaderBadge = (isPartyLobby && player.isLeader) ? "👑 " : "";
     const agentPrefix = agentEmojiStr ? `${agentEmojiStr} ` : "";
-    const partyPrefix = partyEmoji ? `${partyEmoji} ` : "";
+    const partyPrefix = (!isPartyLobby && partyEmoji) ? `${partyEmoji} ` : "";
 
     return `${partyPrefix}${agentPrefix}${leaderBadge}\`${displayName}\`・${rowTails}${recentMatchesStr}`;
 };
@@ -198,10 +225,10 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
  * Build embed fields for a list of players, grouped 5 per field.
  * @param {string} [headerName] Optional name for the first field (defaults to zero-width space).
  */
-const buildPlayerFields = async (players, channel, showCompStats, headerName = "\u200b", isPartyLobby = false) => {
-    const partyColorMap = getPartyColorMap(players);
+const buildPlayerFields = async (players, channel, showCompStats, headerName = "\u200b", isPartyLobby = false, partyColorMap = null) => {
+    const colorMap = partyColorMap ?? getPartyColorMap(players);
     const rows = await Promise.all(players.map(p =>
-        formatPlayerRow(p, channel, showCompStats, isPartyLobby, p.partyId ? partyColorMap.get(p.partyId) : "")
+        formatPlayerRow(p, channel, showCompStats, isPartyLobby, p.partyId ? colorMap.get(p.partyId) : "")
     ));
     const fields = [];
     for (let i = 0; i < rows.length; i += 5) {
@@ -244,21 +271,22 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId =
         timestamp: new Date().toISOString(),
     };
 
+    // Global party color map across both teams ensures distinct color indicators (e.g. two 5-stacks get 🟥 and 🟧)
+    const allPlayers = [...allyPlayers, ...enemyPlayers];
+    const partyColorMap = getPartyColorMap(allPlayers);
+
     if (data.isSingleTeam) {
         // Free-for-all: description block, one player per line
-        const allPlayers = [...allyPlayers, ...enemyPlayers];
-        const partyColorMap = getPartyColorMap(allPlayers);
         const lines = await Promise.all(
             allPlayers.map(p => formatPlayerRow(p, channel, showCompStats, false, p.partyId ? partyColorMap.get(p.partyId) : ""))
         );
         embed.description = lines.join("\n");
     } else {
         // Two-team layout: ally players in description, enemy players in fields
-        const allyPartyColorMap = getPartyColorMap(allyPlayers);
         const [allyLines, enemyFields] = await Promise.all([
-            Promise.all(allyPlayers.map(p => formatPlayerRow(p, channel, showCompStats, false, p.partyId ? allyPartyColorMap.get(p.partyId) : ""))),
+            Promise.all(allyPlayers.map(p => formatPlayerRow(p, channel, showCompStats, false, p.partyId ? partyColorMap.get(p.partyId) : ""))),
             enemyPlayers.length > 0
-                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b", false)
+                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b", false, partyColorMap)
                 : Promise.resolve([]),
         ]);
         embed.description = allyLines.join("\n");
@@ -268,20 +296,44 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId =
     return embed;
 };
 
-// ─── Refresh button ────────────────────────────────────────────────────────
+// ─── Refresh & Action buttons ─────────────────────────────────────────────
 
 /**
- * Returns the action row with a Refresh button.
+ * Returns the action row with Refresh and Join Party buttons.
  * customId format: `livegame/refresh/{userId}`
  */
-export const liveGameRefreshRow = (userId) =>
-    new ActionRowBuilder().addComponents(
+export const liveGameRefreshRow = (userId, inviteCode = null, isLobby = false) => {
+    const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`livegame/refresh/${userId}`)
-            .setLabel(s(userId).livegame.REFRESH_BUTTON)
+            .setLabel(s(userId).livegame?.REFRESH_BUTTON || "Refresh")
             .setEmoji("🔄")
             .setStyle(ButtonStyle.Secondary)
     );
+
+    if (isLobby) {
+        if (inviteCode) {
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`livegame/join_party/${inviteCode}`)
+                    .setLabel(s(userId).livegame?.JOIN_PARTY || "Join the Party")
+                    .setEmoji("🔓")
+                    .setStyle(ButtonStyle.Success)
+            );
+        } else {
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId("livegame/join_party/closed")
+                    .setLabel(s(userId).livegame?.PARTY_CLOSED || "Party Closed")
+                    .setEmoji("🔒")
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(true)
+            );
+        }
+    }
+
+    return row;
+};
 
 // ─── Main renderer ────────────────────────────────────────────────────────────
 
@@ -305,50 +357,48 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         roleSelections.delete(userId);
         const hasParty = allyPlayers && allyPlayers.length > 0;
 
-        let title, description, color, author = undefined;
+        let title, statusText, color, author = undefined;
         const qUpper = liveGameData.queueId?.toUpperCase() || "CUSTOM";
         const dictQ = (s(userId).queues && qUpper in s(userId).queues) ? s(userId).queues[qUpper] : undefined;
         const localizedQueueNameQueueing = dictQ || resolveQueueName(liveGameData.queueId, valLang);
-        const serverFormatted = formatPreferredServers(liveGameData.preferredGamePods, s(userId).livegame.AUTO_SERVERS);
+        const serverFormatted = formatPreferredServers(liveGameData.preferredGamePods, s(userId).livegame?.AUTO_SERVERS || "Auto");
 
         if (state === "queuing") {
             author = {
                 name: localizedQueueNameQueueing,
                 icon_url: resolveQueueIcon(liveGameData.queueId) ?? undefined,
             };
-            title = `🕒 ${s(userId).livegame.QUEUING_TITLE}`;
-            description = `🔍 ${s(userId).livegame.QUEUING_DESC.f({ queueName: localizedQueueNameQueueing })}\n\n🌐 **Servers:** ${serverFormatted}`;
-            if (liveGameData.inviteCode) {
-                description += `\n🔑 **${s(userId).livegame.PARTY_CODE}** \`${liveGameData.inviteCode}\``;
-            }
+            title = s(userId).livegame.QUEUING_TITLE;
+            statusText = `🔍 ${s(userId).livegame.QUEUING_DESC.f({ queueName: localizedQueueNameQueueing })}`;
             color = COLOR_PREGAME;
         } else {
             if (hasParty) {
                 title = `👥 ${s(userId).livegame.IDLE_PARTY_TITLE || "Idle in Party"}`;
-                description = `⏳ ${s(userId).livegame.IDLE_PARTY_DESC || "Waiting to queue."}\n\n🌐 **Servers:** ${serverFormatted}`;
-                if (liveGameData.inviteCode) {
-                    description += `\n🔑 **${s(userId).livegame.PARTY_CODE}** \`${liveGameData.inviteCode}\``;
-                }
+                statusText = `⏳ ${s(userId).livegame.IDLE_PARTY_DESC || "Waiting to queue."}`;
                 color = COLOR_PARTY;
             } else {
                 title = `💤 ${s(userId).livegame.NOT_IN_MATCH_TITLE}`;
-                description = `🎮 ${s(userId).livegame.NOT_IN_MATCH_DESC}\n\n🌐 **Servers:** ${serverFormatted}`;
-                if (liveGameData.inviteCode) {
-                    description += `\n🔑 **${s(userId).livegame.PARTY_CODE}** \`${liveGameData.inviteCode}\``;
-                }
+                statusText = `🎮 ${s(userId).livegame.NOT_IN_MATCH_DESC}`;
                 color = COLOR_OFFLINE;
             }
         }
+
+        let description = statusText;
+        let subtext = `\n\n-# 🌐 **Servers:** ${serverFormatted}`;
+        if (liveGameData.inviteCode) {
+            subtext += `\n-# 🔑 **${s(userId).livegame?.PARTY_CODE || "Party Code"}** \`${liveGameData.inviteCode}\``;
+        }
+        description += subtext;
 
         const embed = {
             author,
             title,
             description,
             color,
-            fields: hasParty ? await buildPlayerFields(allyPlayers, channel, true, (s(userId).livegame.PARTY_MEMBERS || "Party Members"), true) : undefined,
+            fields: hasParty ? await buildPlayerFields(allyPlayers, channel, true, (s(userId).livegame?.PARTY_MEMBERS || "Party Members"), true) : undefined,
         };
 
-        let components = [liveGameRefreshRow(userId)];
+        let components = [liveGameRefreshRow(userId, liveGameData.inviteCode, true)];
 
         // UI Controls for party leader
         if (hasParty && liveGameData.matchId) {

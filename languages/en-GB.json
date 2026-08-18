@@ -236,7 +236,9 @@
     "REMOVE_PARTY_CODE": "Disable Party Code",
     "PARTY_CODE": "Party Code:",
     "PREFERRED_SERVERS": "Preferred: {servers}",
-    "AUTO_SERVERS": "Auto"
+    "AUTO_SERVERS": "Auto",
+    "JOIN_PARTY": "Join Party",
+    "PARTY_CLOSED": "Party Closed"
   },
   "queues": {
     "COMPETITIVE": "Competitive",
