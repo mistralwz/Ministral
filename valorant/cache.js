@@ -772,14 +772,15 @@ export const getPrice = async (uuid, skin = null) => {
     if (!bundles) await fetchData([bundles]);
     if (bundleItemPrices[uuid]) return bundleItemPrices[uuid];
 
+    // Only fallback for store-only edition tiers (Ultra, Exclusive, Premium).
+    // Battlepass and Agent contract skins frequently use Select/Deluxe tiers and cost 0 VP.
     if (skin && skin.rarity) {
         const isMelee = skin.weapon === "2f59173c-4bed-b6c3-2191-dea9b58be9c7";
         switch (skin.rarity) {
-            case "411e4a55-4e59-7757-41f0-86a53f101bb5": return isMelee ? 4950 : 2475; // Ultra
-            case "e046854e-406c-37f4-6607-19a9ba8426fc": return isMelee ? 4350 : 2175; // Exclusive
-            case "60bca009-4182-7998-dee7-b8a2558dc369": return isMelee ? 3550 : 1775; // Premium
-            case "0cebb8be-46d7-c12a-d306-e9907bfc5a25": return isMelee ? 2550 : 1275; // Deluxe
-            case "12683d76-48d7-84a3-4e09-6985794f0445": return isMelee ? 1750 : 875;  // Select
+            case "411e4a55-4e59-7757-41f0-86a53f101bb5": return isMelee ? 4950 : 2475; // Ultra (Store-only)
+            case "e046854e-406c-37f4-6607-19a9ba8426fc": return isMelee ? 4350 : 2175; // Exclusive (Store-only)
+            case "60bca009-4182-7998-dee7-b8a2558dc369": return isMelee ? 3550 : 1775; // Premium (Store-only)
+            default: return null; // Select/Deluxe without store entry are treated as 0 VP (Battlepass/Contract)
         }
     }
 
