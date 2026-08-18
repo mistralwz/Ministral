@@ -97,25 +97,26 @@ export const fetchJson = async (url, options = {}) => {
 };
 
 export const WeaponTypeUuid = {
-    "Odin": "63e6c2b6-4a8e-869c-3d4c-e38355226584",
-    "Ares": "55d8a0f4-4274-ca67-b77f-64eed50c59c7",
-    "Vandal": "9c82e148-4036-4cce-9f9c-c46d96738b73",
-    "Bulldog": "ae3de142-4ee9-5713-a5d2-b2eb8240ec9f",
-    "Phantom": "ee8e8d15-496b-07ac-e5f6-8fae5d4c7b1a",
-    "Judge": "ec84293c-47e1-ab56-8579-73809f78cde5",
-    "Bucky": "910ae148-46d1-42e0-ab44-16923439740c",
-    "Frenzy": "44d4e95c-4157-0037-81b2-17841bf2e8e3",
-    "Classic": "29a0cfab-485b-f5d5-779a-b59f85e204a8",
-    "Ghost": "1baa85b4-4c70-1774-8839-7776f8e5c150",
-    "Sheriff": "e3367522-4976-d689-04a4-2382ce37f9d9",
-    "Shorty": "42da8cee-42fc-2d61-c67b-35b443a4232c",
-    "Operator": "a03b24d3-4319-996d-0f8c-94eac02437d3",
-    "Guardian": "4ade7faa-4cf1-8372-4c3d-e28043699470",
-    "Marshal": "c4883e50-4494-202c-be36-44c502542cd6",
-    "Spectre": "469f4044-4922-44d4-b074-60da56b632f2",
-    "Stinger": "f7e1b453-434e-51da-b718-16e2605c703f",
-    "Melee": "2f59173c-4bed-b6c3-2191-dea9b58be9c7",
-    "Outlaw": "5f0aaf3a-4b3d-9c4c-4fe7-3c9702a52b94"
+    Odin: "63e6c2b6-4a8e-869c-3d4c-e38355226584",
+    Ares: "55d8a0f4-4274-ca67-fe2c-06ab45efdf58",
+    Vandal: "9c82e19d-4575-0200-1a81-3eacf00cf872",
+    Bulldog: "ae3de142-4d85-2547-dd26-4e90bed35cf7",
+    Phantom: "ee8e8d15-496b-07ac-e5f6-8fae5d4c7b1a",
+    Judge: "ec845bf4-4f79-ddda-a3da-0db3774b2794",
+    Bucky: "910be174-449b-c412-ab22-d0873436b21b",
+    Frenzy: "44d4e95c-4157-0037-81b2-17841bf2e8e3",
+    Classic: "29a0cfab-485b-f5d5-779a-b59f85e204a8",
+    Ghost: "1baa85b4-4c70-1284-64bb-6481dfc3bb4e",
+    Sheriff: "e336c6b8-418d-9340-d77f-7a9e4cfe0702",
+    Shorty: "42da8ccc-40d5-affc-beec-15aa47b42eda",
+    Operator: "a03b24d3-4319-996d-0f8c-94bbfba1dfc7",
+    Guardian: "4ade7faa-4cf1-8376-95ef-39884480959b",
+    Marshal: "c4883e50-4494-202c-3ec3-6b8a9284f00b",
+    Outlaw: "5f0aaf7a-4289-3998-d5ff-eb9a5cf7ef5c",
+    Spectre: "462080d1-4035-2937-7c09-27aa2a5c27a7",
+    Stinger: "f7e1b454-4ad4-1063-ec0a-159e56b58941",
+    Knife: "2f59173c-4bed-b6c3-2191-dea9b58be9c7",
+    Melee: "2f59173c-4bed-b6c3-2191-dea9b58be9c7"
 };
 
 export const WeaponType = Object.fromEntries(Object.entries(WeaponTypeUuid).map(([k, v]) => [v, k]));
