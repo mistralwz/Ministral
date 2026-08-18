@@ -514,6 +514,9 @@ export const renderBundles = async (bundles, interaction, VPemoji) => {
 }
 
 export const renderBundle = async (bundle, interaction, emoji, includeExpires = true) => {
+    if ((!bundle.items || !bundle.items.length) && bundle.uuid) {
+        bundle = await getBundle(bundle.uuid);
+    }
     const subName = bundle.subNames ? l(bundle.subNames, interaction) + "\n" : "";
     const slantedDescription = bundle.descriptions ? "*" + l(bundle.descriptions, interaction) + "*\n" : "";
     const strikedBundleBasePrice = bundle.basePrice ? " ~~" + bundle.basePrice + "~~" : "";

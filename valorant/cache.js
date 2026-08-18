@@ -829,9 +829,13 @@ const inferBundleItems = (bundle) => {
         return sName.startsWith(name + " ") || sName === name;
     };
 
-    let skinMatches = skins ? Object.values(skins).filter(s => typeof s === "object" && s.names && matchesCode(s)) : [];
-    const useCode = skinMatches.length > 0;
-    const matchesItem = (item) => useCode ? matchesCode(item) : matchesName(item);
+    const hasCodeMatches = code && (
+        (skins && Object.values(skins).some(s => typeof s === "object" && s.names && matchesCode(s))) ||
+        (buddies && Object.values(buddies).some(b => typeof b === "object" && b.names && matchesCode(b))) ||
+        (cards && Object.values(cards).some(c => typeof c === "object" && c.names && matchesCode(c))) ||
+        (sprays && Object.values(sprays).some(sp => typeof sp === "object" && sp.names && matchesCode(sp)))
+    );
+    const matchesItem = (item) => hasCodeMatches ? matchesCode(item) : matchesName(item);
 
     const TIER_GUN_PRICES = {
         "12683d76-48d7-84a3-4e09-6985794f0445": 875,  // Select
@@ -909,18 +913,22 @@ export const getAllBundles = () => {
 }
 
 export const searchBundle = async (query, locale, limit = 20, threshold = -1000) => {
-    await fetchData([bundles]);
+    await fetchData([bundles, skins, buddies, cards, sprays]);
 
     const valLocale = discToValLang[locale];
     const keys = [`names.${valLocale}`];
     if (valLocale !== DEFAULT_VALORANT_LANG) keys.push(`names.${DEFAULT_VALORANT_LANG}`);
 
-    return fuzzysort.go(query, getAllBundles(), {
+    const results = fuzzysort.go(query, getAllBundles(), {
         keys: keys,
         limit: limit,
         threshold: threshold,
         all: true
     });
+    for (const r of results) {
+        if (r.obj && (!r.obj.items || !r.obj.items.length)) inferBundleItems(r.obj);
+    }
+    return results;
 }
 
 export const getBuddy = async (uuid) => {

@@ -943,8 +943,8 @@ client.on("interactionCreate", async (interaction) => {
                             flags: [MessageFlags.Ephemeral]
                         });
                     } else if (searchResults.length === 1 || nameMatchesExactly(interaction) || nameMatchesExactly()) { // check both localized and english
-                        const bundle = searchResults[0].obj;
-                        const message = await renderBundle(bundle, interaction, emoji)
+                        const bundle = await getBundle(searchResults[0].obj.uuid);
+                        const message = await renderBundle(bundle, interaction, emoji);
 
                         return await interaction.followUp(message);
                     } else {
