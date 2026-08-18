@@ -925,7 +925,17 @@ export const collectionModeButtons = (interaction, id, currentMode = "loadout") 
     return new ActionRowBuilder().addComponents(loadoutBtn, statsBtn, galleryBtn);
 };
 
-const RUNNIN_ON_EMPTY_SPRAY = "https://media.valorant-api.com/sprays/0471249b-439f-798a-213c-758e578c2e64/fulltransparenticon.png";
+export const RUNNIN_ON_EMPTY_SPRAY_UUID = "3085ca2f-4e7a-25a5-909d-33940b0148e2";
+const RUNNIN_ON_EMPTY_SPRAY_FALLBACK = "https://media.valorant-api.com/sprays/3085ca2f-4e7a-25a5-909d-33940b0148e2/fulltransparenticon.png";
+
+const getRunninOnEmptySprayIcon = async () => {
+    try {
+        const spray = await getSpray(RUNNIN_ON_EMPTY_SPRAY_UUID);
+        return spray?.icon || RUNNIN_ON_EMPTY_SPRAY_FALLBACK;
+    } catch {
+        return RUNNIN_ON_EMPTY_SPRAY_FALLBACK;
+    }
+};
 
 export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout, favorites }) => {
     const someoneElseUsedCommand = interaction.message ?
@@ -1020,11 +1030,12 @@ export const skinCollectionSingleEmbed = async (interaction, id, user, { loadout
         usernameText = user.username;
     }
 
+    const emptySprayIcon = categoryFields.length === 0 ? await getRunninOnEmptySprayIcon() : null;
     const embed = {
         title: s(interaction).info.COLLECTION_HEADER.f({ u: usernameText }, id),
         description: summaryLine,
         color: VAL_COLOR_1,
-        ...(categoryFields.length === 0 ? { image: { url: RUNNIN_ON_EMPTY_SPRAY } } : { fields: categoryFields })
+        ...(categoryFields.length === 0 ? { image: { url: emptySprayIcon } } : { fields: categoryFields })
     };
 
     // Retrieve owned skins to populate dropdown counters
@@ -1152,6 +1163,7 @@ export const collectionStatsEmbed = async (interaction, id, user) => {
         ? `💰 **${s(interaction).info.COLLECTION_TOTAL_VALUE || "Total Collection Value"}:** ${emoji} **0**\n🎒 **${s(interaction).info.COLLECTION_TOTAL_SKINS || "Total Skins Owned"}:** **${validSkins.length}** skins *(Standard/Battlepass only)*`
         : `💰 **${s(interaction).info.COLLECTION_TOTAL_VALUE || "Total Collection Value"}:** ${emoji} **${totalCollectionValue.toLocaleString()}**\n🎒 **${s(interaction).info.COLLECTION_TOTAL_SKINS || "Total Skins Owned"}:** **${validSkins.length}** skins across **${Object.keys(weaponCounts).length}** weapons`;
 
+    const emptySprayIcon = totalCollectionValue === 0 ? await getRunninOnEmptySprayIcon() : null;
     const embed = {
         title: s(interaction).info.COLLECTION_STATS_HEADER.f({ u: usernameText }, id),
         description: descriptionText,
@@ -1168,7 +1180,7 @@ export const collectionStatsEmbed = async (interaction, id, user) => {
                 inline: true
             }
         ],
-        ...(totalCollectionValue === 0 ? { image: { url: RUNNIN_ON_EMPTY_SPRAY } } : {})
+        ...(totalCollectionValue === 0 ? { image: { url: emptySprayIcon } } : {})
     };
 
     const components = [];
