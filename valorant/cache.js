@@ -11,7 +11,7 @@ export const setCacheClient = (c) => {
 };
 const isShardZero = () => !cacheClient?.shard || cacheClient.shard.ids[0] === 0;
 
-const formatVersion = 16;
+const formatVersion = 17;
 let gameVersion;
 
 let weapons, skins, rarities, buddies, sprays, cards, titles, bundles, battlepass, flexes;
@@ -303,6 +303,7 @@ export const getSkinList = async (gameVersion) => {
                 defaultSkinUuid: weapon.defaultSkinUuid,
                 levels: skin.levels,
                 chromas: skin.chromas,
+                assetPath: skin.assetPath
             }
         }
     }
@@ -461,20 +462,23 @@ const getBundleList = async (gameVersion) => {
     const json = JSON.parse(req.body);
     console.assert(json.status === 200, `Valorant bundles data status code is ${json.status}!`, json);
 
+    const oldBundles = bundles || {};
     bundles = { version: gameVersion };
     bundleItemPrices = {}; // items are all null at this point; index rebuilt via addBundleData()
     for (const bundle of json.data) {
+        const old = oldBundles[bundle.uuid];
         bundles[bundle.uuid] = {
             uuid: bundle.uuid,
             names: bundle.displayName,
             subNames: bundle.displayNameSubText,
             descriptions: bundle.extraDescription,
             icon: bundle.displayIcon,
-            items: null,
-            price: null,
-            basePrice: null,
-            expires: null,
-            last_seen: null
+            assetPath: bundle.assetPath,
+            items: old?.items || null,
+            price: old?.price || null,
+            basePrice: old?.basePrice || null,
+            expires: old?.expires || null,
+            last_seen: old?.last_seen || null
         }
     }
 
@@ -564,7 +568,8 @@ export const getBuddies = async (gameVersion) => {
         buddies[levelOne.uuid] = {
             uuid: levelOne.uuid,
             names: buddy.displayName,
-            icon: levelOne.displayIcon
+            icon: levelOne.displayIcon,
+            assetPath: buddy.assetPath
         }
     }
 
@@ -608,7 +613,8 @@ export const getCards = async (gameVersion) => {
                 small: card.smallArt,
                 wide: card.wideArt,
                 large: card.largeArt
-            }
+            },
+            assetPath: card.assetPath
         }
     }
 
@@ -629,7 +635,8 @@ export const getSprays = async (gameVersion) => {
         sprays[spray.uuid] = {
             uuid: spray.uuid,
             names: spray.displayName,
-            icon: spray.fullTransparentIcon || spray.displayIcon
+            icon: spray.fullTransparentIcon || spray.displayIcon,
+            assetPath: spray.assetPath
         }
     }
 
@@ -800,19 +807,85 @@ export const searchSkin = async (query, locale, limit = 20, threshold = -5000) =
     });
 }
 
+const extractBundleCode = (path) => {
+    if (!path) return null;
+    const m = path.match(/StorefrontItem_([A-Za-z0-9]+?)(?:_ThemeBundle|ThemeBundle|_DataAsset|DataAsset)/i);
+    return m ? m[1].toLowerCase() : null;
+};
+
+const inferBundleItems = (bundle) => {
+    if (!bundle || (bundle.items && bundle.items.length)) return bundle;
+    const code = extractBundleCode(bundle.assetPath);
+    const name = (bundle.names?.[DEFAULT_VALORANT_LANG] || "")
+        .replace(/^(?:run it back|give back)[:\s/]+/i, "")
+        .replace(/ collection| bundle/i, "")
+        .trim().toLowerCase();
+    if (!code && !name) return bundle;
+
+    const matchesItem = (item) => {
+        if (code && item.assetPath && item.assetPath.toLowerCase().includes("/" + code + "/")) return true;
+        if (!code && name) {
+            const sName = (item.names?.[DEFAULT_VALORANT_LANG] || "").toLowerCase();
+            return sName.startsWith(name + " ") || sName === name;
+        }
+        return false;
+    };
+
+    const items = [];
+    if (skins) {
+        for (const s of Object.values(skins)) {
+            if (typeof s !== "object" || !s.names) continue;
+            if (matchesItem(s)) {
+                const lvlUuid = s.levels?.[0]?.uuid || s.uuid;
+                const price = prices?.[lvlUuid] || s.price || null;
+                items.push({ uuid: lvlUuid, type: itemTypes.SKIN, price, basePrice: price, discount: 0, amount: 1 });
+            }
+        }
+    }
+    if (buddies) {
+        for (const b of Object.values(buddies)) {
+            if (typeof b !== "object" || !b.names) continue;
+            if (matchesItem(b)) {
+                items.push({ uuid: b.levels?.[0]?.uuid || b.uuid, type: itemTypes.BUDDY, price: 0, basePrice: 475, discount: 1, amount: 1 });
+            }
+        }
+    }
+    if (cards) {
+        for (const c of Object.values(cards)) {
+            if (typeof c !== "object" || !c.names) continue;
+            if (matchesItem(c)) {
+                items.push({ uuid: c.uuid, type: itemTypes.CARD, price: 0, basePrice: 375, discount: 1, amount: 1 });
+            }
+        }
+    }
+    if (sprays) {
+        for (const sp of Object.values(sprays)) {
+            if (typeof sp !== "object" || !sp.names) continue;
+            if (matchesItem(sp)) {
+                items.push({ uuid: sp.uuid, type: itemTypes.SPRAY, price: 0, basePrice: 325, discount: 1, amount: 1 });
+            }
+        }
+    }
+    if (items.length) {
+        bundle.items = items;
+        if (!bundle.price) bundle.price = items.reduce((acc, i) => acc + (i.price || 0), 0) || null;
+    }
+    return bundle;
+};
+
 export const getBundle = async (uuid) => {
-    await fetchData([bundles]);
-    if (bundles[uuid]) return bundles[uuid];
+    await fetchData([bundles, skins, buddies, cards, sprays]);
+    if (bundles[uuid]) return inferBundleItems(bundles[uuid]);
 
     if (Date.now() - lastBundleFetch > 60 * 60 * 1000) {
         // UUID not in cache — bundle list is likely stale (new Riot bundle). Force a re-fetch.
         console.log(`[getBundle] UUID ${uuid} not found in bundle cache, forcing re-fetch...`);
         bundles = null;
         dataFullyLoaded = false;
-        await fetchData([bundles]);
+        await fetchData([bundles, skins, buddies, cards, sprays]);
         lastBundleFetch = Date.now();
     }
-    return bundles[uuid];
+    return inferBundleItems(bundles[uuid]);
 }
 
 export const getAllBundles = () => {
