@@ -152,18 +152,38 @@ export const loadSkinsJSON = async (filename = "data/skins.json") => {
     titles = jsonData.titles;
     battlepass = jsonData.battlepass;
     allSkinsCache = null;
+    buildSkinIndices();
     buildBundleItemPrices();
 
     // Re-set the fast-path flag now that all fields are consistent
     dataFullyLoaded = hasAllCoreDataLoaded();
 }
 
+const buildSkinIndices = () => {
+    if (!skins) return;
+    for (const s of Object.values(skins)) {
+        if (!s || typeof s !== "object") continue;
+        if (s.uuid) skins[s.uuid] = s;
+        if (s.skinUuid) skins[s.skinUuid] = s;
+        if (s.levels) {
+            for (const lvl of s.levels) {
+                if (lvl?.uuid) skins[lvl.uuid] = s;
+            }
+        }
+        if (s.chromas) {
+            for (const ch of s.chromas) {
+                if (ch?.uuid) skins[ch.uuid] = s;
+            }
+        }
+    }
+};
+
 export const saveSkinsJSON = (filename = "data/skins.json") => {
     const dir = filename.substring(0, filename.lastIndexOf("/"));
     if (dir && !fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins, prices, bundles, rarities, buddies, flexes, sprays, cards, titles, battlepass }, null, 2));
+    fs.writeFileSync(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins, prices, bundles, rarities, buddies, flexes, sprays, cards, titles, battlepass }));
     skinsSaveDirty = false;
     
     sendShardMessage({ type: "skinsReload" });
@@ -749,33 +769,23 @@ export const getItem = async (uuid, type) => {
 
 export const getSkin = async (uuid, reloadData = true) => {
     if (reloadData) await fetchData([skins, prices]);
-    if (!skins) return null;
+    if (!skins || !uuid) return null;
 
-    let skin = skins[uuid];
-    if (!skin) {
-        skin = Object.values(skins).find(s => s && typeof s === "object" && (
-            s.skinUuid === uuid || 
-            s.uuid === uuid ||
-            s.levels?.some(l => l.uuid === uuid) || 
-            s.chromas?.some(c => c.uuid === uuid)
-        ));
-    }
-    if (!skin) return null;
+    const skin = skins[uuid];
+    if (!skin || typeof skin !== "object") return null;
 
     skin.price = await getPrice(uuid, skin);
-
     return skin;
 }
 
 export const getSkinFromSkinUuid = async (uuid, reloadData = true) => {
     if (reloadData) await fetchData([skins, prices]);
-    if (!skins) return null;
+    if (!skins || !uuid) return null;
 
-    let skin = skins[uuid] || Object.values(skins).find(s => s && typeof s === "object" && s.skinUuid === uuid);
-    if (!skin) return null;
+    const skin = skins[uuid];
+    if (!skin || typeof skin !== "object") return null;
 
     skin.price = await getPrice(skin.uuid, skin);
-
     return skin;
 }
 
@@ -880,8 +890,10 @@ const inferBundleItems = (bundle) => {
 
     const items = [];
     if (skins) {
+        const seenSkins = new Set();
         for (const s of Object.values(skins)) {
-            if (typeof s !== "object" || !s.names) continue;
+            if (typeof s !== "object" || !s.names || !s.uuid || seenSkins.has(s.uuid)) continue;
+            seenSkins.add(s.uuid);
             if (matchesItem(s)) {
                 const lvlUuid = s.levels?.[0]?.uuid || s.uuid;
                 const isMelee = s.weapon === "2f59173c-4bed-b6c3-2191-dea9b58be9c7";
@@ -916,8 +928,8 @@ const inferBundleItems = (bundle) => {
             }
         }
     }
+    bundle.items = items;
     if (items.length) {
-        bundle.items = items;
         const gunItems = items.filter(i => i.type === itemTypes.SKIN && skins[i.uuid]?.weapon !== "2f59173c-4bed-b6c3-2191-dea9b58be9c7");
         if (!bundle.price) bundle.price = (gunItems.length ? gunItems : items).reduce((acc, i) => acc + (i.price || 0), 0) || null;
     }
