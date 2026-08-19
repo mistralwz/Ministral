@@ -129,7 +129,7 @@ const buildCategoryProxy = (categoryStrings = {}, fallbackCategory = null) => {
         get(targetObj, prop) {
             if (prop in targetObj) return asLocalized(targetObj[prop]);
             if (fallbackCategory && prop in fallbackCategory) return asLocalized(fallbackCategory[prop]);
-            return formatString(prop);
+            return undefined;
         }
     });
 };
