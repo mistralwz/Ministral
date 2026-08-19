@@ -245,14 +245,20 @@ const MAX_TOKEN_CACHE_SIZE = 256;
 export const decodeToken = (token) => {
     if (!token) return null;
     const cached = tokenCache.get(token);
-    if (cached) return cached;
+    if (cached) {
+        tokenCache.delete(token);
+        tokenCache.set(token, cached);
+        return cached;
+    }
 
     try {
         const encodedPayload = token.split('.')[1];
         const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
         const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
 
-        if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) tokenCache.clear();
+        if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
+            tokenCache.delete(tokenCache.keys().next().value);
+        }
         tokenCache.set(token, decoded);
 
         return decoded;

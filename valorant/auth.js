@@ -2,7 +2,9 @@ import {
     fetch,
     tokenExpiry,
     decodeToken,
-    wait
+    wait,
+    getRiotVersionData,
+    fetchRiotVersionData
 } from "../misc/util.js";
 import config from "../misc/config.js";
 import { addUser, getAccountWithPuuid, getUserJson, readUserJson, saveUser } from "./accountSwitcher.js";
@@ -223,14 +225,17 @@ export const deleteUserAuth = (user) => {
     invalidateUserCache(user.id);
 };
 
+let cachedUserAgent = null;
+
 export const getUserAgent = async () => {
-    const { getRiotVersionData, fetchRiotVersionData } = await import("../misc/util.js");
+    if (cachedUserAgent) return cachedUserAgent;
     let versionData = getRiotVersionData();
     if (!versionData) {
         versionData = await fetchRiotVersionData();
     }
     const version = versionData ? versionData.riotClientVersion : "release-10.00-shipping-0-0000000";
-    return `RiotClient/${version} rso-auth (Windows;10;;Professional, x64)`;
+    cachedUserAgent = `RiotClient/${version} rso-auth (Windows;10;;Professional, x64)`;
+    return cachedUserAgent;
 };
 
 export const generateWebAuthUrl = () => {
