@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Koristi `/bundle` za pregled određenog paketa",
     "BUNDLE_CHOICE": "Koji paket želiš pregledati?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Izaberi paket:",
-    "NO_BUNDLE_DATA": "Riot ne pruža podatke o prijašnjim/neizdatim paketima :(",
+    "NO_BUNDLE_DATA": "Podaci o ovom novom paketu još nisu dostupni :(",
     "BUNDLE_NAME": "Kolekcija {b}",
     "BUNDLE_RELEASED": "Izdan: <t:{t}:R>",
     "EXPIRES": "ističe <t:{t}:R>",

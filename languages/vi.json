@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Dùng `/bundle` để xem bộ sưu tập bất kì.",
     "BUNDLE_CHOICE": "Bạn muốn xem bộ sưu tập nào?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Chọn bộ sưu tập:",
-    "NO_BUNDLE_DATA": "Riot không đưa cho mình dữ liệu của những bộ sưu tập cũ! :(",
+    "NO_BUNDLE_DATA": "Chưa có dữ liệu cho bộ sưu tập mới này! :(",
     "BUNDLE_NAME": "Bộ sưu tập {b}",
     "BUNDLE_RELEASED": "Được mở bán: <t:{t}:R>",
     "EXPIRES": "hết hạn sau <t:{t}:R>",

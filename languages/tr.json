@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "`/bundle` komutunu kullanarak belirli bir koleksiyonu inceleyebilirsin",
     "BUNDLE_CHOICE": "Hangi koleksiyonu incelemek istersin?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Koleksiyon seç:",
-    "NO_BUNDLE_DATA": "Riot, önceki/yayınlanmamış paketler için veri sağlamıyor :(",
+    "NO_BUNDLE_DATA": "Bu yeni paket için henüz veri mevcut değil :(",
     "BUNDLE_NAME": "{b} Koleksiyonu",
     "BUNDLE_RELEASED": "<t:{t}:R> piyasaya sürüldü.",
     "EXPIRES": "<t:{t}:R> sona eriyor",

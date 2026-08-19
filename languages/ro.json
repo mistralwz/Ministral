@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Folositi `/bundle` sa inspectati un bundle specific",
     "BUNDLE_CHOICE": "Ce bundle ați vrea să inspectați?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Selectati bundelul:",
-    "NO_BUNDLE_DATA": "Riot nu oferă date pentru bundle-uri anterioare/nelansate :(",
+    "NO_BUNDLE_DATA": "Datele pentru acest nou bundle nu sunt încă disponibile :(",
     "BUNDLE_NAME": "Colecția {b}",
     "BUNDLE_RELEASED": "Lansat: <t:{t}:R>",
     "EXPIRES": "expira <t:{t}:R>",

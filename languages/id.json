@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Gunakan `/bundle` untuk lihat bundle tertentu",
     "BUNDLE_CHOICE": "Bundle mana yang akan kamu inspect??",
     "BUNDLE_CHOICE_PLACEHOLDER": "Pilih bundle:",
-    "NO_BUNDLE_DATA": "Riot tidak sediakan data untuk bundle lama/belum rilis :(",
+    "NO_BUNDLE_DATA": "Data untuk bundle baru ini belum tersedia :(",
     "BUNDLE_NAME": "Koleksi {b}",
     "BUNDLE_RELEASED": "Rilis: <t:{t}:R>",
     "EXPIRES": "berakhir <t:{t}:R>",

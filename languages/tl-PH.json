@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Gamitin ang `/bundle` para ma-inspect ang tiyak na bundle",
     "BUNDLE_CHOICE": "Anong bundle ang gusto mong i-inspect?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Pumili ng bundle:",
-    "NO_BUNDLE_DATA": "Hindi nagbibigay ng data ang Riot tungkol sa dati/hindi nakalabas na mga bundle :(",
+    "NO_BUNDLE_DATA": "Wala pang available na data para sa bagong bundle na ito :(",
     "BUNDLE_NAME": "Collection ng {b}",
     "BUNDLE_RELEASED": "Inilabas: <t:{t}:R>",
     "EXPIRES": "nagtatapos <t:{t}:R>",

@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Use `/bundle` para inspecionar um pacote específico",
     "BUNDLE_CHOICE": "Qual pacote você gostaria de inspecionar?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Selecione o pacote:",
-    "NO_BUNDLE_DATA": "A Riot não fornece dados para pacotes anteriores/não lançados :( :(",
+    "NO_BUNDLE_DATA": "Ainda não há dados disponíveis para este novo pacote :(",
     "BUNDLE_NAME": "{b} Coleção",
     "BUNDLE_RELEASED": "Lançado: <t:{t}:R>",
     "EXPIRES": "expira <t:{t}:R>",

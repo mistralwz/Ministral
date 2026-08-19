@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Naudokite `/bundle`, kad peržiūrėtumėte konkretų rinkinį",
     "BUNDLE_CHOICE": "Kurį rinkinį norite peržiūrėti?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Pasirinkite rinkinį:",
-    "NO_BUNDLE_DATA": "Riot nepateikia duomenų apie ankstesnius/neišleistus rinkinius :(",
+    "NO_BUNDLE_DATA": "Šio naujo rinkinio duomenų dar nėra :(",
     "BUNDLE_NAME": "{b} kolekcija",
     "BUNDLE_RELEASED": "Išleista: <t:{t}:R>",
     "EXPIRES": "baigiasi <t:{t}:R>",

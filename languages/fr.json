@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Utilise `/bundle` pour voir une collection en particulier",
     "BUNDLE_CHOICE": "Quelle collection veux-tu regarder?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Choisir une collection:",
-    "NO_BUNDLE_DATA": "Riot ne donne pas d'infos sur les collections qui ne sont pas encore sorties :(",
+    "NO_BUNDLE_DATA": "Les données pour cette nouvelle collection ne sont pas encore disponibles :(",
     "BUNDLE_NAME": "{b}",
     "BUNDLE_RELEASED": "Sortie: <t:{t}:R>",
     "EXPIRES": "jusqu'à <t:{t}:R>",

@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "使用 `/bundle` 检查一个特定的组合包",
     "BUNDLE_CHOICE": "你想检查哪个组合包?",
     "BUNDLE_CHOICE_PLACEHOLDER": "选择组合包:",
-    "NO_BUNDLE_DATA": "Riot 不提供之前或未发布的组合包信息:(",
+    "NO_BUNDLE_DATA": "该新组合包的信息暂未推出:(",
     "BUNDLE_NAME": "{b} 组合包",
     "BUNDLE_RELEASED": "发布于: <t:{t}:R>",
     "EXPIRES": "过期于 <t:{t}:R>",

@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Użyj komendy `/bundle` sprawdzić konkretny pakiet",
     "BUNDLE_CHOICE": "Który pakiet chciałbyś sprawdzić?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Wybierz pakiet:",
-    "NO_BUNDLE_DATA": "Riot nie udostępnia danych dla poprzednich/niepublikowanych pakietów.",
+    "NO_BUNDLE_DATA": "Dane dla tego nowego zestawu nie są jeszcze dostępne :(",
     "BUNDLE_NAME": "{b} Kolekcja",
     "BUNDLE_RELEASED": "Wydano: <t:{t}:R>",
     "EXPIRES": "wygasa <t:{t}:R>",

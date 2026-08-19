@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "특정 번들을 확인하려면 `/bundle`을 사용하세요.",
     "BUNDLE_CHOICE": "어떤 번들을 확인하시겠습니까?",
     "BUNDLE_CHOICE_PLACEHOLDER": "번들 선택:",
-    "NO_BUNDLE_DATA": "라이엇 서버에서 이전/미출시 번들의 데이터를 제공하지 않습니다 :(",
+    "NO_BUNDLE_DATA": "이 새로운 번들의 데이터는 아직 제공되지 않습니다 :(",
     "BUNDLE_NAME": "{b} 컬렉션",
     "BUNDLE_RELEASED": "출시일: <t:{t}:R>",
     "EXPIRES": "종료 <t:{t}:R>",

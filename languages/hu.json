@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Használd a `/bundle` parancsot egy adott csomag megvizsgálásához.",
     "BUNDLE_CHOICE": "Melyik csomagot szeretnéd megvizsgálni?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Válassz csomagot:",
-    "NO_BUNDLE_DATA": "A Riot nem ad meg adatokat a korábbi/kiadatlan csomagokhoz :(",
+    "NO_BUNDLE_DATA": "Ehhez az új csomaghoz még nem állnak rendelkezésre adatok :(",
     "BUNDLE_NAME": "{b} Gyűjtemény",
     "BUNDLE_RELEASED": "Kiadva: <t:{t}:R>",
     "EXPIRES": "Lejár: <t:{t}:R>",

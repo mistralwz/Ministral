@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Brug `/bundle` til at inspicere et specifik bundt",
     "BUNDLE_CHOICE": "Hvilket bundt vil du inspicere?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Vælg bundt:",
-    "NO_BUNDLE_DATA": "Riot tilbyder ikke data for tidligere/ikke-udgivne bundter :(",
+    "NO_BUNDLE_DATA": "Der er endnu ikke data tilgængelig for dette nye bundt :(",
     "BUNDLE_NAME": "{b} Samling",
     "BUNDLE_RELEASED": "Udgivet: <t:{t}:R>",
     "EXPIRES": "udløber <t:{t}:R>",

@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Käytä komentoa `/bundle` tarkastellaksesi tiettyä pakettia",
     "BUNDLE_CHOICE": "Mitä pakettia haluat tarkastella?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Valitse paketti:",
-    "NO_BUNDLE_DATA": "Riot ei tarjoa tietoja aiemmista/julkaisemattomista paketeista :(",
+    "NO_BUNDLE_DATA": "Tästä uudesta paketista ei ole vielä tietoja saatavilla :(",
     "BUNDLE_NAME": "{b} -kokoelma",
     "BUNDLE_RELEASED": "Julkaistu: <t:{t}:R>",
     "EXPIRES": "päättyy <t:{t}:R>",

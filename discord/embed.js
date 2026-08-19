@@ -478,10 +478,9 @@ export const renderBundles = async (bundles, interaction, VPemoji) => {
             return basicEmbed(s(interaction).error.GENERIC_ERROR);
         }
 
-        const renderedBundle = await renderBundle(bundle, interaction, VPemoji, false);
+        const renderedBundle = await renderBundle(bundle, interaction, VPemoji, true);
         const titleEmbed = renderedBundle.embeds[0];
         titleEmbed.title = s(interaction).info.BUNDLE_HEADER.f({ b: titleEmbed.title });
-        if (bundle.expires) titleEmbed.description += ` *(${s(interaction).info.EXPIRES.f({ t: bundle.expires })})*`;
 
         return renderedBundle;
     }
@@ -503,14 +502,20 @@ export const renderBundles = async (bundles, interaction, VPemoji) => {
 
         const subName = bundle.subNames ? l(bundle.subNames, interaction) + "\n" : "";
         const slantedDescription = bundle.descriptions ? "*" + l(bundle.descriptions, interaction) + "*\n" : "";
+        const isUnindexed = !bundle.items || !bundle.items.length ||
+            bundle.names?.["en-US"]?.startsWith("New Bundle") ||
+            bundle.names?.["en-US"]?.startsWith("Unknown Bundle");
+
         const embed = {
             title: s(interaction).info.BUNDLE_NAME.f({ b: l(bundle.names, interaction) }),
-            description: `${subName}${slantedDescription}${VPemoji} **${bundle.price || s(interaction).info.FREE}**${bundle.expires ? ` - ${s(interaction).info.EXPIRES.f({ t: bundle.expires })}` : ""}`,
-            color: VAL_COLOR_2,
-            thumbnail: {
-                url: bundle.icon
-            }
+            description: `${subName}${slantedDescription}${VPemoji} **${bundle.price || s(interaction).info.FREE}**${bundle.expires ? ` - ${s(interaction).info.EXPIRES.f({ t: bundle.expires })}` : ""}${isUnindexed ? `\n_${s(interaction).info.NO_BUNDLE_DATA}_` : ""}`,
+            color: VAL_COLOR_2
         };
+        if (!isUnindexed && bundle.icon) {
+            embed.thumbnail = {
+                url: bundle.icon
+            };
+        }
         embeds.push(embed);
 
         if (buttons.length < 5) {
@@ -533,31 +538,47 @@ export const renderBundle = async (bundle, interaction, emoji, includeExpires = 
     const strikedBundleBasePrice = bundle.basePrice ? " ~~" + bundle.basePrice + "~~" : "";
     const UnixStamp = bundle.last_seen / 1000 ? `\n_${s(interaction).info.BUNDLE_RELEASED.f({ t: Math.round(bundle.last_seen / 1000) })}_\n` : "";
 
-    if (!bundle.items) return {
-        embeds: [{
-            title: s(interaction).info.BUNDLE_NAME.f({ b: l(bundle.names, interaction) }),
-            description: `${subName}${slantedDescription}`,
-            color: VAL_COLOR_1,
-            image: {
-                url: bundle.icon
-            },
-            footer: {
-                text: s(interaction).info.NO_BUNDLE_DATA
+    const isUnindexedBundle = !bundle.items || !bundle.items.length ||
+        bundle.names?.["en-US"]?.startsWith("New Bundle") ||
+        bundle.names?.["en-US"]?.startsWith("Unknown Bundle");
+
+    if (isUnindexedBundle) {
+        let desc = `${subName}${slantedDescription}`;
+        if (bundle.price) {
+            desc += `${emoji} **${bundle.price}**${strikedBundleBasePrice}`;
+            if (includeExpires && bundle.expires) {
+                desc += ` *(${(bundle.expires > Date.now() / 1000 ? s(interaction).info.EXPIRES : s(interaction).info.EXPIRED).f({ t: bundle.expires })})*`;
             }
-        }]
-    };
+            desc += "\n";
+        } else if (includeExpires && bundle.expires) {
+            desc += `*(${(bundle.expires > Date.now() / 1000 ? s(interaction).info.EXPIRES : s(interaction).info.EXPIRED).f({ t: bundle.expires })})*\n`;
+        }
+        desc += `\n> :information_source: ${s(interaction).info.NO_BUNDLE_DATA}`;
+
+        const embed = {
+            title: s(interaction).info.BUNDLE_NAME.f({ b: l(bundle.names, interaction) }),
+            description: desc.trim(),
+            color: VAL_COLOR_1
+        };
+        if (bundle.icon && !bundle.icon.includes(bundle.uuid)) {
+            embed.image = { url: bundle.icon };
+        }
+        return { embeds: [embed] };
+    }
+
+    let mainDesc = `${subName}${slantedDescription}${UnixStamp}${emoji} **${bundle.price}**${strikedBundleBasePrice}`;
+    if (includeExpires && bundle.expires) {
+        mainDesc += ` *(${(bundle.expires > Date.now() / 1000 ? s(interaction).info.EXPIRES : s(interaction).info.EXPIRED).f({ t: bundle.expires })})*`;
+    }
 
     const bundleTitleEmbed = {
         title: s(interaction).info.BUNDLE_NAME.f({ b: l(bundle.names, interaction) }),
-        description: `${subName}${slantedDescription}${UnixStamp}${emoji} **${bundle.price}**${strikedBundleBasePrice}`,
+        description: mainDesc,
         color: VAL_COLOR_3,
         image: {
             url: bundle.icon
         }
-    }
-
-    if (includeExpires && bundle.expires) bundleTitleEmbed.description += ` (${(bundle.expires > Date.now() / 1000 ?
-        s(interaction).info.EXPIRES : s(interaction).info.EXPIRED).f({ t: bundle.expires })})`;
+    };
 
     const itemEmbeds = await renderBundleItems(bundle, interaction, emoji);
     const levels = await getSkinLevels(bundle.items.map(i => i.uuid), interaction);

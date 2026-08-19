@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Bruk `/bundle` for å inspisere en spesifikk pakke",
     "BUNDLE_CHOICE": "Hvilken pakke vil du inspisere?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Velg pakke:",
-    "NO_BUNDLE_DATA": "Riot oppgir ikke data for tidligere/uoffisielle pakker :(",
+    "NO_BUNDLE_DATA": "Data for denne nye pakken er ikke tilgjengelig ennå :(",
     "BUNDLE_NAME": "{b} Samling",
     "BUNDLE_RELEASED": "Utgitt: <t:{t}:R>",
     "EXPIRES": "utløper <t:{t}:R>",

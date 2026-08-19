@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Gebruik `/bundle` om een specifieke bundel te bekijken",
     "BUNDLE_CHOICE": "Welke bundel wil je bekijken?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Selecteer bundel:",
-    "NO_BUNDLE_DATA": "Riot levert geen gegevens voor eerdere/niet-uitgebrachte bundels :(",
+    "NO_BUNDLE_DATA": "Gegevens voor deze nieuwe bundel zijn nog niet beschikbaar :(",
     "BUNDLE_NAME": "{b}-collectie",
     "BUNDLE_RELEASED": "Uitgebracht: <t:{t}:R>",
     "EXPIRES": "verloopt <t:{t}:R>",

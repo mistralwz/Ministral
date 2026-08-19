@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Usa `/bundle` per ispezionare un pacchetto specifico",
     "BUNDLE_CHOICE": "Quale pacchetto vorresti ispezionare?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Seleziona pacchetto:",
-    "NO_BUNDLE_DATA": "Riot non fornisce dati per i pacchetti precedenti/non rilasciati :(",
+    "NO_BUNDLE_DATA": "I dati per questo nuovo pacchetto non sono ancora disponibili :(",
     "BUNDLE_NAME": "Collezione {b}",
     "BUNDLE_RELEASED": "Rilasciato: <t:{t}:R>",
     "EXPIRES": "scade <t:{t}:R>",

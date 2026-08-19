@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "特定のバンドルを調べるには `/bundle` を使用してください",
     "BUNDLE_CHOICE": "どのバンドルを調べますか？",
     "BUNDLE_CHOICE_PLACEHOLDER": "バンドルを選択：",
-    "NO_BUNDLE_DATA": "Riotは過去の/未リリースのバンドルのデータを提供していません:(",
+    "NO_BUNDLE_DATA": "この新しいバンドルのデータはまだ利用できません:(",
     "BUNDLE_NAME": "{b} コレクション",
     "BUNDLE_RELEASED": "リリース：<t:{t}:R>",
     "EXPIRES": "<t:{t}:R> まで有効",

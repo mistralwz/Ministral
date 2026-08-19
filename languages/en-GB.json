@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Use `/bundle` to inspect a specific bundle",
     "BUNDLE_CHOICE": "Which bundle would you like to inspect?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Select bundle:",
-    "NO_BUNDLE_DATA": "Riot doesn't provide data for previous/unreleased bundles :(",
+    "NO_BUNDLE_DATA": "We don't have data on this new bundle yet :(",
     "BUNDLE_NAME": "{b} Collection",
     "BUNDLE_RELEASED": "Released: <t:{t}:R>",
     "EXPIRES": "expires <t:{t}:R>",

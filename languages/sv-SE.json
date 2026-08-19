@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Använd `/bundle` för att granska ett specifikt paket",
     "BUNDLE_CHOICE": "Vilket paket vill du granska?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Välj paket:",
-    "NO_BUNDLE_DATA": "Riot tillhandahåller inte data för tidigare/osläppta paket :(",
+    "NO_BUNDLE_DATA": "Data för detta nya paket är inte tillgänglig än :(",
     "BUNDLE_NAME": "{b}-samling",
     "BUNDLE_RELEASED": "Släpptes: <t:{t}:R>",
     "EXPIRES": "går ut <t:{t}:R>",

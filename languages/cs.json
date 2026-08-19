@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Použij `/bundle` pro prozkoumání konkrétního balíčku",
     "BUNDLE_CHOICE": "Který balíček bys chtěl prozkoumat?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Vyber balíček:",
-    "NO_BUNDLE_DATA": "Riot neposkytuje data pro předchozí/nevydané balíčky :(",
+    "NO_BUNDLE_DATA": "Pro tento nový balíček zatím nejsou k dispozici žádná data :(",
     "BUNDLE_NAME": "Kolekce {b}",
     "BUNDLE_RELEASED": "Vydáno: <t:{t}:R>",
     "EXPIRES": "vyprší za <t:{t}:R>",

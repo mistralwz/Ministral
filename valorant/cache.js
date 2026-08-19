@@ -503,7 +503,7 @@ export const addBundleData = async (bundleData) => {
     if (!bundle) {
         bundle = {
             uuid: bundleData.uuid,
-            names: { "en-US": "Unknown Bundle (" + bundleData.uuid.substring(0, 8) + ")" },
+            names: { "en-US": "New Bundle (" + bundleData.uuid.substring(0, 8) + ")" },
             subNames: null,
             descriptions: null,
             icon: "https://media.valorant-api.com/bundles/" + bundleData.uuid + "/displayicon.png",
@@ -926,17 +926,18 @@ const inferBundleItems = (bundle) => {
 
 export const getBundle = async (uuid) => {
     await fetchData([bundles, skins, buddies, cards, sprays]);
-    if (bundles[uuid]) return inferBundleItems(bundles[uuid]);
-
-    if (Date.now() - lastBundleFetch > 60 * 60 * 1000) {
+    let b = bundles[uuid];
+    if (!b && Date.now() - lastBundleFetch > 60 * 60 * 1000) {
         // UUID not in cache — bundle list is likely stale (new Riot bundle). Force a re-fetch.
         console.log(`[getBundle] UUID ${uuid} not found in bundle cache, forcing re-fetch...`);
         bundles = null;
         dataFullyLoaded = false;
         await fetchData([bundles, skins, buddies, cards, sprays]);
         lastBundleFetch = Date.now();
+        b = bundles[uuid];
     }
-    return inferBundleItems(bundles[uuid]);
+    if (b) return inferBundleItems(b);
+    return null;
 }
 
 export const getAllBundles = () => {

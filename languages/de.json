@@ -66,7 +66,7 @@
     "BUNDLES_HEADER_DESC": "Benutze `/bundle`, um ein bestimmtes Bundle anzuschauen",
     "BUNDLE_CHOICE": "Welches Bundle willst du dir anschauen?",
     "BUNDLE_CHOICE_PLACEHOLDER": "Wähle Bundle:",
-    "NO_BUNDLE_DATA": "Riot bietet keine Daten von älteren oder noch nicht rausgebrachten Bundles an :(",
+    "NO_BUNDLE_DATA": "Für dieses neue Bundle sind noch keine Daten verfügbar :(",
     "BUNDLE_NAME": "{b} Sammlung",
     "BUNDLE_RELEASED": "Veröffentlicht: <t:{t}:R>",
     "EXPIRES": "Läuft aus <t:{t}:R>",
