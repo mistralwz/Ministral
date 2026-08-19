@@ -54,6 +54,7 @@ export const settings = {
 export const defaultSettings = {};
 for (const setting in settings) defaultSettings[setting] = settings[setting].default;
 
+const MAX_SETTINGS_CACHE_SIZE = 5000;
 const settingsCache = new Map();
 
 export const getSettings = (id) => {
@@ -89,6 +90,9 @@ export const getSettings = (id) => {
         if (changed) saveUserToDb(json);
     }
 
+    if (settingsCache.size >= MAX_SETTINGS_CACHE_SIZE) {
+        settingsCache.delete(settingsCache.keys().next().value);
+    }
     settingsCache.set(id, json.settings);
     return json.settings;
 };
@@ -132,10 +136,8 @@ export const setSetting = async (interaction, setting, value, force = false) => 
 };
 
 export const registerInteractionLocale = async (interaction) => {
-    const userSettings = getSettings(interaction.user.id);
-    if (!userSettings.localeForced && userSettings.locale !== interaction.locale) {
-        await setSetting(interaction, "locale", interaction.locale);
-    }
+    // Dynamic locale resolution handles 'Automatic' via interaction context without DB writes.
+    // Explicit user locale preferences are set via /settings command.
 };
 
 export const settingName = (setting, interaction) => {
