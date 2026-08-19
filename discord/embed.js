@@ -782,6 +782,13 @@ const bundleItemEmbed = async (item, interaction, VPemojiString) => {
 
 export const skinEmbed = async (skinOrUuid, price, interactionOrId, VPemojiString, channel = null) => {
     const skin = skinOrUuid && typeof skinOrUuid === "object" ? skinOrUuid : await getSkin(skinOrUuid);
+    if (!skin) {
+        return {
+            title: typeof skinOrUuid === "string" ? `Unknown Skin (${skinOrUuid.substring(0, 8)})` : "Unknown Skin",
+            description: priceDescription(VPemojiString, price),
+            color: VAL_COLOR_2
+        };
+    }
     const colorMap = {
         '0cebb8be-46d7-c12a-d306-e9907bfc5a25': 0x009984,
         'e046854e-406c-37f4-6607-19a9ba8426fc': 0xf99358,
@@ -792,7 +799,7 @@ export const skinEmbed = async (skinOrUuid, price, interactionOrId, VPemojiStrin
 
     const color = colorMap[skin.rarity] || '000000'; // default to black
     return {
-        title: await skinNameAndEmoji(skin, interactionOrId.channel || channel, interactionOrId),
+        title: await skinNameAndEmoji(skin, interactionOrId?.channel || channel, interactionOrId),
         url: config.linkItemImage ? skin.icon : null,
         description: priceDescription(VPemojiString, price),
         color: color,
@@ -804,6 +811,7 @@ export const skinEmbed = async (skinOrUuid, price, interactionOrId, VPemojiStrin
 
 const buddyEmbed = async (uuid, price, locale, emojiString) => {
     const buddy = await getBuddy(uuid);
+    if (!buddy) return { title: `Unknown Buddy (${uuid?.substring(0, 8) || "N/A"})`, description: priceDescription(emojiString, price), color: VAL_COLOR_2 };
     return {
         title: l(buddy.names, locale),
         url: config.linkItemImage ? buddy.icon : null,
@@ -817,19 +825,21 @@ const buddyEmbed = async (uuid, price, locale, emojiString) => {
 
 const cardEmbed = async (uuid, price, locale, emojiString) => {
     const card = await getCard(uuid);
+    if (!card) return { title: `Unknown Card (${uuid?.substring(0, 8) || "N/A"})`, description: priceDescription(emojiString, price), color: VAL_COLOR_2 };
     return {
         title: l(card.names, locale),
-        url: config.linkItemImage ? card.icons.large : null,
+        url: config.linkItemImage ? card.icons?.large : null,
         description: priceDescription(emojiString, price),
         color: VAL_COLOR_2,
         thumbnail: {
-            url: card.icons.large
+            url: card.icons?.large
         }
     }
 }
 
 const flexEmbed = async (uuid, price, locale, emojiString) => {
     const flex = await getFlex(uuid);
+    if (!flex) return { title: `Unknown Flex (${uuid?.substring(0, 8) || "N/A"})`, description: priceDescription(emojiString, price), color: VAL_COLOR_2 };
     return {
         title: l(flex.names, locale),
         url: config.linkItemImage ? flex.icon : null,
@@ -844,6 +854,7 @@ const flexEmbed = async (uuid, price, locale, emojiString) => {
 
 const sprayEmbed = async (uuid, price, locale, emojiString) => {
     const spray = await getSpray(uuid);
+    if (!spray) return { title: `Unknown Spray (${uuid?.substring(0, 8) || "N/A"})`, description: priceDescription(emojiString, price), color: VAL_COLOR_2 };
     return {
         title: l(spray.names, locale),
         url: config.linkItemImage ? spray.icon : null,
@@ -857,6 +868,7 @@ const sprayEmbed = async (uuid, price, locale, emojiString) => {
 
 const titleEmbed = async (uuid, price, locale, emojiString) => {
     const title = await getTitle(uuid);
+    if (!title) return { title: `Unknown Title (${uuid?.substring(0, 8) || "N/A"})`, description: priceDescription(emojiString, price), color: VAL_COLOR_2 };
     return {
         title: l(title.names, locale),
         description: "`" + l(title.text, locale) + "`\n\n" + (priceDescription(emojiString, price) || ""),

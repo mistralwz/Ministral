@@ -292,8 +292,7 @@ export const getSkinList = async (gameVersion) => {
                     }
                 }
             }
-            if (!icon) icon = null;
-            skins[levelOne.uuid] = {
+            const skinObj = {
                 uuid: levelOne.uuid,
                 skinUuid: skin.uuid,
                 weapon: weapon.uuid,
@@ -304,6 +303,18 @@ export const getSkinList = async (gameVersion) => {
                 levels: skin.levels,
                 chromas: skin.chromas,
                 assetPath: skin.assetPath
+            };
+            skins[levelOne.uuid] = skinObj;
+            skins[skin.uuid] = skinObj;
+            if (skin.levels) {
+                for (const lvl of skin.levels) {
+                    if (lvl.uuid) skins[lvl.uuid] = skinObj;
+                }
+            }
+            if (skin.chromas) {
+                for (const ch of skin.chromas) {
+                    if (ch.uuid) skins[ch.uuid] = skinObj;
+                }
             }
         }
     }
@@ -738,8 +749,17 @@ export const getItem = async (uuid, type) => {
 
 export const getSkin = async (uuid, reloadData = true) => {
     if (reloadData) await fetchData([skins, prices]);
+    if (!skins) return null;
 
     let skin = skins[uuid];
+    if (!skin) {
+        skin = Object.values(skins).find(s => s && typeof s === "object" && (
+            s.skinUuid === uuid || 
+            s.uuid === uuid ||
+            s.levels?.some(l => l.uuid === uuid) || 
+            s.chromas?.some(c => c.uuid === uuid)
+        ));
+    }
     if (!skin) return null;
 
     skin.price = await getPrice(uuid, skin);
@@ -749,8 +769,9 @@ export const getSkin = async (uuid, reloadData = true) => {
 
 export const getSkinFromSkinUuid = async (uuid, reloadData = true) => {
     if (reloadData) await fetchData([skins, prices]);
+    if (!skins) return null;
 
-    let skin = Object.values(skins).find(skin => skin.skinUuid === uuid);
+    let skin = skins[uuid] || Object.values(skins).find(s => s && typeof s === "object" && s.skinUuid === uuid);
     if (!skin) return null;
 
     skin.price = await getPrice(skin.uuid, skin);
@@ -797,7 +818,8 @@ export const getAllSkins = async () => {
     if (allSkinsCache && allSkinsCacheVersion === (skins && skins.version)) {
         return allSkinsCache;
     }
-    allSkinsCache = await Promise.all(Object.values(skins).filter(o => typeof o === "object").map(skin => getSkin(skin.uuid, false)));
+    const uniqueSkins = [...new Map(Object.values(skins || {}).filter(o => typeof o === "object" && o.uuid).map(s => [s.uuid, s])).values()];
+    allSkinsCache = await Promise.all(uniqueSkins.map(skin => getSkin(skin.uuid, false)));
     allSkinsCacheVersion = skins && skins.version;
     return allSkinsCache;
 }
