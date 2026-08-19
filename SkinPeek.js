@@ -49,6 +49,10 @@ if (isMainThread) {
         shard.on("message", (message) => {
             // console.log(`[Shard ${shard.id}] Message: ${JSON.stringify(message)}`);
             if (message === "shardReady" && allShardsReady) sendAllShardsReady();
+            if (message === "processExit" || message?.type === "processExit") {
+                console.log(`[Shards] Process exit requested by shard ${shard.id}. Exiting process for restart...`);
+                setTimeout(() => process.exit(0), 1000);
+            }
         });
     });
 

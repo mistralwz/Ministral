@@ -68,7 +68,6 @@ import { getSkin, fetchData, searchSkin, searchBundle, getBundle, clearCache, lo
 import {
     addAlert,
     alertExists,
-    alertsPerChannelPerGuild,
     canAccessChannel,
     checkAlerts,
     debugCheckAlerts,
@@ -260,7 +259,9 @@ onShardMessage(async (message) => {
             return true;
         }
         case "processExit":
-            process.exit();
+            try { client.destroy(); } catch {}
+            client.destroyed = true;
+            setTimeout(() => process.exit(0), 500);
             return true;
     }
     return false;
@@ -599,6 +600,31 @@ const commands = [
 // Commands with integration_types and contexts for global deployment (guild + user installs)
 const globalCommands = commands.map(cmd => ({ ...cmd, integration_types: [0, 1], contexts: [0, 1, 2] }));
 
+export const stopBot = async (replyFn) => {
+    localLog("Stopping the bot...");
+    if (replyFn) {
+        try {
+            await replyFn();
+        } catch (e) {
+            console.error("Failed to send stop reply:", e);
+        }
+    }
+
+    try {
+        await sendShardMessage({ type: "processExit" });
+    } catch (e) {}
+
+    try {
+        client.shard?.send({ type: "processExit" });
+    } catch (e) {}
+
+    try {
+        client.destroy();
+    } catch (e) {}
+    client.destroyed = true;
+
+    setTimeout(() => process.exit(0), 500);
+};
 
 client.on("messageCreate", async (message) => {
     try {
@@ -660,8 +686,7 @@ client.on("messageCreate", async (message) => {
             else {
                 await client.application.commands.set([]).then(() => console.log("Commands undeployed globally!"));
 
-                const guild = client.guilds.cache.get(message.guild.id);
-                await guild.commands.set([]).then(() => console.log(`Commands undeployed in guild ${message.guild.name}!`));
+                if (message.guild) await message.guild.commands.set([]).then(() => console.log(`Commands undeployed in guild ${message.guild.name}!`));
 
                 await message.reply("Undeployed in guild and globally!");
             }
@@ -738,49 +763,65 @@ client.on("messageCreate", async (message) => {
                 if (configType === 'undefined') s += "\n**Note:** That config option wasn't there before! Are you sure that's not a typo?"
                 await message.reply(s);
             }
-        } else if (content.startsWith("!message ")) {
-            const messageContent = content.substring(9);
+        } else if (content.startsWith("!broadcast ") || content.startsWith("!message ")) {
+            const messageContent = content.startsWith("!broadcast ") ? content.substring(11) : content.substring(9);
             const messageEmbed = ownerMessageEmbed(messageContent, message.author);
 
-            const guilds = await alertsPerChannelPerGuild();
+            await message.reply("Broadcasting message to channels where the bot was last used in each server...");
 
-            await message.reply(`Sending message to ${Object.keys(guilds).length} guilds with alerts set up...`);
+            const broadcastOnShard = async (c, { messageEmbed, botId }) => {
+                let sent = 0;
+                for (const guild of c.guilds.cache.values()) {
+                    try {
+                        const channels = guild.channels.cache.filter(ch =>
+                            ch.isTextBased() &&
+                            ch.viewable &&
+                            ch.permissionsFor(botId)?.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])
+                        );
 
-            for (const guildId in guilds) {
-                const guild = client.guilds.cache.get(guildId);
-                if (!guild) continue;
+                        const sortedChannels = [...channels.values()]
+                            .filter(ch => ch.lastMessageId)
+                            .sort((a, b) => (b.lastMessageId > a.lastMessageId ? 1 : -1))
+                            .slice(0, 10);
 
-                try {
-                    const alertsPerChannel = guilds[guildId];
-                    let channelWithMostAlerts = [null, 0];
-                    for (const channelId in alertsPerChannel) {
-                        if (alertsPerChannel[channelId] > channelWithMostAlerts[1]) {
-                            channelWithMostAlerts = [channelId, alertsPerChannel[channelId]];
+                        let bestChannel = null;
+                        let latestBotTimestamp = 0;
+
+                        for (const ch of sortedChannels) {
+                            try {
+                                const messages = await ch.messages.fetch({ limit: 20 });
+                                const botMsg = messages.find(m => m.author.id === botId);
+                                if (botMsg && botMsg.createdTimestamp > latestBotTimestamp) {
+                                    latestBotTimestamp = botMsg.createdTimestamp;
+                                    bestChannel = ch;
+                                }
+                            } catch (e) {}
                         }
-                    }
-                    if (channelWithMostAlerts[0] === null) continue;
 
-                    const channel = await fetchChannel(channelWithMostAlerts[0]);
-                    if (!channel) continue;
-
-                    console.log(`Channel with most alerts: #${channel.name} (${channelWithMostAlerts[1]} alerts)`);
-                    await channel.send({
-                        embeds: [messageEmbed]
-                    });
-                } catch (e) {
-                    if (e.code === 50013 || e.code === 50001) {
-                        console.error(`Don't have perms to send !message to ${guild.name}!`)
-                    } else {
-                        console.error(`Error while sending !message to guild ${guild.name}!`);
-                        console.error(e);
-                    }
+                        if (bestChannel) {
+                            await bestChannel.send({ embeds: [messageEmbed] });
+                            sent++;
+                        }
+                    } catch (e) {}
                 }
+                return sent;
+            };
+
+            let totalSent = 0;
+            if (client.shard) {
+                const results = await client.shard.broadcastEval(broadcastOnShard, {
+                    context: { messageEmbed, botId: client.user.id }
+                });
+                totalSent = results.reduce((acc, count) => acc + count, 0);
+            } else {
+                totalSent = await broadcastOnShard(client, { messageEmbed, botId: client.user.id });
             }
 
-            await message.reply(`Finished sending the message!`);
+            await message.channel.send(`Finished sending the broadcast to ${totalSent} server(s)!`);
         } else if (content.startsWith("!status")) {
             config.status = content.substring(8, 8 + 1023);
             saveConfig();
+            sendShardMessage({ type: "configReload" });
             await message.reply("Set the status to `" + config.status + "`!");
         } else if (content === "!forcealerts") {
             if (client.shard.ids.includes(0)) {
@@ -818,7 +859,7 @@ client.on("messageCreate", async (message) => {
                 await message.reply("Told shard 0 to start debug checking alerts!");
             }
         } else if (content === "!stop skinpeek") {
-            return client.destroy();
+            await stopBot(() => message.reply("Stopping the bot..."));
         } else if (content === "!update") {
             console.log("Starting git pull...")
             await message.reply("Starting `git pull`... (note that this will only work if you `git clone`d the repo, not if you downloaded a zip)");
@@ -848,14 +889,7 @@ client.on("messageCreate", async (message) => {
                 }
                 else {
                     localLog("Git pull succeded! Stopping the bot...");
-                    await message.channel.send("`git pull` succeded! Stopping the bot...");
-
-                    await sendShardMessage({ type: "processExit" });
-
-                    client.destroy();
-                    client.destroyed = true;
-
-                    process.exit(0);
+                    await stopBot(() => message.channel.send("`git pull` succeded! Stopping the bot..."));
                 }
             });
         }
