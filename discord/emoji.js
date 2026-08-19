@@ -12,6 +12,20 @@ const KCEmojiName = "KingdomCreditIcon";
 const KCEmojiFilename = "assets/kc.png";
 
 const pendingCreations = {};
+const emojiNameCache = new Map();
+let activeFetchPromise = null;
+const NEGATIVE_CACHE_TTL = 5 * 60 * 1000;
+const POSITIVE_CACHE_TTL = 30 * 60 * 1000;
+
+const indexAppEmojis = (collection) => {
+    if (!collection) return;
+    const now = Date.now();
+    for (const emoji of collection.values()) {
+        if (emoji?.name) {
+            emojiNameCache.set(emoji.name, { emoji, expiresAt: now + POSITIVE_CACHE_TTL });
+        }
+    }
+};
 
 let emojiClient = null;
 export const setEmojiClient = (client) => {
@@ -53,12 +67,41 @@ const getOrCreateEmoji = async (name, filenameOrUrl, interaction = null) => {
     const client = getClient(interaction);
     if (!client?.application?.emojis) return null;
 
-    let existing = client.application.emojis.cache.find(e => e.name === name);
-    if (existing) return existing;
+    const now = Date.now();
+    const cached = emojiNameCache.get(name);
+    if (cached && cached.expiresAt > now) {
+        return cached.emoji;
+    }
 
-    const appEmojis = await client.application.emojis.fetch();
-    existing = appEmojis.find(e => e.name === name);
-    if (existing) return existing;
+    let existing = client.application.emojis.cache.find(e => e.name === name);
+    if (existing) {
+        emojiNameCache.set(name, { emoji: existing, expiresAt: now + POSITIVE_CACHE_TTL });
+        return existing;
+    }
+
+    if (!activeFetchPromise) {
+        activeFetchPromise = client.application.emojis.fetch()
+            .then(appEmojis => {
+                indexAppEmojis(appEmojis);
+                return appEmojis;
+            })
+            .catch(err => {
+                console.error("Failed to fetch application emojis:", err);
+                return null;
+            })
+            .finally(() => {
+                activeFetchPromise = null;
+            });
+    }
+
+    const appEmojis = await activeFetchPromise;
+    if (appEmojis) {
+        existing = appEmojis.find(e => e.name === name);
+        if (existing) {
+            emojiNameCache.set(name, { emoji: existing, expiresAt: now + POSITIVE_CACHE_TTL });
+            return existing;
+        }
+    }
 
     if (pendingCreations[name]) return await pendingCreations[name];
 
@@ -66,9 +109,15 @@ const getOrCreateEmoji = async (name, filenameOrUrl, interaction = null) => {
         pendingCreations[name] = createApplicationEmoji(name, filenameOrUrl, client);
         const created = await pendingCreations[name];
         delete pendingCreations[name];
+        if (created) {
+            emojiNameCache.set(name, { emoji: created, expiresAt: now + POSITIVE_CACHE_TTL });
+        } else {
+            emojiNameCache.set(name, { emoji: null, expiresAt: now + NEGATIVE_CACHE_TTL });
+        }
         return created;
     } catch (e) {
         delete pendingCreations[name];
+        emojiNameCache.set(name, { emoji: null, expiresAt: now + NEGATIVE_CACHE_TTL });
         console.error(`Failed to create application emoji ${name}: ${e.message}`);
         return null;
     }
@@ -103,6 +152,7 @@ export const warmEmojiCache = async (client = null) => {
 
     try {
         const appEmojis = await c.application.emojis.fetch();
+        indexAppEmojis(appEmojis);
         console.log(`Warmed application emoji cache with ${appEmojis.size} emojis.`);
 
         if (c.shard && c.shard.ids[0] !== 0) return {};
