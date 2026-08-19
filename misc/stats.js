@@ -26,8 +26,14 @@ export const loadStats = (filename = "data/stats.json") => {
     try {
         if (fs.existsSync(filename)) {
             const obj = JSON.parse(fs.readFileSync(filename, "utf8"));
-            if (!obj.fileVersion) transferStatsFromV1(obj);
-            else stats = obj;
+            if (obj.stats) {
+                stats = obj;
+                for (const day in stats.stats) {
+                    if (Array.isArray(stats.stats[day].users)) {
+                        stats.stats[day].users = new Set(stats.stats[day].users);
+                    }
+                }
+            }
             calculateOverallStats();
         }
     } catch (e) {
@@ -42,7 +48,19 @@ const saveStats = (filename = "data/stats.json") => {
         if (dir && !fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-        fs.writeFileSync(filename, JSON.stringify(stats, null, 2));
+        const serializableStats = {
+            fileVersion: stats.fileVersion,
+            stats: {}
+        };
+        for (const day in stats.stats) {
+            const dayStats = stats.stats[day];
+            serializableStats.stats[day] = {
+                shopsIncluded: dayStats.shopsIncluded,
+                items: dayStats.items,
+                users: dayStats.users instanceof Set ? [...dayStats.users] : (dayStats.users || [])
+            };
+        }
+        fs.writeFileSync(filename, JSON.stringify(serializableStats));
         statsDirty = false;
     } catch (e) {
         console.error("Failed to save store stats to disk:", e);
@@ -90,7 +108,7 @@ export const getStatsFor = (item) => {
 
     if (item in overallStats.items) {
         statsForItem.amount = overallStats.items[item];
-        statsForItem.percentage = Math.round((overallStats.items[item] / overallStats.shopsIncluded) * 1000) / 10;
+        statsForItem.percentage = Math.round((overallStats.items[item] / (overallStats.shopsIncluded || 1)) * 1000) / 10;
     }
 
     return statsForItem;
@@ -109,55 +127,30 @@ export const addStore = async (puuid, items) => {
     try {
         const isNew = await statsAddStore(puuid, items, today);
         if (isNew === false) return; // already counted in redis
-
-        if (isNew === true) {
-            loadStats();
-            let todayStats = stats.stats[today];
-            if (!todayStats) {
-                todayStats = { shopsIncluded: 0, items: {}, users: [] };
-                stats.stats[today] = todayStats;
-            }
-            if (!todayStats.users.includes(puuid)) {
-                todayStats.users.push(puuid);
-                for (const item of items) {
-                    todayStats.items[item] = (todayStats.items[item] || 0) + 1;
-                }
-                todayStats.shopsIncluded++;
-            }
-            debouncedSaveStats();
-            calculateOverallStats();
-            return;
-        }
     } catch (e) {
         console.error("Redis stats error, falling back to local memory stats:", e);
     }
 
-    // Local in-memory stats fallback
     loadStats();
     let todayStats = stats.stats[today];
     if (!todayStats) {
-        todayStats = { shopsIncluded: 0, items: {}, users: [] };
+        todayStats = { shopsIncluded: 0, items: {}, users: new Set() };
         stats.stats[today] = todayStats;
+    } else if (Array.isArray(todayStats.users)) {
+        todayStats.users = new Set(todayStats.users);
     }
 
-    if (todayStats.users.includes(puuid)) return;
-    todayStats.users.push(puuid);
+    if (todayStats.users.has(puuid)) return;
+    todayStats.users.add(puuid);
 
     for (const item of items) {
         todayStats.items[item] = (todayStats.items[item] || 0) + 1;
+        overallStats.items[item] = (overallStats.items[item] || 0) + 1;
     }
     todayStats.shopsIncluded++;
+    overallStats.shopsIncluded++;
 
     debouncedSaveStats();
-    calculateOverallStats();
 };
 
 const formatDate = (date) => `${date.getUTCDate()}-${date.getUTCMonth() + 1}-${date.getUTCFullYear()}`;
-
-const transferStatsFromV1 = (obj) => {
-    stats.stats[formatDate(new Date())] = {
-        shopsIncluded: obj.shopsIncluded || 0,
-        items: obj.itemStats || {},
-        users: obj.usersAddedToday || []
-    };
-};

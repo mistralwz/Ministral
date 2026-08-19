@@ -45,6 +45,7 @@ let saveUserToDbInTransaction = null;
 
 let batchMode = false;
 const batchQueue = new Map();
+const batchAccountQueue = new Map();
 
 const safeJsonParse = (value, fallback, context) => {
     try {
@@ -194,23 +195,41 @@ export const saveUserToDb = (user) => {
 export const beginBatchWrites = () => {
     batchMode = true;
     batchQueue.clear();
+    batchAccountQueue.clear();
 };
 
 export const commitBatchWrites = () => {
     if (!batchMode) return;
     batchMode = false;
 
-    if (batchQueue.size === 0) {
+    if (batchQueue.size === 0 && batchAccountQueue.size === 0) {
         batchQueue.clear();
+        batchAccountQueue.clear();
         return;
     }
 
     const users = Array.from(batchQueue.values());
+    const accounts = Array.from(batchAccountQueue.values());
     batchQueue.clear();
+    batchAccountQueue.clear();
 
     const batchTransaction = db.transaction(() => {
         for (const user of users) {
             saveUserToDbTransaction(user);
+        }
+        for (const account of accounts) {
+            stmts.updateSingleAccount.run(
+                account.username || "",
+                account.region || null,
+                JSON.stringify(account.auth || {}),
+                JSON.stringify(account.alerts || []),
+                account.authFailures || 0,
+                account.lastFetchedData || null,
+                account.lastNoticeSeen || null,
+                account.lastSawEasterEgg || 0,
+                Date.now(),
+                account.puuid
+            );
         }
     });
     batchTransaction();
@@ -255,6 +274,10 @@ export const deleteAccountFromDb = (puuid) => {
 };
 
 export const updateSingleAccountInDb = (account) => {
+    if (batchMode) {
+        batchAccountQueue.set(account.puuid, account);
+        return true;
+    }
     const result = stmts.updateSingleAccount.run(
         account.username || "",
         account.region || null,
