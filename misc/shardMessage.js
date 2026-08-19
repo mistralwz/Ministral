@@ -36,21 +36,22 @@ export const sendShardMessageForChannel = async (message, channelId) => {
     await allShardsReadyPromise;
     if (!shardClient?.shard) return false;
 
-    // Try targeted delivery to the cached shard first
+    // Try targeted delivery to the cached shard first (single pass)
     const knownShard = channelToShardCache.get(channelId);
     if (knownShard != null) {
         try {
-            const [hasChannel] = await shardClient.shard.broadcastEval((c, context) => {
-                return c.channels.cache.has(context.channelId);
-            }, { context: { channelId }, shard: knownShard });
-
-            if (hasChannel) {
-                localLog(`Targeted shard ${knownShard} for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
-                await shardClient.shard.broadcastEval((c, context) => {
+            const [handled] = await shardClient.shard.broadcastEval((c, context) => {
+                if (c.channels.cache.has(context.channelId)) {
                     if (typeof c.skinPeekShardMessageReceived === "function") {
                         c.skinPeekShardMessageReceived(context.message);
                     }
-                }, { context: { message }, shard: knownShard });
+                    return true;
+                }
+                return false;
+            }, { context: { message, channelId }, shard: knownShard });
+
+            if (handled) {
+                localLog(`Targeted shard ${knownShard} for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
                 return true;
             }
             channelToShardCache.delete(channelId);
@@ -59,28 +60,28 @@ export const sendShardMessageForChannel = async (message, channelId) => {
         }
     }
 
-    localLog(`Broadcasting channel check for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
+    localLog(`Broadcasting channel delivery for channel ${channelId}: ${JSON.stringify(message).substring(0, 100)}`);
 
-    // Full broadcast fallback
-    const results = await shardClient.shard.broadcastEval((c, context) => {
-        return c.channels.cache.has(context.channelId);
-    }, { context: { channelId } });
-
-    const matchIndex = results.findIndex(r => r === true);
-    if (matchIndex !== -1) {
-        channelToShardCache.set(channelId, matchIndex);
-        localLog(`Delivering shard message to winning shard ${matchIndex} for channel ${channelId}`);
-        try {
-            await shardClient.shard.broadcastEval((c, context) => {
+    // Single-pass broadcast: checks channel AND delivers immediately on the winning shard
+    try {
+        const results = await shardClient.shard.broadcastEval((c, context) => {
+            if (c.channels.cache.has(context.channelId)) {
                 if (typeof c.skinPeekShardMessageReceived === "function") {
                     c.skinPeekShardMessageReceived(context.message);
                 }
-            }, { context: { message }, shard: matchIndex });
-            return true;
-        } catch (e) {
-            channelToShardCache.delete(channelId);
+                return true;
+            }
             return false;
+        }, { context: { message, channelId } });
+
+        const matchIndex = results.findIndex(r => r === true);
+        if (matchIndex !== -1) {
+            channelToShardCache.set(channelId, matchIndex);
+            localLog(`Delivered shard message to winning shard ${matchIndex} for channel ${channelId}`);
+            return true;
         }
+    } catch (e) {
+        localError(`Error broadcasting message for channel ${channelId}:`, e);
     }
 
     return false;
