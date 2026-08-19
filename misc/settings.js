@@ -1,5 +1,5 @@
 import { getUserFromDb, saveUserToDb } from "./userDatabase.js";
-import { discLanguageNames, s } from "./languages.js";
+import { discLanguageNames, s, setSettingsProvider } from "./languages.js";
 
 export const settings = {
     dailyShop: {
@@ -162,3 +162,6 @@ const computerifyValue = (value) => {
     if (langEntry) return langEntry[0];
     return value;
 };
+
+setSettingsProvider(getSettings);
+

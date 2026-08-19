@@ -1,7 +1,25 @@
 import fs from "fs";
 import { BaseInteraction } from "discord.js";
-import { getUserFromDb } from "./userDatabase.js";
 import config from "./config.js";
+
+let settingsProvider = null;
+export const setSettingsProvider = (fn) => {
+    settingsProvider = fn;
+};
+
+// Setup String.prototype.f once at module load
+if (!String.prototype.f) {
+    String.prototype.f = function (args, fallbackString) {
+        let str = this;
+        if (args) {
+            for (const key in args) {
+                str = str.replaceAll(`{${key}}`, args[key]);
+            }
+        }
+        if (fallbackString && str.includes("{") && str.includes("}")) return fallbackString;
+        return str;
+    };
+}
 
 // languages valorant doesn't have (fetch skins in en-US):
 // danish, croatian, lithuanian, hungarian, dutch, norwegian, romanian, finnish, swedish, czech, greek, bulgarian, ukranian, hindi
@@ -98,22 +116,7 @@ export const discLanguageNames = {
 export const DEFAULT_LANG = 'en-GB';
 export const DEFAULT_VALORANT_LANG = 'en-US';
 
-export const formatString = (s) => {
-    if (typeof s !== "string") return s;
-
-    String.prototype.f = function (args, fallbackString) {
-        let str = this;
-        if (args) {
-            for (let key in args) {
-                str = str.replaceAll(`{${key}}`, args[key]);
-            }
-        }
-        if (fallbackString && str.includes("{") && str.includes("}")) return fallbackString;
-        return str;
-    };
-
-    return s;
-};
+export const formatString = (s) => s;
 
 const asLocalized = (value) => {
     if (typeof value === "string") return formatString(value);
@@ -186,8 +189,15 @@ export const hideUsername = (argsOrUsername, interactionOrId = null, hideName = 
 
 const getUserSetting = (userId, key, defaultValue = null) => {
     if (!userId) return defaultValue;
-    const user = getUserFromDb(userId);
-    return user?.settings?.[key] ?? defaultValue;
+    if (typeof settingsProvider === "function") {
+        try {
+            const userSettings = settingsProvider(userId);
+            return userSettings?.[key] ?? defaultValue;
+        } catch {
+            return defaultValue;
+        }
+    }
+    return defaultValue;
 };
 
 export const s = (input) => {
