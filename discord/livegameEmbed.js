@@ -182,10 +182,13 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
         : "";
 
     // Place badge before RR for clean visual scanning: <rank_badge>**42**rr
+    // Rank fallback (RR unknown, tier inferred from live match data): once a peak
+    // rank corroborates the tier, show 0rr like a normal rank instead of the
+    // redundant tier-name text (e.g. `GOLD 1`) next to the same rank's emoji.
     const rankPart = player.currentTier > 0
-        ? (player.isRankFallback
+        ? (player.isRankFallback && !player.peakTier
             ? `${currentRankEmojiStr}\`${player.currentTierName}\``.trim()
-            : `${currentRankEmojiStr}**${player.currentRR}**rr`.trim())
+            : `${currentRankEmojiStr} **${player.currentRR}**rr`.trim())
         : (currentRankEmojiStr ? `${currentRankEmojiStr}\`Unranked\`` : "`Unranked`");
 
     // Peak rank — badge before act label: <peak_badge>`E5A3`
