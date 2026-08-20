@@ -1475,16 +1475,9 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
 
         return {
             ...p,
-            // Identity: incognito players show their locked agent name for strangers.
-            // For party members and the user themselves, their real username is always shown.
-            riotId: shouldHideName
-                // In pre-game, selectionState is an explicit string ("locked" / "").
-                // In-game (core-game), the field is absent (undefined) — agents
-                // are always locked once the match starts, so treat undefined as locked.
-                ? (p.agentId && (p.selectionState === "locked" || p.selectionState === undefined) && agentInfo.names
-                    ? agentInfo.names["en-US"]
-                    : `Player ${idx + 1}`)
-                : (name ? name.split('#')[0] : p.puuid.slice(0, 8)),
+            playerIndex: idx + 1,
+            incognito: shouldHideName,
+            riotId: name ? name.split('#')[0] : p.puuid.slice(0, 8),
             partyId: p.partyId ?? null,
             isLeader: p.isLeader ?? false,
             // Agent

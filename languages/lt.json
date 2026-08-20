@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Pageidaujama: {servers}",
     "AUTO_SERVERS": "Automatinis",
     "JOIN_PARTY": "Prisijungti prie grupės",
-    "PARTY_CLOSED": "Grupė uždaryta"
+    "PARTY_CLOSED": "Grupė uždaryta",
+    "PLAYER_NUM": "Žaidėjas {n}"
   },
   "queues": {
     "COMPETITIVE": "Competitive",

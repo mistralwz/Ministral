@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Προτιμώμενοι: {servers}",
     "AUTO_SERVERS": "Αυτόματα",
     "JOIN_PARTY": "Συμμετοχή σε Ομάδα",
-    "PARTY_CLOSED": "Η Ομάδα είναι Κλειστή"
+    "PARTY_CLOSED": "Η Ομάδα είναι Κλειστή",
+    "PLAYER_NUM": "Παίκτης {n}"
   },
   "queues": {
     "COMPETITIVE": "Ανταγωνιστικό",

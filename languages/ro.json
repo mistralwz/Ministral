@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Preferat: {servers}",
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Alătură-te Grupului",
-    "PARTY_CLOSED": "Grup Închis"
+    "PARTY_CLOSED": "Grup Închis",
+    "PLAYER_NUM": "Jucător {n}"
   },
   "queues": {
     "COMPETITIVE": "Competitiv",

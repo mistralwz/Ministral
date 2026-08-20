@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "優先サーバー: {servers}",
     "AUTO_SERVERS": "自動",
     "JOIN_PARTY": "パーティーに参加",
-    "PARTY_CLOSED": "パーティーは締め切られました"
+    "PARTY_CLOSED": "パーティーは締め切られました",
+    "PLAYER_NUM": "プレイヤー {n}"
   },
   "queues": {
     "COMPETITIVE": "コンペティティブ",

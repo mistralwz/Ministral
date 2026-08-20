@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Előnyben részesített: {servers}",
     "AUTO_SERVERS": "Automatikus",
     "JOIN_PARTY": "Csatlakozás a csapathoz",
-    "PARTY_CLOSED": "Csapat lezárva"
+    "PARTY_CLOSED": "Csapat lezárva",
+    "PLAYER_NUM": "Játékos {n}"
   },
   "queues": {
     "COMPETITIVE": "Kompetitív",

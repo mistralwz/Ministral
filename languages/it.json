@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Preferiti: {servers}",
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Unisciti al gruppo",
-    "PARTY_CLOSED": "Gruppo chiuso"
+    "PARTY_CLOSED": "Gruppo chiuso",
+    "PLAYER_NUM": "Giocatore {n}"
   },
   "queues": {
     "COMPETITIVE": "Competitiva",

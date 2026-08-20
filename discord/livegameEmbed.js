@@ -131,13 +131,25 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  * Render one party member as a single line for the party lobby embed.
  * 👑 <agent> `RiotName`・<rank>**42**rr・<peak>`E5A3`・**34%**wr `230`・`🔹🔻🔹`
  */
-const formatPlayerLobbyRow = async (player, channel) => {
-    const displayName = (player.riotId || "Unknown").split('#')[0];
-    const localizedAgentName = player.agentName ? player.agentName["en-US"] || "Unknown" : null;
+const formatPlayerLobbyRow = async (player, channel, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
+    const localizedAgentName = player.agentName ? (player.agentName[valLang] || player.agentName["en-US"] || "Unknown") : null;
+    const enAgentName = player.agentName ? (player.agentName["en-US"] || "Unknown") : null;
+
+    let displayName;
+    if (player.incognito) {
+        if (localizedAgentName) {
+            displayName = localizedAgentName;
+        } else {
+            const template = s(userId).livegame?.PLAYER_NUM || "Player {n}";
+            displayName = template.replace("{n}", player.playerIndex || "1");
+        }
+    } else {
+        displayName = (player.riotId || "Unknown").split('#')[0];
+    }
 
     let agentEmojiStr = "";
-    if (localizedAgentName && player.agentIcon) {
-        agentEmojiStr = emojiToString(await agentEmoji(localizedAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
+    if (enAgentName && player.agentIcon) {
+        agentEmojiStr = emojiToString(await agentEmoji(enAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
     } else if (player.incognito) {
         agentEmojiStr = "";
     } else if (localizedAgentName) {
@@ -196,17 +208,28 @@ const formatPlayerLobbyRow = async (player, channel) => {
  * @param {object}  player
  * @param {Channel} channel       Discord channel (for emoji resolution)
  * @param {boolean} showCompStats Show WR + last 3 match results when true
+ * @param {string}  valLang       Valorant language code (e.g. en-US, ja-JP)
+ * @param {string}  userId        Discord user ID for localized text
  */
-const formatPlayerField = async (player, channel, showCompStats = false) => {
-    // Strip tagline from riotId: "Name#TAG" -> "Name" (no truncation)
-    const displayName = (player.riotId || "Unknown").split('#')[0];
+const formatPlayerField = async (player, channel, showCompStats = false, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
+    const localizedAgentName = player.agentName ? (player.agentName[valLang] || player.agentName["en-US"] || "Unknown") : null;
+    const enAgentName = player.agentName ? (player.agentName["en-US"] || "Unknown") : null;
 
-    // Agent emoji — resolved dynamically from valorant-api.com icon URL.
-    const localizedAgentName = player.agentName ? player.agentName["en-US"] || "Unknown" : null;
+    let displayName;
+    if (player.incognito) {
+        if (localizedAgentName && (player.selectionState === "locked" || player.selectionState === undefined)) {
+            displayName = localizedAgentName;
+        } else {
+            const template = s(userId).livegame?.PLAYER_NUM || "Player {n}";
+            displayName = template.replace("{n}", player.playerIndex || "1");
+        }
+    } else {
+        displayName = (player.riotId || "Unknown").split('#')[0];
+    }
 
     let agentEmojiStr = "";
-    if (localizedAgentName && player.agentIcon) {
-        agentEmojiStr = emojiToString(await agentEmoji(localizedAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
+    if (enAgentName && player.agentIcon) {
+        agentEmojiStr = emojiToString(await agentEmoji(enAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
     } else if (player.incognito) {
         agentEmojiStr = "";
     } else if (localizedAgentName) {
@@ -271,9 +294,9 @@ const formatPlayerField = async (player, channel, showCompStats = false) => {
 /**
  * Build embed fields for a list of players, one field per player.
  */
-const buildPlayerFields = async (players, channel, showCompStats, _headerName = "\u200b") => {
+const buildPlayerFields = async (players, channel, showCompStats, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
     return Promise.all(players.map(p =>
-        formatPlayerField(p, channel, showCompStats)
+        formatPlayerField(p, channel, showCompStats, valLang, userId)
     ));
 };
 
@@ -285,7 +308,7 @@ const buildPlayerFields = async (players, channel, showCompStats, _headerName = 
  * • Description: reserved for config.notice (or undefined if empty)
  * • Fields: one field per player
  */
-const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId = null) => {
+const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId = null, valLang = DEFAULT_VALORANT_LANG) => {
     const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
     const showCompStats = data.queueId === "competitive" || data.queueId === "skirmish" || data.queueId === "skirmish 2v2";
@@ -298,12 +321,12 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId =
 
     let fields;
     if (data.isSingleTeam) {
-        fields = await buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b");
+        fields = await buildPlayerFields(allyPlayers, channel, showCompStats, valLang, userId);
     } else {
         const [allyFields, enemyFields] = await Promise.all([
-            buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b"),
+            buildPlayerFields(allyPlayers, channel, showCompStats, valLang, userId),
             enemyPlayers.length > 0
-                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b")
+                ? buildPlayerFields(enemyPlayers, channel, showCompStats, valLang, userId)
                 : Promise.resolve([]),
         ]);
         fields = [...allyFields, ...enemyFields];
@@ -422,7 +445,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
 
         let lobbyFields = undefined;
         if (hasParty) {
-            const rows = await Promise.all(allyPlayers.map(p => formatPlayerLobbyRow(p, channel)));
+            const rows = await Promise.all(allyPlayers.map(p => formatPlayerLobbyRow(p, channel, valLang, userId)));
             lobbyFields = [{
                 name: s(userId).livegame?.PARTY_MEMBERS || "Party Members",
                 value: rows.join("\n"),
@@ -514,7 +537,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         return { embeds: [embed], components };
     }
 
-    const embed = await buildGameEmbed(liveGameData, allyPlayers, enemyPlayers, channel, userId);
+    const embed = await buildGameEmbed(liveGameData, allyPlayers, enemyPlayers, channel, userId, valLang);
 
     let components = [liveGameRefreshRow(userId)];
 

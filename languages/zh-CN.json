@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "首选: {servers}",
     "AUTO_SERVERS": "自动",
     "JOIN_PARTY": "加入队伍",
-    "PARTY_CLOSED": "队伍已关闭"
+    "PARTY_CLOSED": "队伍已关闭",
+    "PLAYER_NUM": "玩家 {n}"
   },
   "queues": {
     "COMPETITIVE": "竞技",

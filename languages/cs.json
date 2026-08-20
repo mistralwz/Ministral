@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Preferované: {servers}",
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Připojit se ke skupině",
-    "PARTY_CLOSED": "Skupina uzavřena"
+    "PARTY_CLOSED": "Skupina uzavřena",
+    "PLAYER_NUM": "Hráč {n}"
   },
   "queues": {
     "COMPETITIVE": "Kompetitivní",

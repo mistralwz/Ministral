@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Разположение по Места {servers}",
     "AUTO_SERVERS": "Сам Избира Регион",
     "JOIN_PARTY": "Присъедини се към Групата",
-    "PARTY_CLOSED": "Групата е Затворена"
+    "PARTY_CLOSED": "Групата е Затворена",
+    "PLAYER_NUM": "Играч {n}"
   },
   "queues": {
     "COMPETITIVE": "Съмпетитени(Comp)",

@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "เซิร์ฟเวอร์ที่ต้องการ: {servers}",
     "AUTO_SERVERS": "อัตโนมัติ",
     "JOIN_PARTY": "เข้าร่วมปาร์ตี้",
-    "PARTY_CLOSED": "ปาร์ตี้ปิดแล้ว"
+    "PARTY_CLOSED": "ปาร์ตี้ปิดแล้ว",
+    "PLAYER_NUM": "ผู้เล่น {n}"
   },
   "queues": {
     "COMPETITIVE": "จัดอันดับ",

@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "선호 서버: {servers}",
     "AUTO_SERVERS": "자동",
     "JOIN_PARTY": "파티 참가",
-    "PARTY_CLOSED": "파티 마감"
+    "PARTY_CLOSED": "파티 마감",
+    "PLAYER_NUM": "플레이어 {n}"
   },
   "queues": {
     "COMPETITIVE": "경쟁전",

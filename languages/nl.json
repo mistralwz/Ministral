@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Voorkeur: {servers}",
     "AUTO_SERVERS": "Automatisch",
     "JOIN_PARTY": "Deelnemen aan groep",
-    "PARTY_CLOSED": "Groep gesloten"
+    "PARTY_CLOSED": "Groep gesloten",
+    "PLAYER_NUM": "Speler {n}"
   },
   "queues": {
     "COMPETITIVE": "Competitief",

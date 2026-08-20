@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Предпочитаемые: {servers}",
     "AUTO_SERVERS": "Авто",
     "JOIN_PARTY": "Вступить в группу",
-    "PARTY_CLOSED": "Группа закрыта"
+    "PARTY_CLOSED": "Группа закрыта",
+    "PLAYER_NUM": "Игрок {n}"
   },
   "queues": {
     "COMPETITIVE": "Рейтинговая",

@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "पसंदीदा: {servers}",
     "AUTO_SERVERS": "ऑटो",
     "JOIN_PARTY": "पार्टी में शामिल हों",
-    "PARTY_CLOSED": "पार्टी बंद है"
+    "PARTY_CLOSED": "पार्टी बंद है",
+    "PLAYER_NUM": "खिलाड़ी {n}"
   },
   "queues": {
     "COMPETITIVE": "प्रतिस्पर्धी",

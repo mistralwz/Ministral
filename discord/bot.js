@@ -153,8 +153,11 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
                 // If I was hovering BEFORE, and now the agent is no longer hovered by me...
                 if (myPrevPlayer && myPrevPlayer.agentId && myPrevPlayer.selectionState !== "locked") {
                     const hoveredAgentId = myPrevPlayer.agentId;
+                    let discLang = config.localiseText ? getSetting(interaction.user.id, 'locale') : 'en-GB';
+                    if (discLang === "Automatic") discLang = 'en-US';
+                    const valLang = discToValLang[discLang] || DEFAULT_VALORANT_LANG;
                     const hoveredAgentNameObj = myPrevPlayer.agentName || { "en-US": "that agent" };
-                    const hoveredAgentName = hoveredAgentNameObj["en-US"] || "that agent";
+                    const hoveredAgentName = hoveredAgentNameObj[valLang] || hoveredAgentNameObj["en-US"] || "that agent";
 
                     // Check if someone else locked it in the CURRENT state
                     const thief = data.players.find(p =>

@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "優先: {servers}",
     "AUTO_SERVERS": "自動",
     "JOIN_PARTY": "加入隊伍",
-    "PARTY_CLOSED": "隊伍已關閉"
+    "PARTY_CLOSED": "隊伍已關閉",
+    "PLAYER_NUM": "玩家 {n}"
   },
   "queues": {
     "COMPETITIVE": "競技",

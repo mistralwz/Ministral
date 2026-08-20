@@ -257,7 +257,8 @@
     "PREFERRED_SERVERS": "Ưu tiên: {servers}",
     "AUTO_SERVERS": "Tự động",
     "JOIN_PARTY": "Tham gia nhóm",
-    "PARTY_CLOSED": "Nhóm đã đóng"
+    "PARTY_CLOSED": "Nhóm đã đóng",
+    "PLAYER_NUM": "Người chơi {n}"
   },
   "queues": {
     "COMPETITIVE": "Xếp hạng",
