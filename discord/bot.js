@@ -106,7 +106,7 @@ import fuzzysort from "fuzzysort";
 import { getSkins, getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import {
-    fetchLiveGame, selectAgent, lockAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode
+    fetchLiveGame, selectAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode
 } from "../valorant/livegame.js";
 import { renderLiveGame, renderLiveGameError, setRoleSelection } from "./livegameEmbed.js";
 
@@ -182,13 +182,13 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
                                     // Fallback to DM if missing SendMessages
                                     await interaction.user.send(message).catch(() => {
                                         // Fallback to second embed if DM fails
-                                        interaction.followUp({ content: message, flags: ["Ephemeral"] }).catch(() => { });
+                                        interaction.followUp({ content: message, flags: MessageFlags.Ephemeral }).catch(() => { });
                                     });
                                 }
                             } else {
                                 // If interaction.channel is missing or permissions error
                                 await interaction.user.send(message).catch(() => {
-                                    interaction.followUp({ content: message, flags: ["Ephemeral"] }).catch(() => { });
+                                    interaction.followUp({ content: message, flags: MessageFlags.Ephemeral }).catch(() => { });
                                 });
                             }
                         } catch (e) {
@@ -636,6 +636,10 @@ const globalCommands = commands.map(cmd => ({ ...cmd, integration_types: [0, 1],
 
 export const stopBot = async (replyFn) => {
     localLog("Stopping the bot...");
+    for (const [userId, poller] of liveGamePollers.entries()) {
+        clearTimeout(poller.timer);
+    }
+    liveGamePollers.clear();
     if (replyFn) {
         try {
             await replyFn();
@@ -1629,7 +1633,7 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_queue": {
-                    if (interaction.message.interaction.user.id !== interaction.user.id) {
+                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
                         return await interaction.reply({
                             embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
                             flags: [MessageFlags.Ephemeral]
@@ -1669,7 +1673,7 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_role": {
-                    if (interaction.message.interaction.user.id !== interaction.user.id) {
+                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
                         return await interaction.reply({
                             embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
                             flags: [MessageFlags.Ephemeral]
@@ -1695,7 +1699,7 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_agent": {
-                    if (interaction.message.interaction.user.id !== interaction.user.id) {
+                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
                         return await interaction.reply({
                             embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
                             flags: [MessageFlags.Ephemeral]
@@ -2142,7 +2146,7 @@ client.on("interactionCreate", async (interaction) => {
             } else if (interaction.customId.startsWith("livegame/make_code/") || interaction.customId.startsWith("livegame/remove_code/")) {
                 const [, action, matchId] = interaction.customId.split('/');
 
-                if (interaction.message.interaction.user.id !== interaction.user.id) {
+                if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
                     return await interaction.reply({
                         embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
                         flags: [MessageFlags.Ephemeral]
@@ -2224,7 +2228,7 @@ client.on("interactionCreate", async (interaction) => {
             } else if (interaction.customId.startsWith("livegame/start_queue/") || interaction.customId.startsWith("livegame/cancel_queue/")) {
                 const [, action, matchId] = interaction.customId.split('/');
 
-                if (interaction.message.interaction.user.id !== interaction.user.id) {
+                if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
                     return await interaction.reply({
                         embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
                         flags: [MessageFlags.Ephemeral]

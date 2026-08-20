@@ -769,6 +769,10 @@ export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
     };
 };
 
+const safeJson = (str) => {
+    try { return JSON.parse(str); } catch { return null; }
+};
+
 // ──────────────────────────────────────────────
 // Party / Matchmaking fetch
 // ──────────────────────────────────────────────
@@ -784,6 +788,7 @@ export const getPartyData = async (id, account = null) => {
     if (!authResult.success) return { ...authResult, state: null };
 
     const user = getUser(id, account);
+    if (!user) return { success: false, state: null };
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
@@ -797,7 +802,8 @@ export const getPartyData = async (id, account = null) => {
         return { success: true, state: "not_queuing" };
     }
 
-    const { CurrentPartyID: partyId } = JSON.parse(playerResp.body);
+    const playerJson = safeJson(playerResp.body);
+    const partyId = playerJson?.CurrentPartyID;
     if (!partyId) return { success: true, state: "not_queuing" };
 
     // Fetch party data
@@ -810,7 +816,9 @@ export const getPartyData = async (id, account = null) => {
         return { success: true, state: "not_queuing" };
     }
 
-    const partyJson = JSON.parse(partyResp.body);
+    const partyJson = safeJson(partyResp.body);
+    if (!partyJson) return { success: true, state: "not_queuing" };
+
     const members = (partyJson.Members || []).map(m => ({ puuid: m.Subject, isLeader: m.IsOwner, matchTier: m.CompetitiveTier || 0, partyId }));
     const eligibleQueues = partyJson.EligibleQueues || [];
     const inviteCode = partyJson.InviteCode || null;
@@ -846,7 +854,10 @@ export const getPartyData = async (id, account = null) => {
 };
 
 export const makePartyCode = async (id, account, partyId) => {
+    const auth = await authUser(id, account);
+    if (!auth.success) return false;
     const user = getUser(id, account);
+    if (!user) return false;
     const base = glzUrl(user);
     const headers = { ...authHeaders(user), "Content-Type": "application/json" };
     const resp = await fetch(`${base}/parties/v1/parties/${partyId}/invitecode`, {
@@ -856,13 +867,16 @@ export const makePartyCode = async (id, account, partyId) => {
     });
     console.log(`[livegame] makePartyCode for ${partyId} on ${base} returned:`, resp.statusCode);
     if (resp.statusCode === 200) {
-        return JSON.parse(resp.body)?.InviteCode || true;
+        return safeJson(resp.body)?.InviteCode || true;
     }
     return false;
 };
 
 export const removePartyCode = async (id, account, partyId) => {
+    const auth = await authUser(id, account);
+    if (!auth.success) return false;
     const user = getUser(id, account);
+    if (!user) return false;
     const base = glzUrl(user);
     const headers = { ...authHeaders(user), "Content-Type": "application/json" };
     const resp = await fetch(`${base}/parties/v1/parties/${partyId}/invitecode`, {
@@ -874,7 +888,10 @@ export const removePartyCode = async (id, account, partyId) => {
 };
 
 export const joinPartyByCode = async (id, account, inviteCode) => {
+    const auth = await authUser(id, account);
+    if (!auth.success) return false;
     const user = getUser(id, account);
+    if (!user) return false;
     const base = glzUrl(user);
     const headers = { ...authHeaders(user), "Content-Type": "application/json" };
     const resp = await fetch(`${base}/parties/v1/players/joinbycode/${inviteCode}`, {
@@ -891,7 +908,10 @@ export const joinPartyByCode = async (id, account, inviteCode) => {
 // ──────────────────────────────────────────────
 
 export const selectAgent = async (id, account, matchId, agentId) => {
+    const auth = await authUser(id, account);
+    if (!auth.success) return false;
     const user = getUser(id, account);
+    if (!user) return false;
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
@@ -902,20 +922,11 @@ export const selectAgent = async (id, account, matchId, agentId) => {
     return resp.statusCode === 200;
 };
 
-export const lockAgent = async (id, account, matchId, agentId) => {
-    const user = getUser(id, account);
-    const base = glzUrl(user);
-    const headers = authHeaders(user);
-
-    const resp = await fetch(
-        `${base}/pregame/v1/matches/${matchId}/lock/${agentId}`,
-        { method: "POST", headers }
-    );
-    return resp.statusCode === 200;
-};
-
 export const startQueue = async (id, account, partyId) => {
+    const auth = await authUser(id, account);
+    if (!auth.success) return false;
     const user = getUser(id, account);
+    if (!user) return false;
     const base = glzUrl(user);
     const headers = authHeaders(user);
     const resp = await fetch(`${base}/parties/v1/parties/${partyId}/matchmaking/join`, { method: "POST", headers });
@@ -923,7 +934,10 @@ export const startQueue = async (id, account, partyId) => {
 };
 
 export const cancelQueue = async (id, account, partyId) => {
+    const auth = await authUser(id, account);
+    if (!auth.success) return false;
     const user = getUser(id, account);
+    if (!user) return false;
     const base = glzUrl(user);
     const headers = authHeaders(user);
     const resp = await fetch(`${base}/parties/v1/parties/${partyId}/matchmaking/leave`, { method: "POST", headers });
@@ -931,16 +945,12 @@ export const cancelQueue = async (id, account, partyId) => {
 };
 
 export const changeQueue = async (id, account, partyId, queueId) => {
+    const auth = await authUser(id, account);
+    if (!auth.success) return false;
     const user = getUser(id, account);
+    if (!user) return false;
     const base = glzUrl(user);
     const headers = authHeaders(user);
-    // First, escape Custom Match restrictions back into standard modes
-    // console.log(`[livegame] Attempting to escape Custom Match via /makeDefault for party ${partyId}`);
-    // const escResp = await fetch(`${base}/parties/v1/parties/${partyId}/makeDefault?queueID=${queueId}`, {
-    //     method: "POST",
-    //     headers
-    // });
-    // console.log(`[livegame] /makeDefault status: ${escResp.statusCode}`);
 
     if (queueId === "custom") {
         console.log(`[livegame] Initiating transition to Custom Match via /makecustomgame for ${partyId}`);
@@ -962,17 +972,16 @@ export const changeQueue = async (id, account, partyId, queueId) => {
     return resp.statusCode === 200;
 };
 
-
-
 export const getOwnedAgents = async (user) => {
+    if (!user) return [];
     const base = pdUrl(user);
     const headers = authHeaders(user);
 
     const req = await fetch(`${base}/store/v1/entitlements/${user.puuid}/01bb38e1-da47-4e6a-9b3d-945fe4655707`, { headers });
     let owned = [];
     if (req.statusCode === 200) {
-        const json = JSON.parse(req.body);
-        if (json.Entitlements) {
+        const json = safeJson(req.body);
+        if (json?.Entitlements) {
             owned = json.Entitlements.map(ent => ent.ItemID.toLowerCase());
         }
     }
@@ -1006,6 +1015,7 @@ export const getPreGameData = async (id, account = null) => {
     if (!authResult.success) return { ...authResult, state: null };
 
     const user = getUser(id, account);
+    if (!user) return { success: false, state: null };
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
@@ -1019,7 +1029,9 @@ export const getPreGameData = async (id, account = null) => {
         return { success: true, state: "not_in_pregame" };
     }
 
-    const { MatchID: matchId } = JSON.parse(playerResp.body);
+    const playerJson = safeJson(playerResp.body);
+    const matchId = playerJson?.MatchID;
+    if (!matchId) return { success: true, state: "not_in_pregame" };
 
     // Fetch match data
     const matchResp = await fetch(
@@ -1031,7 +1043,8 @@ export const getPreGameData = async (id, account = null) => {
         return { success: true, state: "not_in_pregame" };
     }
 
-    const matchJson = JSON.parse(matchResp.body);
+    const matchJson = safeJson(matchResp.body);
+    if (!matchJson) return { success: true, state: "not_in_pregame" };
 
     const mapId = matchJson.MapID ?? "";
     // GameConfig.GameMode is a URL like ".../modes/competitive.json".
@@ -1100,6 +1113,7 @@ export const getInGameData = async (id, account = null) => {
     if (!authResult.success) return { ...authResult, state: null };
 
     const user = getUser(id, account);
+    if (!user) return { success: false, state: null };
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
@@ -1113,7 +1127,9 @@ export const getInGameData = async (id, account = null) => {
         return { success: true, state: "not_in_game" };
     }
 
-    const { MatchID: matchId } = JSON.parse(playerResp.body);
+    const playerJson = safeJson(playerResp.body);
+    const matchId = playerJson?.MatchID;
+    if (!matchId) return { success: true, state: "not_in_game" };
 
     // Fetch match data
     const matchResp = await fetch(
@@ -1125,7 +1141,8 @@ export const getInGameData = async (id, account = null) => {
         return { success: true, state: "not_in_game" };
     }
 
-    const matchJson = JSON.parse(matchResp.body);
+    const matchJson = safeJson(matchResp.body);
+    if (!matchJson) return { success: true, state: "not_in_game" };
 
     const mapId = matchJson.MapID ?? "";
     const gamePodId = matchJson.GamePodID ?? "";
@@ -1182,7 +1199,7 @@ const fetchPlayerMMRs = async (user, puuids) => {
     const results = await Promise.allSettled(
         puuids.map(puuid =>
             fetch(`${pd}/mmr/v1/players/${puuid}`, { headers })
-                .then(r => r.statusCode === 200 ? JSON.parse(r.body) : null)
+                .then(r => r.statusCode === 200 ? safeJson(r.body) : null)
         )
     );
 
@@ -1192,14 +1209,15 @@ const fetchPlayerMMRs = async (user, puuids) => {
         const raw = results[i].status === "fulfilled" ? results[i].value : null;
         let parsed = raw ? parseMMRData(raw, currentSeasonId) : null;
 
-        if (parsed && (parsed.games > 0 || parsed.peakTier > 0 || parsed.currentTier > 0)) {
+        if (parsed) {
             playerMmrCache.set(puuid, { data: parsed, ts: now });
         } else {
             const cached = playerMmrCache.get(puuid);
             if (cached && (now - cached.ts < MMR_CACHE_TTL)) {
                 parsed = cached.data;
-            } else if (!parsed) {
+            } else {
                 parsed = parseMMRData(null, currentSeasonId);
+                playerMmrCache.set(puuid, { data: parsed, ts: now });
             }
         }
 
@@ -1224,9 +1242,12 @@ const fetchPlayerNames = async (user, puuids) => {
             body: JSON.stringify(puuids),
         });
         if (resp.statusCode === 200) {
-            for (const entry of JSON.parse(resp.body)) {
-                if (entry.GameName) {
-                    out.set(entry.Subject, `${entry.GameName}#${entry.TagLine}`);
+            const json = safeJson(resp.body);
+            if (Array.isArray(json)) {
+                for (const entry of json) {
+                    if (entry.GameName) {
+                        out.set(entry.Subject, `${entry.GameName}#${entry.TagLine}`);
+                    }
                 }
             }
         }
@@ -1248,7 +1269,7 @@ const fetchPlayerRecentMatches = async (user, puuids) => {
     const results = await Promise.allSettled(
         puuids.map(puuid =>
             fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=3&queue=competitive`, { headers })
-                .then(r => r.statusCode === 200 ? JSON.parse(r.body) : null)
+                .then(r => r.statusCode === 200 ? safeJson(r.body) : null)
         )
     );
 
@@ -1276,6 +1297,7 @@ const fetchPlayerRecentMatches = async (user, puuids) => {
                 history = cached.data;
             } else {
                 history = [];
+                playerRecentMatchesCache.set(puuid, { data: history, ts: now });
             }
         }
         out.set(puuid, history);
@@ -1365,8 +1387,8 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                     const headers = authHeaders(user);
                     const historyResp = await fetch(`${pd}/match-history/v1/history/${puuid}?startIndex=0&endIndex=5&queue=competitive`, { headers });
                     if (historyResp.statusCode === 200) {
-                        const historyJson = JSON.parse(historyResp.body);
-                        const matchIds = (historyJson.History || []).slice(0, 5).map(h => h.MatchID).filter(Boolean);
+                        const historyJson = safeJson(historyResp.body);
+                        const matchIds = (historyJson?.History || []).slice(0, 5).map(h => h.MatchID).filter(Boolean);
 
                         if (matchIds.length > 0) {
                             let totalDamage = 0;
@@ -1380,7 +1402,7 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                             const detailsResults = await Promise.allSettled(
                                 matchIds.map(mid =>
                                     fetch(`${pd}/match-details/v1/matches/${mid}`, { headers })
-                                        .then(r => r.statusCode === 200 ? JSON.parse(r.body) : null)
+                                        .then(r => r.statusCode === 200 ? safeJson(r.body) : null)
                                 )
                             );
 
@@ -1428,10 +1450,11 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                 }
             }
 
-            if (stats) {
-                playerCombatStatsCache.set(puuid, { data: stats, ts: now });
-                out.set(puuid, stats);
+            if (!stats) {
+                stats = { adr: 0, kd: "0", hs: 0 };
             }
+            playerCombatStatsCache.set(puuid, { data: stats, ts: now });
+            out.set(puuid, stats);
         })
     );
 

@@ -370,6 +370,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
 
         const descriptionParts = [];
         if (config.notice) descriptionParts.push(config.notice);
+        if (statusText) descriptionParts.push(statusText);
         if (serverFormatted) descriptionParts.push(`-# 🌐 **Servers:** ${serverFormatted}`);
         if (liveGameData.inviteCode) {
             descriptionParts.push(`-# 🔑 **${s(userId).livegame?.PARTY_CODE || "Party Code"}** \`${liveGameData.inviteCode}\``);
@@ -424,7 +425,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 components.unshift(buttonRow);
 
                 if (state === "not_in_game" && liveGameData.eligibleQueues && liveGameData.eligibleQueues.length > 0) {
-                    let allQueues = [...liveGameData.eligibleQueues];
+                    let allQueues = [...new Set(liveGameData.eligibleQueues)];
                     const isCurrentlyCustom = liveGameData.queueId === "" || liveGameData.queueId === "custom";
                     if (isCurrentlyCustom && !allQueues.includes("custom")) {
                         allQueues.push("custom");
@@ -451,7 +452,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                             new StringSelectMenuBuilder()
                                 .setCustomId(`livegame/select_queue/${liveGameData.matchId}`)
                                 .setPlaceholder("Select a Mode")
-                                .addOptions(queueOptions)
+                                .addOptions(queueOptions.slice(0, 25))
                         );
                         components.unshift(queueSelectRow);
                     }
@@ -529,12 +530,14 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 });
             }
 
-            menuRows.push(new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId(`livegame/select_role/${liveGameData.matchId}`)
-                    .setPlaceholder(s(userId).livegame.SELECT_AGENT_PLACEHOLDER || "Select a Role")
-                    .addOptions(roleOptions)
-            ));
+            if (roleOptions.length > 0) {
+                menuRows.push(new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId(`livegame/select_role/${liveGameData.matchId}`)
+                        .setPlaceholder(s(userId).livegame?.SELECT_AGENT_PLACEHOLDER || "Select a Role")
+                        .addOptions(roleOptions.slice(0, 25))
+                ));
+            }
 
             // 3. Conditionally build the Agent dropdown if a Role is selected
             if (selectedRole && roleNames.includes(selectedRole)) {
@@ -544,7 +547,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                         new StringSelectMenuBuilder()
                             .setCustomId(`livegame/select_agent/${liveGameData.matchId}/0`)
                             .setPlaceholder(`Select an Agent (${uniqueRoles.get(selectedRole).roleLocalized})`)
-                            .addOptions(agentOptions)
+                            .addOptions(agentOptions.slice(0, 25))
                     ));
                 }
             }
