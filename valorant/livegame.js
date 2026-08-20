@@ -1139,6 +1139,7 @@ export const getInGameData = async (id, account = null) => {
         teamId: p.TeamID,
         isAlly: p.TeamID === userTeamId,
         agentId: p.CharacterID ?? null,
+        selectionState: "locked",
         incognito: p.PlayerIdentity?.Incognito ?? false,
         accountLevel: p.PlayerIdentity?.AccountLevel ?? null,
         isHideAccountLevel: p.PlayerIdentity?.HideAccountLevel ?? false,
@@ -1316,7 +1317,7 @@ const fetchPlayerCombatStats = async (user, puuids) => {
             // Strategy 1: HenrikDev API (if available)
             if (vapi) {
                 try {
-                    const matchRes = await vapi.getMatchesByPUUID({ puuid, region, filter: "competitive", size: 3 });
+                    const matchRes = await vapi.getMatchesByPUUID({ puuid, region, filter: "competitive", size: 5 });
                     if (matchRes?.data && Array.isArray(matchRes.data) && matchRes.data.length > 0) {
                         let totalDamage = 0;
                         let totalRounds = 0;
@@ -1327,6 +1328,9 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                         let totalLegshots = 0;
 
                         for (const m of matchRes.data) {
+                            if (currentSeasonId && m.metadata?.season_id && m.metadata.season_id.toLowerCase() !== currentSeasonId.toLowerCase()) {
+                                continue;
+                            }
                             const pStats = m.players?.all_players?.find(p => p.puuid === puuid)?.stats;
                             if (pStats) {
                                 totalDamage += pStats.damage || 0;
@@ -1358,10 +1362,10 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                 try {
                     const pd = pdUrl(user);
                     const headers = authHeaders(user);
-                    const historyResp = await fetch(`${pd}/match-history/v1/history/${puuid}?startIndex=0&endIndex=3&queue=competitive`, { headers });
+                    const historyResp = await fetch(`${pd}/match-history/v1/history/${puuid}?startIndex=0&endIndex=5&queue=competitive`, { headers });
                     if (historyResp.statusCode === 200) {
                         const historyJson = JSON.parse(historyResp.body);
-                        const matchIds = (historyJson.History || []).slice(0, 3).map(h => h.MatchID).filter(Boolean);
+                        const matchIds = (historyJson.History || []).slice(0, 5).map(h => h.MatchID).filter(Boolean);
 
                         if (matchIds.length > 0) {
                             let totalDamage = 0;
@@ -1382,6 +1386,9 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                             for (const res of detailsResults) {
                                 if (res.status === "fulfilled" && res.value) {
                                     const match = res.value;
+                                    if (currentSeasonId && match.matchInfo?.seasonId && match.matchInfo.seasonId.toLowerCase() !== currentSeasonId.toLowerCase()) {
+                                        continue;
+                                    }
                                     const playerObj = (match.players || []).find(p => p.subject === puuid);
                                     if (playerObj?.stats) {
                                         totalKills += playerObj.stats.kills || 0;
@@ -1438,7 +1445,6 @@ const fetchPlayerCombatStats = async (user, puuids) => {
 const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
-    const showCompStats = queueId === "competitive" || queueId === "skirmish" || queueId === "skirmish 2v2" || !queueId;
 
     // loadSeasons must finish first so that currentSeasonId (module-level) is
     // populated before fetchPlayerMMRs calls parseMMRData(raw, currentSeasonId).
@@ -1448,8 +1454,8 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const [mmrMap, nameMap, recentMatchesMap, combatStatsMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids),
-        showCompStats ? fetchPlayerRecentMatches(user, puuids) : Promise.resolve(new Map()),
-        showCompStats ? fetchPlayerCombatStats(user, puuids) : Promise.resolve(new Map())
+        fetchPlayerRecentMatches(user, puuids),
+        fetchPlayerCombatStats(user, puuids)
     ]);
 
     // Enrich each player

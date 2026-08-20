@@ -125,75 +125,6 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
     return flags.join(" ");
 };
 
-// ─── Player lobby renderer (1 player per line) ─────────────────────────────
-
-/**
- * Render one party member as a single line for the party lobby embed.
- * 👑 <agent> `RiotName`・<rank>**42**rr・<peak>`E5A3`・**34%**wr `230`・`🔹🔻🔹`
- */
-const formatPlayerLobbyRow = async (player, channel, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
-    const localizedAgentName = player.agentName ? (player.agentName[valLang] || player.agentName["en-US"] || "Unknown") : null;
-    const enAgentName = player.agentName ? (player.agentName["en-US"] || "Unknown") : null;
-
-    let displayName;
-    if (player.incognito) {
-        if (localizedAgentName) {
-            displayName = localizedAgentName;
-        } else {
-            const template = s(userId).livegame?.PLAYER_NUM || "Player {n}";
-            displayName = template.replace("{n}", player.playerIndex || "1");
-        }
-    } else {
-        displayName = (player.riotId || "Unknown").split('#')[0];
-    }
-
-    let agentEmojiStr = "";
-    if (enAgentName && player.agentIcon) {
-        agentEmojiStr = emojiToString(await agentEmoji(enAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
-    } else if (player.incognito) {
-        agentEmojiStr = "";
-    } else if (localizedAgentName) {
-        agentEmojiStr = `\`${localizedAgentName}\``;
-    }
-
-    const currentRankEmojiStr = player.currentTierIcon
-        ? (emojiToString(await rankEmoji(player.currentTier, player.currentTierIcon)) ?? "")
-        : "";
-
-    const peakRankEmojiStr = player.peakTier > 0 && player.peakTierIcon
-        ? (emojiToString(await rankEmoji(player.peakTier, player.peakTierIcon)) ?? (player.peakTierName ? `\`${player.peakTierName}\`` : ""))
-        : "";
-    const peakBadgePart = (peakRankEmojiStr && player.peakActLabel)
-        ? `${peakRankEmojiStr}\`${player.peakActLabel}\``
-        : (peakRankEmojiStr || "");
-
-    const agentPrefix = agentEmojiStr ? `${agentEmojiStr} ` : "";
-    const leaderBadge = player.isLeader ? "👑 " : "";
-
-    const rankBadgePart = player.currentTier > 0
-        ? (player.isRankFallback && !player.peakTier && player.winRate == null
-            ? `${currentRankEmojiStr}\`${player.currentTierName}\``.trim()
-            : `${currentRankEmojiStr}**${player.currentRR}**rr`.trim())
-        : (currentRankEmojiStr ? `${currentRankEmojiStr}\`Unranked\`` : "`Unranked`");
-
-    const tails = [rankBadgePart, peakBadgePart].filter(Boolean);
-    if (player.winRate != null && player.games != null) {
-        tails.push(`**${player.winRate}%**wr \`${player.games}\``);
-    }
-
-    let recentMatchesStr = "";
-    if (player.recentMatches && player.recentMatches.length > 0) {
-        const symbols = player.recentMatches.map(m => {
-            if (m === "win") return "🔹";
-            if (m === "loss") return "🔻";
-            return "▫️";
-        }).join("");
-        recentMatchesStr = `・\`${symbols}\``;
-    }
-
-    return `${leaderBadge}${agentPrefix}\`${displayName}\`・${tails.join("・")}${recentMatchesStr}`;
-};
-
 // ─── Player match field renderer ─────────────────────────────────────────────
 
 /**
@@ -260,15 +191,19 @@ const formatPlayerField = async (player, channel, showCompStats = false, valLang
 
     const fieldName = `${agentPrefix}${leaderBadge}\`${displayName}\` ${rankBadgePart} ${peakBadgePart}`.trim();
 
-    // Value items: ADR, K/D/A Ratio, Headshot %, Win%
-    const statItems = [];
-    if (player.adr != null) statItems.push(`**${player.adr}** ADR`);
-    if (player.kd != null) statItems.push(`**${player.kd}** K/D`);
-    if (player.hs != null) statItems.push(`**${player.hs}%** HS`);
-    if (player.winRate != null) {
-        const gameCount = player.games != null ? ` \`${player.games}\`` : "";
-        statItems.push(`**${player.winRate}%** Win${gameCount}`);
-    }
+    // Value items: ADR, K/D/A Ratio, Headshot %, Win% (fallback to 0 when no stats available)
+    const adr = player.adr ?? 0;
+    const kd = player.kd ?? "0";
+    const hs = player.hs ?? 0;
+    const winRate = player.winRate ?? 0;
+    const gameCount = player.games ? ` \`${player.games}\`` : "";
+
+    const statItems = [
+        `**${adr}** ADR`,
+        `**${kd}** K/D`,
+        `**${hs}%** HS`,
+        `**${winRate}%** Win${gameCount}`
+    ];
 
     let recentMatchesStr = "";
     if (player.recentMatches && player.recentMatches.length > 0) {
@@ -280,9 +215,7 @@ const formatPlayerField = async (player, channel, showCompStats = false, valLang
         recentMatchesStr = ` \`${symbols}\``;
     }
 
-    let fieldValue = statItems.length > 0
-        ? `${statItems.join("・")}${recentMatchesStr}`
-        : "No stats available";
+    const fieldValue = `${statItems.join("・")}${recentMatchesStr}`;
 
     return {
         name: fieldName,
@@ -443,15 +376,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         }
         const description = descriptionParts.length > 0 ? descriptionParts.join("\n") : undefined;
 
-        let lobbyFields = undefined;
-        if (hasParty) {
-            const rows = await Promise.all(allyPlayers.map(p => formatPlayerLobbyRow(p, channel, valLang, userId)));
-            lobbyFields = [{
-                name: s(userId).livegame?.PARTY_MEMBERS || "Party Members",
-                value: rows.join("\n"),
-                inline: false,
-            }];
-        }
+        const lobbyFields = hasParty ? await buildPlayerFields(allyPlayers, channel, true, valLang, userId) : undefined;
 
         const embed = {
             author,
