@@ -2162,8 +2162,8 @@ client.on("interactionCreate", async (interaction) => {
                 const liveGameData = await fetchLiveGame(interaction.user.id);
 
                 // Inject our locally sourced code if the backend response hasn't updated yet
-                if (liveGameData.success && liveGameData.state === "queuing") {
-                    if (newInviteCode) liveGameData.inviteCode = newInviteCode;
+                if (liveGameData.success && (liveGameData.state === "queuing" || liveGameData.state === "not_in_game")) {
+                    if (newInviteCode && typeof newInviteCode === "string") liveGameData.inviteCode = newInviteCode;
                     if (removedCode) liveGameData.inviteCode = null;
                 }
 

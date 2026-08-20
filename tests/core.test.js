@@ -52,6 +52,7 @@ import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels } from "../discord/embed.js";
+import { renderLiveGame } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -474,4 +475,20 @@ test("embed: getSkinLevels deduplicates duplicate skin UUIDs and limits options 
     const emptyRes = await getSkinLevels([], mockInteraction);
     assert.equal(emptyRes, false);
 });
+
+test("livegame embed: renders party code", async () => {
+    const mockLiveGameData = {
+        state: "not_in_game",
+        allyPlayers: [],
+        enemyPlayers: [],
+        inviteCode: "test-code-1234",
+        preferredGamePods: []
+    };
+
+    const rendered = await renderLiveGame(mockLiveGameData, "test-user-id");
+    assert.ok(rendered.embeds && rendered.embeds.length > 0);
+    const desc = rendered.embeds[0].description;
+    assert.ok(desc.includes("test-code-1234"));
+});
+
 

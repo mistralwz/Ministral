@@ -1274,6 +1274,51 @@ const fetchPlayerRecentMatches = async (user, puuids) => {
     return out;
 };
 
+const playerPartyCache = new Map();
+const PARTY_CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
+
+/**
+ * Batch-fetch party IDs for a list of PUUIDs from /parties/v1/players/{puuid}.
+ * Returns Map<puuid, partyId>.
+ */
+const fetchPlayerParties = async (user, puuids) => {
+    const glz = glzUrl(user);
+    const headers = authHeaders(user);
+    const now = Date.now();
+
+    const toFetch = [];
+    const out = new Map();
+
+    for (const puuid of puuids) {
+        const cached = playerPartyCache.get(puuid);
+        if (cached && now - cached.ts < PARTY_CACHE_TTL) {
+            out.set(puuid, cached.data);
+        } else {
+            toFetch.push(puuid);
+        }
+    }
+
+    if (toFetch.length > 0) {
+        const results = await Promise.allSettled(
+            toFetch.map(puuid =>
+                fetch(`${glz}/parties/v1/players/${puuid}`, { headers })
+                    .then(r => r.statusCode === 200 ? JSON.parse(r.body)?.CurrentPartyID ?? null : null)
+            )
+        );
+
+        for (let i = 0; i < toFetch.length; i++) {
+            const puuid = toFetch[i];
+            const partyId = results[i].status === "fulfilled" ? results[i].value : null;
+            if (partyId) {
+                playerPartyCache.set(puuid, { data: partyId, ts: now });
+            }
+            out.set(puuid, partyId);
+        }
+    }
+
+    return out;
+};
+
 // ──────────────────────────────────────────────
 // Player enrichment
 // ──────────────────────────────────────────────
@@ -1286,25 +1331,28 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
     const showCompStats = queueId === "competitive" || queueId === "skirmish" || queueId === "skirmish 2v2" || !queueId;
+    const needsPartyLookup = rawPlayers.some(p => !p.partyId);
 
     // loadSeasons must finish first so that currentSeasonId (module-level) is
     // populated before fetchPlayerMMRs calls parseMMRData(raw, currentSeasonId).
     // Running them in parallel caused a race where every player appeared Unranked
     // on the first /livegame refresh while already in a match.
     const seasonMap = seasonsCache; // Pre-warmed by fetchLiveGame
-    const [mmrMap, nameMap, recentMatchesMap] = await Promise.all([
+    const [mmrMap, nameMap, recentMatchesMap, partyMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids),
-        showCompStats ? fetchPlayerRecentMatches(user, puuids) : Promise.resolve(new Map())
+        showCompStats ? fetchPlayerRecentMatches(user, puuids) : Promise.resolve(new Map()),
+        needsPartyLookup ? fetchPlayerParties(user, puuids) : Promise.resolve(new Map())
     ]);
 
-    const myPartyId = rawPlayers.find(rp => rp.puuid === user.puuid)?.partyId;
+    const myPartyId = rawPlayers.find(rp => rp.puuid === user.puuid)?.partyId || partyMap.get(user.puuid) || null;
 
     // Enrich each player
     const enriched = await Promise.all(rawPlayers.map(async (p, idx) => {
         const mmr = mmrMap.get(p.puuid);
         const name = nameMap.get(p.puuid) ?? null;
         const actualCurrentTier = mmr?.currentTier || p.matchTier || 0;
+        const playerPartyId = p.partyId || partyMap.get(p.puuid) || null;
 
         // Resolve agent and tier icons/names in parallel
         const [agentInfo, currentTierInfo, peakTierInfo] = await Promise.all([
@@ -1317,7 +1365,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
         const level = p.accountLevel ?? null;
         const levelHidden = p.isHideAccountLevel ?? false;
 
-        const isPartyMemberOfUser = p.puuid === user.puuid || (myPartyId && p.partyId && p.partyId === myPartyId);
+        const isPartyMemberOfUser = p.puuid === user.puuid || (myPartyId && playerPartyId && playerPartyId === myPartyId);
         const shouldHideName = p.incognito && !isPartyMemberOfUser;
 
         return {
@@ -1332,7 +1380,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
                     ? agentInfo.names["en-US"]
                     : `Player ${idx + 1}`)
                 : (name ? name.split('#')[0] : p.puuid.slice(0, 8)),
-            partyId: p.partyId ?? null,
+            partyId: playerPartyId,
             isLeader: p.isLeader ?? false,
             // Agent
             agentName: p.agentId ? agentInfo.names : null,
