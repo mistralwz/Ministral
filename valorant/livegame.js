@@ -1331,14 +1331,15 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                             if (currentSeasonId && m.metadata?.season_id && m.metadata.season_id.toLowerCase() !== currentSeasonId.toLowerCase()) {
                                 continue;
                             }
-                            const pStats = m.players?.all_players?.find(p => p.puuid === puuid)?.stats;
-                            if (pStats) {
-                                totalDamage += pStats.damage || 0;
-                                totalKills += pStats.kills || 0;
-                                totalDeaths += pStats.deaths || 0;
-                                totalHeadshots += pStats.headshots || 0;
-                                totalBodyshots += pStats.bodyshots || 0;
-                                totalLegshots += pStats.legshots || 0;
+                            const pObj = m.players?.all_players?.find(p => p.puuid === puuid);
+                            if (pObj) {
+                                const pStats = pObj.stats || {};
+                                totalDamage += pObj.damage_made || pStats.damage || pObj.damage || 0;
+                                totalKills += pStats.kills || pObj.kills || 0;
+                                totalDeaths += pStats.deaths || pObj.deaths || 0;
+                                totalHeadshots += pStats.headshots || pObj.headshots || 0;
+                                totalBodyshots += pStats.bodyshots || pObj.bodyshots || 0;
+                                totalLegshots += pStats.legshots || pObj.legshots || 0;
                                 totalRounds += m.metadata?.rounds_played || 0;
                             }
                         }
@@ -1393,7 +1394,7 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                                     if (playerObj?.stats) {
                                         totalKills += playerObj.stats.kills || 0;
                                         totalDeaths += playerObj.stats.deaths || 0;
-                                        totalRounds += playerObj.stats.roundsPlayed || 0;
+                                        totalRounds += playerObj.stats.roundsPlayed || (match.roundResults?.length || 0);
                                         for (const rd of (playerObj.roundDamage || [])) {
                                             totalDamage += rd.damage || 0;
                                         }
@@ -1401,6 +1402,9 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                                     for (const rr of (match.roundResults || [])) {
                                         const pStats = (rr.playerStats || []).find(ps => ps.subject === puuid);
                                         for (const dmg of (pStats?.damage || [])) {
+                                            if (!playerObj?.roundDamage || playerObj.roundDamage.length === 0) {
+                                                totalDamage += dmg.damage || 0;
+                                            }
                                             totalHeadshots += dmg.headshots || 0;
                                             totalBodyshots += dmg.bodyshots || 0;
                                             totalLegshots += dmg.legshots || 0;
