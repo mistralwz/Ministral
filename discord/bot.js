@@ -1806,7 +1806,17 @@ client.on("interactionCreate", async (interaction) => {
                                 .setValue(`chromas/${chromas.uuid}/${skinUuid}`))
                     }
 
-                    await interaction.editReply({ components: [new ActionRowBuilder().addComponents(levelSelector)] })
+                    if (levelSelector.options.length === 0) {
+                        return await interaction.editReply({
+                            embeds: [basicEmbed(s(interaction).error.NO_LEVELS_FOR_SKIN || "No preview available for this skin.")],
+                            components: []
+                        });
+                    }
+                    if (levelSelector.options.length > 25) {
+                        levelSelector.setOptions(levelSelector.options.slice(0, 25));
+                    }
+
+                    await interaction.editReply({ components: [new ActionRowBuilder().addComponents(levelSelector)] });
                     break;
                 }
                 case "get-level-video": {

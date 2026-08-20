@@ -1114,7 +1114,14 @@ export const collectionStatsEmbed = async (interaction, id, user) => {
     const loadout = loadoutResponse.success ? loadoutResponse.loadout : null;
 
     const allSkinsData = await Promise.all(skinsResponse.skins.map(uuid => getSkin(uuid, false)));
-    const validSkins = allSkinsData.filter(s => s && s.weapon);
+    const seenSkinUuids = new Set();
+    const validSkins = [];
+    for (const skin of allSkinsData) {
+        if (skin && skin.weapon && !seenSkinUuids.has(skin.uuid)) {
+            seenSkinUuids.add(skin.uuid);
+            validSkins.push(skin);
+        }
+    }
 
     let totalCollectionValue = 0;
     const tierCounts = {
