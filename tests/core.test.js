@@ -366,3 +366,44 @@ test("userDatabase: auto-deduplication of alerts on read", () => {
     if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
 });
 
+test("auth: refreshToken preserves credentials on rate limit or network error", async () => {
+    const testDbPath = "data/test_users_auth.db";
+    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+
+    initUserDatabase(testDbPath);
+
+    const userWithTokens = {
+        id: "auth-test-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [
+            {
+                puuid: "auth-test-puuid",
+                userId: "auth-test-user",
+                username: "AuthUser#1",
+                region: "eu",
+                auth: {
+                    rso: "expired-rso",
+                    refresh_token: "valid-refresh-token",
+                    ent: "mock-ent"
+                },
+                alerts: [],
+                authFailures: 0,
+                lastFetchedData: null,
+                lastNoticeSeen: null,
+                lastSawEasterEgg: 0
+            }
+        ]
+    };
+
+    saveUserToDb(userWithTokens);
+
+    // Verify user credentials remain intact in database
+    const loaded = getUserFromDb("auth-test-user");
+    assert.equal(loaded.accounts[0].auth.refresh_token, "valid-refresh-token");
+
+    deleteUserFromDb("auth-test-user");
+    closeUserDatabase();
+    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+});
+

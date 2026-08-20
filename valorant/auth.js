@@ -175,12 +175,11 @@ export const getRegion = async (user) => {
 
 export const refreshToken = async (id, account = null) => {
     if (config.logUrls) console.log(`Refreshing token for ${id}...`);
-    let response = { success: false };
 
     let user = getUser(id, account);
-    if (!user) return response;
+    if (!user) return { success: false };
 
-    if (user.auth.refresh_token) {
+    if (user.auth && user.auth.refresh_token) {
         if (config.logUrls) console.log(`[refreshToken] User has refresh_token, attempting refresh`);
         try {
             const refreshRes = await refreshWithRefreshToken(user.auth.refresh_token);
@@ -206,15 +205,24 @@ export const refreshToken = async (id, account = null) => {
                 if (config.logUrls) console.log(`[refreshToken] Refresh token success for ${user.username} — new token expires in ${expiresIn} minutes`);
                 return { success: true };
             } else if (refreshRes.invalidToken) {
-                console.error(`[refreshToken] Refresh token is invalid/expired for ${user.username} (HTTP ${refreshRes.invalidToken ? 'invalid_grant' : 'error'})`);
+                console.error(`[refreshToken] Refresh token is invalid/expired for ${user.username} (HTTP invalid_grant/400/401)`);
                 deleteUserAuth(user);
                 return { success: false, authFailure: true };
+            } else if (refreshRes.rateLimit || refreshRes.statusCode === 429) {
+                const retryAfter = refreshRes.retryAfter || 30000;
+                console.warn(`[refreshToken] Rate limited while refreshing token for ${user.username} (retry after ${Math.ceil(retryAfter / 1000)}s)`);
+                return { success: false, rateLimit: Date.now() + retryAfter };
+            } else {
+                console.error(`[refreshToken] Transient error refreshing token for ${user.username} (status ${refreshRes.statusCode || 'network'}), keeping credentials`);
+                return { success: false, networkError: true };
             }
         } catch (e) {
             console.error(`[refreshToken] Exception during refresh_token flow:`, e);
+            return { success: false, networkError: true };
         }
     }
 
+    // Only delete auth if user does not have a refresh_token
     deleteUserAuth(user);
     return { success: false, authFailure: true };
 };
@@ -306,6 +314,12 @@ export const refreshWithRefreshToken = async (refreshToken) => {
 
         if (req.statusCode !== 200) {
             console.error(`[refreshWithRefreshToken] Refresh failed with status ${req.statusCode}:`, req.body);
+            if (req.statusCode === 429) {
+                const retryAfterHeader = req.headers?.['retry-after'];
+                const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 30000;
+                return { success: false, rateLimit: true, statusCode: 429, retryAfter };
+            }
+
             let invalidToken = false;
             try {
                 const json = JSON.parse(req.body);
@@ -315,7 +329,7 @@ export const refreshWithRefreshToken = async (refreshToken) => {
             } catch {
                 if (req.statusCode === 400 || req.statusCode === 401) invalidToken = true;
             }
-            return { success: false, invalidToken };
+            return { success: false, invalidToken, statusCode: req.statusCode };
         }
 
         const json = JSON.parse(req.body);

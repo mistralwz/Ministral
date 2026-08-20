@@ -76,7 +76,11 @@ export const getShop = async (id, account = null) => {
 
     const json = JSON.parse(req.body);
     if (req.statusCode !== 200) {
-        if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
+        if (req.statusCode === 429 || json.httpStatus === 429 || json.errorCode === "RATE_LIMITED") {
+            const retryAfterHeader = req.headers?.['retry-after'];
+            const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 30000;
+            return { success: false, rateLimit: Date.now() + retryAfter };
+        } else if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
             deleteUserAuth(user);
             return { success: false, authFailure: true };
         } else if (isMaintenance(json)) return { success: false, maintenance: true };
