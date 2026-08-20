@@ -44,10 +44,6 @@ let db = null;
 let stmts = {};
 let saveUserToDbInTransaction = null;
 
-let batchMode = false;
-const batchQueue = new Map();
-const batchAccountQueue = new Map();
-
 const safeJsonParse = (value, fallback, context) => {
     try {
         return JSON.parse(value);
@@ -120,7 +116,7 @@ const prepareStatements = () => {
         getAllUserIds: db.prepare(`SELECT id FROM users`),
         deleteAccount: db.prepare(`DELETE FROM accounts WHERE puuid = ?`),
         updateSingleAccount: db.prepare(`UPDATE accounts SET username = ?, region = ?, auth = ?, alerts = ?, authFailures = ?, lastFetchedData = ?, lastNoticeSeen = ?, lastSawEasterEgg = ?, updatedAt = ? WHERE puuid = ?`),
-        getUserIdsWithAlertsOrDailyShop: db.prepare(`SELECT DISTINCT u.id FROM users u LEFT JOIN accounts a ON a.userId = u.id WHERE (a.alerts IS NOT NULL AND a.alerts != '[]') OR (u.settings LIKE '%"dailyShop"%')`),
+        getUserIdsWithAlertsOrDailyShop: db.prepare(`SELECT DISTINCT u.id FROM users u LEFT JOIN accounts a ON a.userId = u.id WHERE (a.alerts IS NOT NULL AND a.alerts != '[]') OR (json_extract(u.settings, '$.dailyShop') NOT IN (0, 'false', false) AND json_extract(u.settings, '$.dailyShop') IS NOT NULL)`),
     };
 };
 
@@ -129,11 +125,7 @@ const prepareStatements = () => {
  * @returns {UserData|null}
  */
 export const getUserFromDb = (id) => {
-    if (!id) return null;
-    if (batchMode && batchQueue.has(id)) {
-        return batchQueue.get(id);
-    }
-    if (!db || !stmts?.getUser) return null;
+    if (!id || !db || !stmts?.getUser) return null;
     const userRow = stmts.getUser.get(id);
     if (!userRow) return null;
 
@@ -169,7 +161,16 @@ const saveUserToDbTransaction = (user) => {
         now
     );
 
+    const currentPuuids = (user.accounts || []).map(a => a?.puuid).filter(Boolean);
+    if (currentPuuids.length > 0) {
+        const placeholders = currentPuuids.map(() => '?').join(',');
+        db.prepare(`DELETE FROM accounts WHERE userId = ? AND puuid NOT IN (${placeholders})`).run(user.id, ...currentPuuids);
+    } else {
+        stmts.deleteUserAccounts.run(user.id);
+    }
+
     for (const account of user.accounts || []) {
+        if (!account?.puuid) continue;
         stmts.upsertAccount.run(
             account.puuid,
             user.id,
@@ -188,10 +189,7 @@ const saveUserToDbTransaction = (user) => {
 };
 
 export const saveUserToDb = (user) => {
-    if (batchMode) {
-        batchQueue.set(user.id, user);
-        return;
-    }
+    if (!user?.id || !db) return;
     if (db.inTransaction) {
         saveUserToDbTransaction(user);
     } else {
@@ -199,50 +197,11 @@ export const saveUserToDb = (user) => {
     }
 };
 
-export const beginBatchWrites = () => {
-    batchMode = true;
-    batchQueue.clear();
-    batchAccountQueue.clear();
-};
-
-export const commitBatchWrites = () => {
-    if (!batchMode) return;
-    batchMode = false;
-
-    if (batchQueue.size === 0 && batchAccountQueue.size === 0) {
-        batchQueue.clear();
-        batchAccountQueue.clear();
-        return;
-    }
-
-    const users = Array.from(batchQueue.values());
-    const accounts = Array.from(batchAccountQueue.values());
-    batchQueue.clear();
-    batchAccountQueue.clear();
-
-    const batchTransaction = db.transaction(() => {
-        for (const user of users) {
-            saveUserToDbTransaction(user);
-        }
-        for (const account of accounts) {
-            stmts.updateSingleAccount.run(
-                account.username || "",
-                account.region || null,
-                JSON.stringify(account.auth || {}),
-                JSON.stringify(account.alerts || []),
-                account.authFailures || 0,
-                account.lastFetchedData || null,
-                account.lastNoticeSeen || null,
-                account.lastSawEasterEgg || 0,
-                Date.now(),
-                account.puuid
-            );
-        }
-    });
-    batchTransaction();
-};
+export const beginBatchWrites = () => {};
+export const commitBatchWrites = () => {};
 
 export const deleteUserFromDb = (id) => {
+    if (!id || !db) return;
     const transaction = db.transaction(() => {
         stmts.deleteUserAccounts.run(id);
         stmts.deleteUser.run(id);
@@ -251,6 +210,7 @@ export const deleteUserFromDb = (id) => {
 };
 
 export const getAccountByPuuid = (puuid) => {
+    if (!puuid || !db || !stmts?.getAccountByPuuid) return null;
     const row = stmts.getAccountByPuuid.get(puuid);
     if (!row) return null;
 
@@ -260,7 +220,7 @@ export const getAccountByPuuid = (puuid) => {
         username: row.username,
         region: row.region,
         auth: safeJsonParse(row.auth, {}, "account.auth"),
-        alerts: row.alerts ? safeJsonParse(row.alerts, [], "account.alerts") : [],
+        alerts: removeDupeAlerts(row.alerts ? safeJsonParse(row.alerts, [], "account.alerts") : []),
         authFailures: row.authFailures,
         lastFetchedData: row.lastFetchedData,
         lastNoticeSeen: row.lastNoticeSeen,
@@ -269,22 +229,22 @@ export const getAccountByPuuid = (puuid) => {
 };
 
 export const getAllUserIds = () => {
+    if (!db || !stmts?.getAllUserIds) return [];
     return stmts.getAllUserIds.all().map(row => row.id);
 };
 
 export const getUserIdsWithAlertsOrDailyShop = () => {
+    if (!db || !stmts?.getUserIdsWithAlertsOrDailyShop) return [];
     return stmts.getUserIdsWithAlertsOrDailyShop.all().map(row => row.id);
 };
 
 export const deleteAccountFromDb = (puuid) => {
+    if (!puuid || !db || !stmts?.deleteAccount) return;
     stmts.deleteAccount.run(puuid);
 };
 
 export const updateSingleAccountInDb = (account) => {
-    if (batchMode) {
-        batchAccountQueue.set(account.puuid, account);
-        return true;
-    }
+    if (!account?.puuid || !db || !stmts?.updateSingleAccount) return false;
     const result = stmts.updateSingleAccount.run(
         account.username || "",
         account.region || null,
@@ -301,6 +261,7 @@ export const updateSingleAccountInDb = (account) => {
 };
 
 export const runUserDbTransaction = (fn) => {
+    if (!db) return fn();
     const transaction = db.transaction(fn);
     return transaction();
 };

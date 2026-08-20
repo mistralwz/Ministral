@@ -32,6 +32,7 @@ import {
     deleteUserFromDb,
     getAccountByPuuid,
     getAllUserIds,
+    getUserIdsWithAlertsOrDailyShop,
     updateSingleAccountInDb,
     beginBatchWrites,
     commitBatchWrites,
@@ -170,13 +171,33 @@ test("userDatabase: CRUD operations and transactions", () => {
     saveUserToDb({
         ...mockUser,
         id: "discord-user-2",
-        accounts: [{ ...mockUser.accounts[0], puuid: "puuid-account-2", userId: "discord-user-2" }]
+        settings: { dailyShop: false },
+        accounts: [{ ...mockUser.accounts[0], puuid: "puuid-account-2", userId: "discord-user-2", alerts: [] }]
     });
     commitBatchWrites();
 
     const allIds = getAllUserIds();
     assert.ok(allIds.includes("discord-user-1"));
     assert.ok(allIds.includes("discord-user-2"));
+
+    // Verify alert user filter excludes inactive dailyShop: false without alerts
+    const alertUserIds = getUserIdsWithAlertsOrDailyShop();
+    assert.ok(alertUserIds.includes("discord-user-1")); // has alerts
+    assert.ok(!alertUserIds.includes("discord-user-2")); // dailyShop: false, no alerts
+
+    // Test orphan account syncing
+    saveUserToDb({
+        ...mockUser,
+        id: "discord-user-1",
+        accounts: [] // removed accounts
+    });
+    const userNoAccounts = getUserFromDb("discord-user-1");
+    assert.equal(userNoAccounts.accounts.length, 0);
+    assert.equal(getAccountByPuuid("puuid-account-1"), null);
+
+    // Test undefined safety
+    assert.equal(getAccountByPuuid(undefined), null);
+    assert.equal(updateSingleAccountInDb(undefined), false);
 
     // Cleanup
     deleteUserFromDb("discord-user-1");

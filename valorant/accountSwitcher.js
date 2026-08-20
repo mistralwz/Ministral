@@ -43,10 +43,15 @@ export const saveUser = (user, account = null) => {
             return;
         }
 
-        if (!account) account = userJson.accounts.findIndex(a => a.puuid === user.puuid) + 1 || userJson.currentAccount;
-        if (account > userJson.accounts.length) account = userJson.accounts.length;
+        const foundIndex = userJson.accounts.findIndex(a => a.puuid === user.puuid);
+        if (foundIndex !== -1) {
+            userJson.accounts[foundIndex] = user;
+        } else if (account && account <= userJson.accounts.length) {
+            userJson.accounts[account - 1] = user;
+        } else {
+            userJson.accounts.push(user);
+        }
 
-        userJson.accounts[(account || userJson.currentAccount) - 1] = user;
         saveUserToDb(userJson);
     });
 };
@@ -60,14 +65,13 @@ export const addUser = (user) => {
             for (let i = 0; i < userJson.accounts.length; i++) {
                 if (userJson.accounts[i].puuid === user.puuid) {
                     const oldUser = userJson.accounts[i];
+                    user.alerts = removeDupeAlerts((oldUser?.alerts || []).concat(user.alerts || []));
+                    user.lastFetchedData = oldUser?.lastFetchedData;
+                    user.lastNoticeSeen = oldUser?.lastNoticeSeen;
+                    user.lastSawEasterEgg = oldUser?.lastSawEasterEgg;
+
                     userJson.accounts[i] = user;
                     userJson.currentAccount = i + 1;
-
-                    user.alerts = removeDupeAlerts(oldUser.alerts.concat(userJson.accounts[i].alerts));
-                    user.lastFetchedData = oldUser.lastFetchedData;
-                    user.lastNoticeSeen = oldUser.lastNoticeSeen;
-                    user.lastSawEasterEgg = oldUser.lastSawEasterEgg;
-
                     foundDuplicate = true;
                     break;
                 }
