@@ -251,25 +251,22 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
 }
 
 export const checkAlerts = async () => {
-    // C2: Each shard processes its own partition of users (by Discord snowflake modulo).
-    // The cron fires on all shards simultaneously — no broadcast needed.
     const client = getClient();
     const myShardId = client?.shard?.ids?.[0] ?? 0;
-    const totalShards = client?.shard?.count ?? 1;
 
-    console.log(`[Shard ${myShardId}] Checking new shop skins for alerts...`);
+    // Only shard 0 executes the alert check loop to avoid multi-shard IP burst rate limits
+    if (client?.shard && myShardId !== 0) {
+        return;
+    }
+
+    console.log("[Shard 0] Checking new shop skins for alerts...");
 
     try {
         const allUsers = getAlertUserList();
-
-        // Partition: each shard handles the users whose snowflake maps to it.
-        // Users with no shard (non-sharded run) are handled by the single instance.
-        const userList = totalShards > 1
-            ? allUsers.filter(id => id && Number((BigInt(id) >> 22n) % BigInt(totalShards)) === myShardId)
-            : allUsers.filter(id => id);
+        const userList = allUsers.filter(id => id);
 
         if (userList.length === 0) {
-            console.log(`[Shard ${myShardId}] No users in this shard's partition, skipping.`);
+            console.log("[Shard 0] No active alert users found, skipping.");
             return;
         }
 

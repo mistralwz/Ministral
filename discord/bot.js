@@ -258,6 +258,11 @@ onShardMessage(async (message) => {
             localLog(`Received Riot version data from shard 0: ${message.data.riotClientVersion}`);
             return true;
         }
+        case "consoleLog": {
+            const { addMessagesToLog } = await import("../misc/logger.js");
+            addMessagesToLog(message.messages);
+            return true;
+        }
         case "processExit":
             try { client.destroy(); } catch {}
             client.destroyed = true;
@@ -359,8 +364,8 @@ export const scheduleTasks = () => {
     destroyTasks();
     console.log("Scheduling tasks...");
 
-    // check alerts every day at 00:00:10 GMT
-    if (config.refreshSkins) cronTasks.push(cron.schedule(config.refreshSkins, checkAlerts, { timezone: "GMT" }));
+    // check alerts every day at 00:00:10 GMT (only on shard 0, dispatches cross-shard messages when needed)
+    if (config.refreshSkins && client.shard.ids[0] === 0) cronTasks.push(cron.schedule(config.refreshSkins, checkAlerts, { timezone: "GMT" }));
 
     // check for new valorant version every 15mins (only on shard 0, then broadcasts to others)
     if (config.checkGameVersion && client.shard.ids[0] === 0) {
