@@ -43,6 +43,11 @@ import { removeDupeAlerts } from "./util.js";
 let db = null;
 let stmts = {};
 let saveUserToDbInTransaction = null;
+let dbClient = null;
+
+export const setDatabaseClient = (client) => {
+    dbClient = client;
+};
 
 const safeJsonParse = (value, fallback, context) => {
     try {
@@ -188,8 +193,14 @@ const saveUserToDbTransaction = (user) => {
     }
 };
 
-export const saveUserToDb = (user) => {
+export const saveUserToDb = async (user) => {
     if (!user?.id || !db) return;
+    const shardId = dbClient?.shard?.ids?.[0];
+    if (shardId !== undefined && shardId !== 0) {
+        const { sendShardMessage } = await import("./shardMessage.js");
+        sendShardMessage({ type: "db_saveUser", user });
+        return;
+    }
     if (db.inTransaction) {
         saveUserToDbTransaction(user);
     } else {
@@ -200,8 +211,14 @@ export const saveUserToDb = (user) => {
 export const beginBatchWrites = () => {};
 export const commitBatchWrites = () => {};
 
-export const deleteUserFromDb = (id) => {
+export const deleteUserFromDb = async (id) => {
     if (!id || !db) return;
+    const shardId = dbClient?.shard?.ids?.[0];
+    if (shardId !== undefined && shardId !== 0) {
+        const { sendShardMessage } = await import("./shardMessage.js");
+        sendShardMessage({ type: "db_deleteUser", id });
+        return;
+    }
     const transaction = db.transaction(() => {
         stmts.deleteUserAccounts.run(id);
         stmts.deleteUser.run(id);

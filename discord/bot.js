@@ -228,8 +228,22 @@ setEmojiClient(client);
 setAlertsClient(client);
 setEmbedClient(client);
 
+import("../misc/userDatabase.js").then(m => m.setDatabaseClient(client));
+
 onShardMessage(async (message) => {
     switch (message.type) {
+        case "db_saveUser":
+            if (client?.shard?.ids?.[0] === 0) {
+                const { saveUserToDb } = await import("../misc/userDatabase.js");
+                saveUserToDb(message.user);
+            }
+            return true;
+        case "db_deleteUser":
+            if (client?.shard?.ids?.[0] === 0) {
+                const { deleteUserFromDb } = await import("../misc/userDatabase.js");
+                deleteUserFromDb(message.id);
+            }
+            return true;
         case "configReload":
             loadConfig("config.json", false);
             destroyTasks();
