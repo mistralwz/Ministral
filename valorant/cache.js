@@ -20,6 +20,9 @@ let prices = { timestamp: null };
 // Inverted index: uuid → price, built from bundle items for O(1) fallback in getPrice()
 let bundleItemPrices = {};
 
+// In-memory O(1) index: level/chroma/skin uuid → skin object (never persisted directly to JSON)
+const skinLookupMap = new Map();
+
 let skinsSaveDirty = false;
 let skinsSaveTimer = null;
 const SKINS_SAVE_DEBOUNCE_MS = 3000;
@@ -142,7 +145,20 @@ export const loadSkinsJSON = async (filename = "data/skins.json") => {
 
     // Assign all fields synchronously (single tick, no interleaving possible)
     weapons = jsonData.weapons;
-    skins = jsonData.skins;
+    if (jsonData.skins) {
+        skins = { version: jsonData.skins.version };
+        const seen = new Set();
+        for (const key of Object.keys(jsonData.skins)) {
+            if (key === "version") continue;
+            const s = jsonData.skins[key];
+            if (s && typeof s === "object" && s.uuid && !seen.has(s.uuid)) {
+                seen.add(s.uuid);
+                skins[s.uuid] = s;
+            }
+        }
+    } else {
+        skins = jsonData.skins;
+    }
     rarities = jsonData.rarities;
     bundles = jsonData.bundles;
     buddies = jsonData.buddies;
@@ -160,19 +176,20 @@ export const loadSkinsJSON = async (filename = "data/skins.json") => {
 }
 
 const buildSkinIndices = () => {
+    skinLookupMap.clear();
     if (!skins) return;
     for (const s of Object.values(skins)) {
         if (!s || typeof s !== "object") continue;
-        if (s.uuid) skins[s.uuid] = s;
-        if (s.skinUuid) skins[s.skinUuid] = s;
+        if (s.uuid) skinLookupMap.set(s.uuid, s);
+        if (s.skinUuid) skinLookupMap.set(s.skinUuid, s);
         if (s.levels) {
             for (const lvl of s.levels) {
-                if (lvl?.uuid) skins[lvl.uuid] = s;
+                if (lvl?.uuid) skinLookupMap.set(lvl.uuid, s);
             }
         }
         if (s.chromas) {
             for (const ch of s.chromas) {
-                if (ch?.uuid) skins[ch.uuid] = s;
+                if (ch?.uuid) skinLookupMap.set(ch.uuid, s);
             }
         }
     }
@@ -183,7 +200,20 @@ export const saveSkinsJSON = (filename = "data/skins.json") => {
     if (dir && !fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins, prices, bundles, rarities, buddies, flexes, sprays, cards, titles, battlepass }));
+    let cleanSkins = skins;
+    if (skins && typeof skins === "object") {
+        cleanSkins = { version: skins.version };
+        const seen = new Set();
+        for (const key of Object.keys(skins)) {
+            if (key === "version") continue;
+            const s = skins[key];
+            if (s && typeof s === "object" && s.uuid && !seen.has(s.uuid)) {
+                seen.add(s.uuid);
+                cleanSkins[s.uuid] = s;
+            }
+        }
+    }
+    fs.writeFileSync(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins: cleanSkins, prices, bundles, rarities, buddies, flexes, sprays, cards, titles, battlepass }));
     skinsSaveDirty = false;
     
     sendShardMessage({ type: "skinsReload" });
@@ -325,19 +355,9 @@ export const getSkinList = async (gameVersion) => {
                 assetPath: skin.assetPath
             };
             skins[levelOne.uuid] = skinObj;
-            skins[skin.uuid] = skinObj;
-            if (skin.levels) {
-                for (const lvl of skin.levels) {
-                    if (lvl.uuid) skins[lvl.uuid] = skinObj;
-                }
-            }
-            if (skin.chromas) {
-                for (const ch of skin.chromas) {
-                    if (ch.uuid) skins[ch.uuid] = skinObj;
-                }
-            }
         }
     }
+    buildSkinIndices();
 
     // saveSkinsJSON() deferred to fetchData() caller
 }
@@ -769,9 +789,9 @@ export const getItem = async (uuid, type) => {
 
 export const getSkin = async (uuid, reloadData = true) => {
     if (reloadData) await fetchData([skins, prices]);
-    if (!skins || !uuid) return null;
+    if (!uuid) return null;
 
-    const skin = skins[uuid];
+    const skin = skinLookupMap.get(uuid) || (skins && skins[uuid]) || null;
     if (!skin || typeof skin !== "object") return null;
 
     skin.price = await getPrice(uuid, skin);
@@ -780,9 +800,9 @@ export const getSkin = async (uuid, reloadData = true) => {
 
 export const getSkinFromSkinUuid = async (uuid, reloadData = true) => {
     if (reloadData) await fetchData([skins, prices]);
-    if (!skins || !uuid) return null;
+    if (!uuid) return null;
 
-    const skin = skins[uuid];
+    const skin = skinLookupMap.get(uuid) || (skins && skins[uuid]) || null;
     if (!skin || typeof skin !== "object") return null;
 
     skin.price = await getPrice(skin.uuid, skin);
