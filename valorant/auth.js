@@ -92,6 +92,19 @@ export const authUser = async (id, account = null) => {
     const user = getUser(id, account);
     if (!user || !user.auth || !user.auth.rso) return { success: false };
 
+    // If entitlements token is missing, re-fetch it or refresh tokens
+    if (!user.auth.ent) {
+        try {
+            user.auth.ent = await fetchEntitlementsToken(user);
+            if (user.auth.ent) {
+                saveUser(user);
+            }
+        } catch {}
+        if (!user.auth.ent) {
+            return await refreshToken(id, account);
+        }
+    }
+
     const rsoExpiry = tokenExpiry(user.auth.rso);
     const timeRemaining = rsoExpiry - Date.now();
     const minutesRemaining = Math.floor(timeRemaining / 60000);
