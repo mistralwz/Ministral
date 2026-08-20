@@ -5,6 +5,15 @@ import { loadConfig } from "./misc/config.js";
 if (isMainThread) {
     const config = loadConfig();
 
+    if (config) {
+        const { initUserDatabase, closeUserDatabase } = await import("./misc/userDatabase.js");
+        if (!initUserDatabase()) {
+            console.error("User database initialization failed in main thread. Cannot spawn shards.");
+            process.exit(1);
+        }
+        closeUserDatabase();
+    }
+
     const manager = new ShardingManager('./SkinPeek.js', {
         token: config.token,
         mode: "worker",
@@ -74,7 +83,7 @@ if (isMainThread) {
     // Worker Thread Logic
     const { startBot } = await import("./discord/bot.js");
     const { loadLogger } = await import("./misc/logger.js");
-    const { initUserDatabase } = await import("./misc/userDatabase.js");
+    const { initUserDatabase, closeUserDatabase } = await import("./misc/userDatabase.js");
 
     const config = loadConfig();
     if (config) {
@@ -84,6 +93,13 @@ if (isMainThread) {
             console.error("User database initialization failed. Cannot start bot.");
             process.exit(1);
         }
+
+        const handleShutdown = () => {
+            closeUserDatabase();
+            process.exit(0);
+        };
+        process.on("SIGINT", handleShutdown);
+        process.on("SIGTERM", handleShutdown);
 
         startBot();
     }

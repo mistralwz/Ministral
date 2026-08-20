@@ -255,13 +255,26 @@ export const getUserIdsWithAlertsOrDailyShop = () => {
     return stmts.getUserIdsWithAlertsOrDailyShop.all().map(row => row.id);
 };
 
-export const deleteAccountFromDb = (puuid) => {
+export const deleteAccountFromDb = async (puuid) => {
     if (!puuid || !db || !stmts?.deleteAccount) return;
+    const shardId = dbClient?.shard?.ids?.[0];
+    if (shardId !== undefined && shardId !== 0) {
+        const { sendShardMessage } = await import("./shardMessage.js");
+        sendShardMessage({ type: "db_deleteAccount", puuid });
+        return;
+    }
     stmts.deleteAccount.run(puuid);
 };
 
 export const updateSingleAccountInDb = (account) => {
     if (!account?.puuid || !db || !stmts?.updateSingleAccount) return false;
+    const shardId = dbClient?.shard?.ids?.[0];
+    if (shardId !== undefined && shardId !== 0) {
+        import("./shardMessage.js").then(({ sendShardMessage }) => {
+            sendShardMessage({ type: "db_updateAccount", account });
+        });
+        return true;
+    }
     const result = stmts.updateSingleAccount.run(
         account.username || "",
         account.region || null,
@@ -285,7 +298,12 @@ export const runUserDbTransaction = (fn) => {
 
 export const closeUserDatabase = () => {
     if (db) {
-        db.close();
+        try {
+            db.pragma('wal_checkpoint(TRUNCATE)');
+        } catch {}
+        try {
+            db.close();
+        } catch {}
         db = null;
         stmts = {};
     }

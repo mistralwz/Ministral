@@ -244,6 +244,18 @@ onShardMessage(async (message) => {
                 deleteUserFromDb(message.id);
             }
             return true;
+        case "db_updateAccount":
+            if (client?.shard?.ids?.[0] === 0) {
+                const { updateSingleAccountInDb } = await import("../misc/userDatabase.js");
+                updateSingleAccountInDb(message.account);
+            }
+            return true;
+        case "db_deleteAccount":
+            if (client?.shard?.ids?.[0] === 0) {
+                const { deleteAccountFromDb } = await import("../misc/userDatabase.js");
+                deleteAccountFromDb(message.puuid);
+            }
+            return true;
         case "configReload":
             loadConfig("config.json", false);
             destroyTasks();
