@@ -61,6 +61,8 @@ export const initUserDatabase = (dbPath = "data/users.db") => {
     try {
         db = new Database(dbPath);
         db.pragma('journal_mode = WAL');
+        db.pragma('busy_timeout = 10000');
+        db.pragma('synchronous = NORMAL');
         db.pragma('foreign_keys = ON');
 
         createTables();
