@@ -487,8 +487,8 @@ test("livegame embed: renders party code", async () => {
 
     const rendered = await renderLiveGame(mockLiveGameData, "test-user-id");
     assert.ok(rendered.embeds && rendered.embeds.length > 0);
-    const desc = rendered.embeds[0].description;
-    assert.ok(desc.includes("test-code-1234"));
+    const footer = rendered.embeds[0].footer?.text;
+    assert.ok(footer?.includes("test-code-1234"));
 });
 
 

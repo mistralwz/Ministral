@@ -16,6 +16,14 @@
 import { fetch, riotClientHeaders, userRegion } from "../misc/util.js";
 import { authUser, getUser } from "./auth.js";
 import { getAccountByPuuid } from "../misc/userDatabase.js";
+import config from "../misc/config.js";
+import unofficialValorantApi from "unofficial-valorant-api";
+
+let VAPI = null;
+const getVAPI = () => {
+    if (!VAPI && config.HDevToken) VAPI = new unofficialValorantApi(config.HDevToken);
+    return VAPI;
+};
 
 // ──────────────────────────────────────────────
 // Region helpers
@@ -1362,6 +1370,151 @@ const fetchPlayerParties = async (user, puuids) => {
     return out;
 };
 
+const playerCombatStatsCache = new Map();
+const COMBAT_STATS_CACHE_TTL = 1000 * 60 * 30; // 30 mins
+
+/**
+ * Fetch combat stats (ADR, K/D, Headshot %) for a list of PUUIDs.
+ * Uses HenrikDev API when configured, falls back to Riot match details / MMR.
+ * Returns Map<puuid, { adr, kd, hs }>.
+ */
+const fetchPlayerCombatStats = async (user, puuids) => {
+    const now = Date.now();
+    const out = new Map();
+    const toFetch = [];
+
+    for (const puuid of puuids) {
+        const cached = playerCombatStatsCache.get(puuid);
+        if (cached && now - cached.ts < COMBAT_STATS_CACHE_TTL) {
+            out.set(puuid, cached.data);
+        } else {
+            toFetch.push(puuid);
+        }
+    }
+
+    if (toFetch.length === 0) return out;
+
+    const vapi = getVAPI();
+    const region = userRegion(user);
+
+    await Promise.allSettled(
+        toFetch.map(async (puuid) => {
+            let stats = null;
+
+            // Strategy 1: HenrikDev API (if available)
+            if (vapi) {
+                try {
+                    const matchRes = await vapi.getMatchesByPUUID({ puuid, region, filter: "competitive", size: 3 });
+                    if (matchRes?.data && Array.isArray(matchRes.data) && matchRes.data.length > 0) {
+                        let totalDamage = 0;
+                        let totalRounds = 0;
+                        let totalKills = 0;
+                        let totalDeaths = 0;
+                        let totalHeadshots = 0;
+                        let totalBodyshots = 0;
+                        let totalLegshots = 0;
+
+                        for (const m of matchRes.data) {
+                            const pStats = m.players?.all_players?.find(p => p.puuid === puuid)?.stats;
+                            if (pStats) {
+                                totalDamage += pStats.damage || 0;
+                                totalKills += pStats.kills || 0;
+                                totalDeaths += pStats.deaths || 0;
+                                totalHeadshots += pStats.headshots || 0;
+                                totalBodyshots += pStats.bodyshots || 0;
+                                totalLegshots += pStats.legshots || 0;
+                                totalRounds += m.metadata?.rounds_played || 0;
+                            }
+                        }
+
+                        if (totalRounds > 0) {
+                            const totalShots = totalHeadshots + totalBodyshots + totalLegshots;
+                            stats = {
+                                adr: Math.round(totalDamage / totalRounds),
+                                kd: (totalKills / Math.max(totalDeaths, 1)).toFixed(2),
+                                hs: totalShots > 0 ? Math.round((totalHeadshots / totalShots) * 100) : 0,
+                            };
+                        }
+                    }
+                } catch (e) {
+                    // Fallback to next strategy
+                }
+            }
+
+            // Strategy 2: Riot PD match history & match details fallback
+            if (!stats) {
+                try {
+                    const pd = pdUrl(user);
+                    const headers = authHeaders(user);
+                    const historyResp = await fetch(`${pd}/match-history/v1/history/${puuid}?startIndex=0&endIndex=3&queue=competitive`, { headers });
+                    if (historyResp.statusCode === 200) {
+                        const historyJson = JSON.parse(historyResp.body);
+                        const matchIds = (historyJson.History || []).slice(0, 3).map(h => h.MatchID).filter(Boolean);
+
+                        if (matchIds.length > 0) {
+                            let totalDamage = 0;
+                            let totalRounds = 0;
+                            let totalKills = 0;
+                            let totalDeaths = 0;
+                            let totalHeadshots = 0;
+                            let totalBodyshots = 0;
+                            let totalLegshots = 0;
+
+                            const detailsResults = await Promise.allSettled(
+                                matchIds.map(mid =>
+                                    fetch(`${pd}/match-details/v1/matches/${mid}`, { headers })
+                                        .then(r => r.statusCode === 200 ? JSON.parse(r.body) : null)
+                                )
+                            );
+
+                            for (const res of detailsResults) {
+                                if (res.status === "fulfilled" && res.value) {
+                                    const match = res.value;
+                                    const playerObj = (match.players || []).find(p => p.subject === puuid);
+                                    if (playerObj?.stats) {
+                                        totalKills += playerObj.stats.kills || 0;
+                                        totalDeaths += playerObj.stats.deaths || 0;
+                                        totalRounds += playerObj.stats.roundsPlayed || 0;
+                                        for (const rd of (playerObj.roundDamage || [])) {
+                                            totalDamage += rd.damage || 0;
+                                        }
+                                    }
+                                    for (const rr of (match.roundResults || [])) {
+                                        const pStats = (rr.playerStats || []).find(ps => ps.subject === puuid);
+                                        for (const dmg of (pStats?.damage || [])) {
+                                            totalHeadshots += dmg.headshots || 0;
+                                            totalBodyshots += dmg.bodyshots || 0;
+                                            totalLegshots += dmg.legshots || 0;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (totalRounds > 0) {
+                                const totalShots = totalHeadshots + totalBodyshots + totalLegshots;
+                                stats = {
+                                    adr: Math.round(totalDamage / totalRounds),
+                                    kd: (totalKills / Math.max(totalDeaths, 1)).toFixed(2),
+                                    hs: totalShots > 0 ? Math.round((totalHeadshots / totalShots) * 100) : 0,
+                                };
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Fallback
+                }
+            }
+
+            if (stats) {
+                playerCombatStatsCache.set(puuid, { data: stats, ts: now });
+                out.set(puuid, stats);
+            }
+        })
+    );
+
+    return out;
+};
+
 // ──────────────────────────────────────────────
 // Player enrichment
 // ──────────────────────────────────────────────
@@ -1381,11 +1534,12 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     // Running them in parallel caused a race where every player appeared Unranked
     // on the first /livegame refresh while already in a match.
     const seasonMap = seasonsCache; // Pre-warmed by fetchLiveGame
-    const [mmrMap, nameMap, recentMatchesMap, partyMap] = await Promise.all([
+    const [mmrMap, nameMap, recentMatchesMap, partyMap, combatStatsMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids),
         showCompStats ? fetchPlayerRecentMatches(user, puuids) : Promise.resolve(new Map()),
-        needsPartyLookup ? fetchPlayerParties(user, puuids) : Promise.resolve(new Map())
+        needsPartyLookup ? fetchPlayerParties(user, puuids) : Promise.resolve(new Map()),
+        showCompStats ? fetchPlayerCombatStats(user, puuids) : Promise.resolve(new Map())
     ]);
 
     const myPartyId = rawPlayers.find(rp => rp.puuid === user.puuid)?.partyId || partyMap.get(user.puuid) || null;
@@ -1396,6 +1550,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
         const name = nameMap.get(p.puuid) ?? null;
         const actualCurrentTier = mmr?.currentTier || p.matchTier || 0;
         const playerPartyId = p.partyId || partyMap.get(p.puuid) || null;
+        const combatStats = combatStatsMap.get(p.puuid) ?? null;
 
         // Resolve agent and tier icons/names in parallel
         const [agentInfo, currentTierInfo, peakTierInfo] = await Promise.all([
@@ -1445,6 +1600,10 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             losses: mmr?.losses ?? 0,
             games: mmr?.games ?? 0,
             winRate: mmr?.winRate ?? null,
+            // Combat stats
+            adr: combatStats?.adr ?? null,
+            kd: combatStats?.kd ?? null,
+            hs: combatStats?.hs ?? null,
             // Level
             accountLevel: level,
             levelHidden,
