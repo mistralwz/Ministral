@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { localLog, localError } from "./logger.js";
+import { removeDupeAlerts } from "./util.js";
 
 /**
  * @typedef {Object} AuthTokens
@@ -126,6 +127,10 @@ const prepareStatements = () => {
  * @returns {UserData|null}
  */
 export const getUserFromDb = (id) => {
+    if (!id) return null;
+    if (batchMode && batchQueue.has(id)) {
+        return batchQueue.get(id);
+    }
     if (!db || !stmts?.getUser) return null;
     const userRow = stmts.getUser.get(id);
     if (!userRow) return null;
@@ -140,7 +145,7 @@ export const getUserFromDb = (id) => {
             username: row.username,
             region: row.region,
             auth: safeJsonParse(row.auth, {}, "account.auth"),
-            alerts: row.alerts ? safeJsonParse(row.alerts, [], "account.alerts") : [],
+            alerts: removeDupeAlerts(row.alerts ? safeJsonParse(row.alerts, [], "account.alerts") : []),
             authFailures: row.authFailures,
             lastFetchedData: row.lastFetchedData,
             lastNoticeSeen: row.lastNoticeSeen,

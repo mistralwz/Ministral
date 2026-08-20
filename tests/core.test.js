@@ -324,3 +324,45 @@ test("valorant cache: getPrice tier fallbacks for guns and melees", async () => 
     assert.equal(await getPrice("dummy-uuid-8", selGun), null);
 });
 
+test("userDatabase: auto-deduplication of alerts on read", () => {
+    const testDbPath = "data/test_users_dupe.db";
+    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+
+    initUserDatabase(testDbPath);
+
+    const userWithDupeAlerts = {
+        id: "dupe-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [
+            {
+                puuid: "dupe-puuid-1",
+                userId: "dupe-user",
+                username: "DupeUser#1",
+                region: "eu",
+                auth: {},
+                alerts: [
+                    { uuid: "skin-alpha", channel_id: "chan-1" },
+                    { uuid: "skin-alpha", channel_id: "chan-2" }, // dupe
+                    { uuid: "skin-beta", channel_id: "chan-1" }
+                ],
+                authFailures: 0,
+                lastFetchedData: null,
+                lastNoticeSeen: null,
+                lastSawEasterEgg: 0
+            }
+        ]
+    };
+
+    saveUserToDb(userWithDupeAlerts);
+    const loadedUser = getUserFromDb("dupe-user");
+    assert.ok(loadedUser);
+    assert.equal(loadedUser.accounts[0].alerts.length, 2);
+    assert.equal(loadedUser.accounts[0].alerts[0].uuid, "skin-alpha");
+    assert.equal(loadedUser.accounts[0].alerts[1].uuid, "skin-beta");
+
+    deleteUserFromDb("dupe-user");
+    closeUserDatabase();
+    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+});
+
