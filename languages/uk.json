@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Очікування в Групі",
     "IDLE_PARTY_DESC": "Очікування на початок пошуку у черзі.",
     "PARTY_MEMBERS": "Учасники Групи",
-    "SELECT_AGENT_PLACEHOLDER": "Виберіть Агента для Фіксації",
+    "SELECT_AGENT_PLACEHOLDER": "Виберіть Агента для Попереднього Перегляду",
     "START_QUEUE": "Почати Чергу",
     "CANCEL_QUEUE": "Скасувати Чергу",
     "GENERATE_PARTY_CODE": "Згенерувати Код Групи",

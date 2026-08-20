@@ -125,21 +125,64 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
     return flags.join(" ");
 };
 
-// ─── Player row renderer ─────────────────────────────────────────────────────
+// ─── Player lobby renderer (1 player per line) ─────────────────────────────
 
 /**
- * Render one player as a single compact line.
- *
- * Format (all modes):
- *   [PartyEmoji] <agent> `RiotName`・<rank>**42**rr・<peak>`E5A3`
- *
- * Competitive also appends:
- *   ・**46%**wr `13`・`🔹🔹🔻🔹🔹`
- *
- * @param {object}  player
- * @param {Channel} channel       Discord channel (for emoji resolution)
- * @param {boolean} showCompStats Show WR + last 5 match results when true
-// ─── Player field renderer ───────────────────────────────────────────────────
+ * Render one party member as a single line for the party lobby embed.
+ * 👑 <agent> `RiotName`・<rank>**42**rr・<peak>`E5A3`・**34%**wr `230`・`🔹🔻🔹`
+ */
+const formatPlayerLobbyRow = async (player, channel) => {
+    const displayName = (player.riotId || "Unknown").split('#')[0];
+    const localizedAgentName = player.agentName ? player.agentName["en-US"] || "Unknown" : null;
+
+    let agentEmojiStr = "";
+    if (localizedAgentName && player.agentIcon) {
+        agentEmojiStr = emojiToString(await agentEmoji(localizedAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
+    } else if (player.incognito) {
+        agentEmojiStr = "";
+    } else if (localizedAgentName) {
+        agentEmojiStr = `\`${localizedAgentName}\``;
+    }
+
+    const currentRankEmojiStr = player.currentTierIcon
+        ? (emojiToString(await rankEmoji(player.currentTier, player.currentTierIcon)) ?? "")
+        : "";
+
+    const peakRankEmojiStr = player.peakTier > 0 && player.peakTierIcon
+        ? (emojiToString(await rankEmoji(player.peakTier, player.peakTierIcon)) ?? (player.peakTierName ? `\`${player.peakTierName}\`` : ""))
+        : "";
+    const peakBadgePart = (peakRankEmojiStr && player.peakActLabel)
+        ? `${peakRankEmojiStr}\`${player.peakActLabel}\``
+        : (peakRankEmojiStr || "");
+
+    const agentPrefix = agentEmojiStr ? `${agentEmojiStr} ` : "";
+    const leaderBadge = player.isLeader ? "👑 " : "";
+
+    const rankBadgePart = player.currentTier > 0
+        ? (player.isRankFallback && !player.peakTier && player.winRate == null
+            ? `${currentRankEmojiStr}\`${player.currentTierName}\``.trim()
+            : `${currentRankEmojiStr}**${player.currentRR}**rr`.trim())
+        : (currentRankEmojiStr ? `${currentRankEmojiStr}\`Unranked\`` : "`Unranked`");
+
+    const tails = [rankBadgePart, peakBadgePart].filter(Boolean);
+    if (player.winRate != null && player.games != null) {
+        tails.push(`**${player.winRate}%**wr \`${player.games}\``);
+    }
+
+    let recentMatchesStr = "";
+    if (player.recentMatches && player.recentMatches.length > 0) {
+        const symbols = player.recentMatches.map(m => {
+            if (m === "win") return "🔹";
+            if (m === "loss") return "🔻";
+            return "▫️";
+        }).join("");
+        recentMatchesStr = `・\`${symbols}\``;
+    }
+
+    return `${leaderBadge}${agentPrefix}\`${displayName}\`・${tails.join("・")}${recentMatchesStr}`;
+};
+
+// ─── Player match field renderer ─────────────────────────────────────────────
 
 /**
  * Render one player as an embed field.
@@ -148,14 +191,13 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  *   <agent> `RiotName` <rank>**42**rr <peak>`E5A3`
  *
  * Field Value:
- *   **152** Damage/Round・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻🔹`
+ *   **152** ADR・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻🔹`
  *
  * @param {object}  player
  * @param {Channel} channel       Discord channel (for emoji resolution)
  * @param {boolean} showCompStats Show WR + last 3 match results when true
- * @param {boolean} isPartyLobby  True when rendering party lobby members
  */
-const formatPlayerField = async (player, channel, showCompStats = false, isPartyLobby = false) => {
+const formatPlayerField = async (player, channel, showCompStats = false) => {
     // Strip tagline from riotId: "Name#TAG" -> "Name" (no truncation)
     const displayName = (player.riotId || "Unknown").split('#')[0];
 
@@ -185,7 +227,7 @@ const formatPlayerField = async (player, channel, showCompStats = false, isParty
         : (peakRankEmojiStr || "");
 
     const agentPrefix = agentEmojiStr ? `${agentEmojiStr} ` : "";
-    const leaderBadge = (isPartyLobby && player.isLeader) ? "👑 " : "";
+    const leaderBadge = player.isLeader ? "👑 " : "";
 
     const rankBadgePart = player.currentTier > 0
         ? (player.isRankFallback && !player.peakTier && player.winRate == null && player.adr == null
@@ -195,9 +237,9 @@ const formatPlayerField = async (player, channel, showCompStats = false, isParty
 
     const fieldName = `${agentPrefix}${leaderBadge}\`${displayName}\` ${rankBadgePart} ${peakBadgePart}`.trim();
 
-    // Value items: Damage/Round, K/D/A Ratio, Headshot %, Win%
+    // Value items: ADR, K/D/A Ratio, Headshot %, Win%
     const statItems = [];
-    if (player.adr != null) statItems.push(`**${player.adr}** Damage/Round`);
+    if (player.adr != null) statItems.push(`**${player.adr}** ADR`);
     if (player.kd != null) statItems.push(`**${player.kd}** K/D`);
     if (player.hs != null) statItems.push(`**${player.hs}%** HS`);
     if (player.winRate != null) {
@@ -229,9 +271,9 @@ const formatPlayerField = async (player, channel, showCompStats = false, isParty
 /**
  * Build embed fields for a list of players, one field per player.
  */
-const buildPlayerFields = async (players, channel, showCompStats, _headerName = "\u200b", isPartyLobby = false) => {
+const buildPlayerFields = async (players, channel, showCompStats, _headerName = "\u200b") => {
     return Promise.all(players.map(p =>
-        formatPlayerField(p, channel, showCompStats, isPartyLobby)
+        formatPlayerField(p, channel, showCompStats)
     ));
 };
 
@@ -256,12 +298,12 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId =
 
     let fields;
     if (data.isSingleTeam) {
-        fields = await buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b", false);
+        fields = await buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b");
     } else {
         const [allyFields, enemyFields] = await Promise.all([
-            buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b", false),
+            buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b"),
             enemyPlayers.length > 0
-                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b", false)
+                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b")
                 : Promise.resolve([]),
         ]);
         fields = [...allyFields, ...enemyFields];
@@ -370,19 +412,30 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             }
         }
 
-        const footerParts = [];
-        if (serverFormatted) footerParts.push(`🌐 Servers: ${serverFormatted}`);
-        if (liveGameData.inviteCode) footerParts.push(`🔑 Party Code: ${liveGameData.inviteCode}`);
+        const descriptionParts = [];
+        if (config.notice) descriptionParts.push(config.notice);
+        if (serverFormatted) descriptionParts.push(`-# 🌐 **Servers:** ${serverFormatted}`);
+        if (liveGameData.inviteCode) {
+            descriptionParts.push(`-# 🔑 **${s(userId).livegame?.PARTY_CODE || "Party Code"}** \`${liveGameData.inviteCode}\``);
+        }
+        const description = descriptionParts.length > 0 ? descriptionParts.join("\n") : undefined;
 
-        const description = config.notice ? config.notice : undefined;
+        let lobbyFields = undefined;
+        if (hasParty) {
+            const rows = await Promise.all(allyPlayers.map(p => formatPlayerLobbyRow(p, channel)));
+            lobbyFields = [{
+                name: s(userId).livegame?.PARTY_MEMBERS || "Party Members",
+                value: rows.join("\n"),
+                inline: false,
+            }];
+        }
 
         const embed = {
             author,
             title,
             description,
             color,
-            fields: hasParty ? await buildPlayerFields(allyPlayers, channel, true, (s(userId).livegame?.PARTY_MEMBERS || "Party Members"), true) : undefined,
-            footer: footerParts.length > 0 ? { text: footerParts.join("・") } : undefined,
+            fields: lobbyFields,
         };
 
         let components = [liveGameRefreshRow(userId, liveGameData.inviteCode, hasParty)];

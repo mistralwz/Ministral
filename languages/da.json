@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "I en gruppe",
     "IDLE_PARTY_DESC": "Venter på at slå kø til.",
     "PARTY_MEMBERS": "Gruppemedlemmer",
-    "SELECT_AGENT_PLACEHOLDER": "Vælg en agent",
+    "SELECT_AGENT_PLACEHOLDER": "Vælg en agent til at hovere",
     "START_QUEUE": "Start matchmaking",
     "CANCEL_QUEUE": "Annuller matchmaking",
     "GENERATE_PARTY_CODE": "Generer Gruppekode",

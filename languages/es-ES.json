@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Grupo inactivo",
     "IDLE_PARTY_DESC": "Esperando para entrar en cola.",
     "PARTY_MEMBERS": "Miembros del grupo",
-    "SELECT_AGENT_PLACEHOLDER": "Selecciona un agente para fijar",
+    "SELECT_AGENT_PLACEHOLDER": "Selecciona un agente para marcar",
     "START_QUEUE": "Empezar cola",
     "CANCEL_QUEUE": "Cancelar cola",
     "GENERATE_PARTY_CODE": "Generar código de grupo",

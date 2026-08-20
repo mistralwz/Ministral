@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Idle in Party",
     "IDLE_PARTY_DESC": "Waiting to queue.",
     "PARTY_MEMBERS": "Party Members",
-    "SELECT_AGENT_PLACEHOLDER": "Select an Agent to Lock In",
+    "SELECT_AGENT_PLACEHOLDER": "Select an Agent to Hover",
     "START_QUEUE": "Start Queue",
     "CANCEL_QUEUE": "Cancel Queue",
     "GENERATE_PARTY_CODE": "Generate Party Code",

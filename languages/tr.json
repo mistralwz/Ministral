@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Grupta Boşta",
     "IDLE_PARTY_DESC": "Sıra bekleniyor.",
     "PARTY_MEMBERS": "Grup Üyeleri",
-    "SELECT_AGENT_PLACEHOLDER": "Kilitlemek için bir Ajan Seçin",
+    "SELECT_AGENT_PLACEHOLDER": "İşaretlemek için bir Ajan Seçin",
     "START_QUEUE": "Sırayı Başlat",
     "CANCEL_QUEUE": "Sırayı İptal Et",
     "GENERATE_PARTY_CODE": "Grup kodu oluştur",

@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Várakozás a csapatban",
     "IDLE_PARTY_DESC": "Várakozás a sorba állásra.",
     "PARTY_MEMBERS": "Csapattagok",
-    "SELECT_AGENT_PLACEHOLDER": "Válassz egy ügynököt a zároláshoz",
+    "SELECT_AGENT_PLACEHOLDER": "Válassz egy ügynököt a kijelöléshez",
     "START_QUEUE": "Sorba állás indítása",
     "CANCEL_QUEUE": "Sorba állás megszakítása",
     "GENERATE_PARTY_CODE": "Csapatkód generálása",

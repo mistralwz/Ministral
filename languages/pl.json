@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Bezczynność w grupie",
     "IDLE_PARTY_DESC": "Oczekiwanie na kolejkę.",
     "PARTY_MEMBERS": "Członkowie grupy",
-    "SELECT_AGENT_PLACEHOLDER": "Wybierz agenta do zatwierdzenia",
+    "SELECT_AGENT_PLACEHOLDER": "Wybierz agenta do podglądu",
     "START_QUEUE": "Rozpocznij kolejkę",
     "CANCEL_QUEUE": "Anuluj kolejkę",
     "GENERATE_PARTY_CODE": "Generuj kod grupy",

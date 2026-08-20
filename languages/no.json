@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Vente-Modus Parti (Tomgang)",
     "IDLE_PARTY_DESC": "Avventer fra team-sist oppkall.",
     "PARTY_MEMBERS": "Partimedlem(er)",
-    "SELECT_AGENT_PLACEHOLDER": "Velg en Spill-agent:",
+    "SELECT_AGENT_PLACEHOLDER": "Velg en agent å holde over",
     "START_QUEUE": "Oppdater søk  Kø",
     "CANCEL_QUEUE": "Kanseller kø-matchming",
     "GENERATE_PARTY_CODE": "Lage-system Parti-Kode",

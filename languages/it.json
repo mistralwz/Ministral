@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "In attesa nel Gruppo",
     "IDLE_PARTY_DESC": "In attesa per la coda.",
     "PARTY_MEMBERS": "Membri del Gruppo",
-    "SELECT_AGENT_PLACEHOLDER": "Seleziona un Agente",
+    "SELECT_AGENT_PLACEHOLDER": "Seleziona un Agente da Evidenziare",
     "START_QUEUE": "Inizia Coda",
     "CANCEL_QUEUE": "Annulla Coda",
     "GENERATE_PARTY_CODE": "Genera Codice Gruppo",

@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Grup Sedang Diam",
     "IDLE_PARTY_DESC": "Menunggu untuk masuk antrean.",
     "PARTY_MEMBERS": "Anggota Grup",
-    "SELECT_AGENT_PLACEHOLDER": "Pilih Agen untuk Mengunci",
+    "SELECT_AGENT_PLACEHOLDER": "Pilih Agen untuk Diarahkan",
     "START_QUEUE": "Mulai Antrean",
     "CANCEL_QUEUE": "Batalkan Antrean",
     "GENERATE_PARTY_CODE": "Buat Kode Grup",

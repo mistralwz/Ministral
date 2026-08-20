@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "I grupp",
     "IDLE_PARTY_DESC": "Väntar på att köa.",
     "PARTY_MEMBERS": "Gruppmedlemmar",
-    "SELECT_AGENT_PLACEHOLDER": "Välj en agent att låsa",
+    "SELECT_AGENT_PLACEHOLDER": "Välj en agent att markera",
     "START_QUEUE": "Börja köa",
     "CANCEL_QUEUE": "Avbryt kö",
     "GENERATE_PARTY_CODE": "Generera gruppkod",

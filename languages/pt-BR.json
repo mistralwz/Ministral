@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Grupo Inativo",
     "IDLE_PARTY_DESC": "Aguardando para entrar na fila.",
     "PARTY_MEMBERS": "Membros do Grupo",
-    "SELECT_AGENT_PLACEHOLDER": "Selecione um Agente para Confirmar",
+    "SELECT_AGENT_PLACEHOLDER": "Selecione um Agente para Destacar",
     "START_QUEUE": "Iniciar Fila",
     "CANCEL_QUEUE": "Cancelar Fila",
     "GENERATE_PARTY_CODE": "Gerar código de grupo",

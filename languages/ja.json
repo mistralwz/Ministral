@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "パーティーで待機中",
     "IDLE_PARTY_DESC": "キュー待ちです。",
     "PARTY_MEMBERS": "パーティーメンバー",
-    "SELECT_AGENT_PLACEHOLDER": "確定するエージェントを選択",
+    "SELECT_AGENT_PLACEHOLDER": "仮選択するエージェントを選択",
     "START_QUEUE": "キューを開始",
     "CANCEL_QUEUE": "キューをキャンセル",
     "GENERATE_PARTY_CODE": "パーティーコードを生成",

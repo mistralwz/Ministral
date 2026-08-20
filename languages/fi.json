@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Ryhmässä",
     "IDLE_PARTY_DESC": "Odottaa jonoon asettumista.",
     "PARTY_MEMBERS": "Ryhmän jäsenet",
-    "SELECT_AGENT_PLACEHOLDER": "Valitse lukittava agentti",
+    "SELECT_AGENT_PLACEHOLDER": "Valitse esivalittava agentti",
     "START_QUEUE": "Aloita jonotus",
     "CANCEL_QUEUE": "Peruuta jonotus",
     "GENERATE_PARTY_CODE": "Luo ryhmäkoodi",

@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "ปาร์ตี้ว่าง",
     "IDLE_PARTY_DESC": "กำลังรอเข้าคิว",
     "PARTY_MEMBERS": "สมาชิกปาร์ตี้",
-    "SELECT_AGENT_PLACEHOLDER": "เลือกเอเจนท์เพื่อยืนยัน",
+    "SELECT_AGENT_PLACEHOLDER": "เลือกเอเจนท์เพื่อเล็งไว้",
     "START_QUEUE": "เริ่มคิว",
     "CANCEL_QUEUE": "ยกเลิกคิว",
     "GENERATE_PARTY_CODE": "สร้างรหัสปาร์ตี้",

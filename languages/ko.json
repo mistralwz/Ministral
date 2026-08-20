@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "파티 대기 중",
     "IDLE_PARTY_DESC": "큐를 시작할 때까지 대기하고 있습니다.",
     "PARTY_MEMBERS": "파티 멤버",
-    "SELECT_AGENT_PLACEHOLDER": "락인할 요원 선택",
+    "SELECT_AGENT_PLACEHOLDER": "임시 선택할 요원 선택",
     "START_QUEUE": "큐 시작",
     "CANCEL_QUEUE": "큐 취소",
     "GENERATE_PARTY_CODE": "파티 코드 생성",

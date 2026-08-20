@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "隊伍空閒",
     "IDLE_PARTY_DESC": "等待排隊中。",
     "PARTY_MEMBERS": "隊伍成員",
-    "SELECT_AGENT_PLACEHOLDER": "選擇特務以確認鎖定",
+    "SELECT_AGENT_PLACEHOLDER": "選擇預選特務",
     "START_QUEUE": "開始排隊",
     "CANCEL_QUEUE": "取消排隊",
     "GENERATE_PARTY_CODE": "生成隊伍代碼",

@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "पार्टी में निष्क्रिय",
     "IDLE_PARTY_DESC": "कतार में लगने की प्रतीक्षा हो रही है।",
     "PARTY_MEMBERS": "पार्टी सदस्य",
-    "SELECT_AGENT_PLACEHOLDER": "लॉक इन करने के लिए एक एजेंट चुनें",
+    "SELECT_AGENT_PLACEHOLDER": "होवर करने के लिए एक एजेंट चुनें",
     "START_QUEUE": "कतार शुरू करें",
     "CANCEL_QUEUE": "कतार रद्द करें",
     "GENERATE_PARTY_CODE": "पार्टी कोड जनरेट करें",

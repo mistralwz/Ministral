@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Groupe inactif",
     "IDLE_PARTY_DESC": "En attente de mise en file d'attente.",
     "PARTY_MEMBERS": "Membres du groupe",
-    "SELECT_AGENT_PLACEHOLDER": "Sélectionner un agent à verrouiller",
+    "SELECT_AGENT_PLACEHOLDER": "Sélectionner un agent à survoler",
     "START_QUEUE": "Lancer la file d'attente",
     "CANCEL_QUEUE": "Annuler la file d'attente",
     "GENERATE_PARTY_CODE": "Générer un code de groupe",

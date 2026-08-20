@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Untätig in der Gruppe",
     "IDLE_PARTY_DESC": "Warten auf Warteschlange.",
     "PARTY_MEMBERS": "Gruppenmitglieder",
-    "SELECT_AGENT_PLACEHOLDER": "Wähle einen Agenten zum Einloggen",
+    "SELECT_AGENT_PLACEHOLDER": "Wähle einen Agenten zum Hovern",
     "START_QUEUE": "Warteschlange starten",
     "CANCEL_QUEUE": "Warteschlange abbrechen",
     "GENERATE_PARTY_CODE": "Gruppencode generieren",

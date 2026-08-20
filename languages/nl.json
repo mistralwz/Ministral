@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "In party",
     "IDLE_PARTY_DESC": "Wachten om in de wachtrij te gaan.",
     "PARTY_MEMBERS": "Partyleden",
-    "SELECT_AGENT_PLACEHOLDER": "Selecteer een agent om vast te leggen",
+    "SELECT_AGENT_PLACEHOLDER": "Selecteer een agent om aan te wijzen",
     "START_QUEUE": "Wachtrij starten",
     "CANCEL_QUEUE": "Wachtrij annuleren",
     "GENERATE_PARTY_CODE": "Partykode genereren",

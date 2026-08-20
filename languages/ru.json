@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Ожидание В Группе",
     "IDLE_PARTY_DESC": "Ожидание старта поиска.",
     "PARTY_MEMBERS": "Участники Группы",
-    "SELECT_AGENT_PLACEHOLDER": "Выберите Агента для Фиксации",
+    "SELECT_AGENT_PLACEHOLDER": "Выберите Агента для Предпросмотра",
     "START_QUEUE": "Начать Поиск",
     "CANCEL_QUEUE": "Отменить Поиск",
     "GENERATE_PARTY_CODE": "Сгенерировать Код Группы",

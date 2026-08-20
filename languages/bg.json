@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "Без Избрана Цел",
     "IDLE_PARTY_DESC": "Към момента нищо не се търси...",
     "PARTY_MEMBERS": "Хора От Лобито",
-    "SELECT_AGENT_PLACEHOLDER": "Искаш ли си агент?",
+    "SELECT_AGENT_PLACEHOLDER": "Изберете агент за предварителен избор",
     "START_QUEUE": "Първо Започни За Мач",
     "CANCEL_QUEUE": "Върнат Процес на Мач-търсене",
     "GENERATE_PARTY_CODE": "Създай Лоби - Достъп",

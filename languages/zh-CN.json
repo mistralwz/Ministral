@@ -248,7 +248,7 @@
     "IDLE_PARTY_TITLE": "队伍空闲",
     "IDLE_PARTY_DESC": "等待排队中。",
     "PARTY_MEMBERS": "队伍成员",
-    "SELECT_AGENT_PLACEHOLDER": "选择特工以确认锁定",
+    "SELECT_AGENT_PLACEHOLDER": "选择预选特工",
     "START_QUEUE": "开始排队",
     "CANCEL_QUEUE": "取消排队",
     "GENERATE_PARTY_CODE": "生成队伍代码",
