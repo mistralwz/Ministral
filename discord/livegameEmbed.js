@@ -161,8 +161,9 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  * @param {string}  partyEmoji    Color indicator for players partied together (e.g. 🟥)
  */
 const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLobby = false, partyEmoji = "") => {
-    // Strip tagline from riotId: "Name#TAG" -> "Name"
-    const displayName = (player.riotId || "Unknown").split('#')[0];
+    // Strip tagline and truncate names longer than 8 characters: "123456789" -> "12345..."
+    const rawName = (player.riotId || "Unknown").split('#')[0];
+    const displayName = rawName.length > 8 ? `${rawName.slice(0, 5)}...` : rawName;
 
     // Agent emoji — resolved dynamically from valorant-api.com icon URL.
     const localizedAgentName = player.agentName ? player.agentName["en-US"] || "Unknown" : null;
@@ -180,16 +181,6 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
     const currentRankEmojiStr = player.currentTierIcon
         ? (emojiToString(await rankEmoji(player.currentTier, player.currentTierIcon)) ?? "")
         : "";
-
-    // Place badge before RR for clean visual scanning: <rank_badge>**42**rr
-    // Rank fallback (RR unknown, tier inferred from live match data): once a peak
-    // rank corroborates the tier, show 0rr like a normal rank instead of the
-    // redundant tier-name text (e.g. `GOLD 1`) next to the same rank's emoji.
-    const rankPart = player.currentTier > 0
-        ? (player.isRankFallback && !player.peakTier
-            ? `${currentRankEmojiStr}\`${player.currentTierName}\``.trim()
-            : `${currentRankEmojiStr} **${player.currentRR}**rr`.trim())
-        : (currentRankEmojiStr ? `${currentRankEmojiStr}\`Unranked\`` : "`Unranked`");
 
     // Peak rank — badge before act label: <peak_badge>`E5A3`
     const peakRankEmojiStr = player.peakTier > 0 && player.peakTierIcon
@@ -215,6 +206,20 @@ const formatPlayerRow = async (player, channel, showCompStats = false, isPartyLo
             recentMatchesStr = `・\`${symbols}\``;
         }
     }
+
+    const hasExtraStats = Boolean(peakPart || compParts.length > 0 || recentMatchesStr);
+
+    // Place badge before RR: <rank_badge>**42**rr
+    // Omit redundant full text names (e.g. `GOLD 2`, `Unranked`) unless player lacks peak/match history
+    const rankPart = player.currentTier > 0
+        ? (player.isRankFallback
+            ? (hasExtraStats
+                ? currentRankEmojiStr.trim()
+                : `${currentRankEmojiStr}\`${player.currentTierName}\``.trim())
+            : `${currentRankEmojiStr}**${player.currentRR}**rr`.trim())
+        : (hasExtraStats
+            ? currentRankEmojiStr.trim()
+            : (currentRankEmojiStr ? `${currentRankEmojiStr}\`Unranked\`` : "`Unranked`"));
 
     const rowTails = [rankPart, peakPart, ...compParts].filter(Boolean).join("・");
     const leaderBadge = (isPartyLobby && player.isLeader) ? "👑 " : "";
