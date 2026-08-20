@@ -1,6 +1,5 @@
 import config from "./config.js";
 import fs from "fs";
-import { statsAddStore } from "./redisQueue.js";
 
 let stats = {
     fileVersion: 2,
@@ -123,13 +122,6 @@ export const addStore = async (puuid, items) => {
     if (!config.trackStoreStats) return;
 
     const today = formatDate(new Date());
-
-    try {
-        const isNew = await statsAddStore(puuid, items, today);
-        if (isNew === false) return; // already counted in redis
-    } catch (e) {
-        console.error("Redis stats error, falling back to local memory stats:", e);
-    }
 
     loadStats();
     let todayStats = stats.stats[today];

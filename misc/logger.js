@@ -44,48 +44,48 @@ export const loadLogger = () => {
 
 export const addMessagesToLog = (messages) => {
     if (!messages?.length) return;
-    if (!discordClient || !config.logToChannel) return;
-
-    const channel = discordClient.channels.cache.get(config.logToChannel);
-    if (!channel) return;
-
     messagesToLog.push(...messages);
 };
 
-export const sendConsoleOutput = () => {
+export const sendConsoleOutput = async () => {
     try {
         if (!discordClient || discordClient.destroyed || !messagesToLog.length) return;
 
         const channel = discordClient.channels.cache.get(config.logToChannel);
 
         if (!channel) {
-            if (typeof logPublisher === "function") {
-                logPublisher([...messagesToLog]);
+            if (discordClient.shard) {
+                const logsToSend = [...messagesToLog];
+                messagesToLog.length = 0;
+                const { sendShardMessageForChannel } = await import("./shardMessage.js");
+                await sendShardMessageForChannel({
+                    type: "consoleLog",
+                    messages: logsToSend
+                }, config.logToChannel).catch(() => {});
             }
-        } else {
-            while (messagesToLog.length) {
-                let s = "";
-                while (messagesToLog.length && s.length + messagesToLog[0].length < 2000) {
-                    s += messagesToLog.shift() + "\n";
-                }
-
-                if (s.length === 0 && messagesToLog.length > 0) {
-                    const longMessage = messagesToLog.shift();
-                    s = longMessage.substring(0, 1990) + "...\n";
-                    if (longMessage.length > 1990) {
-                        messagesToLog.unshift("..." + longMessage.substring(1990));
-                    }
-                }
-
-                if (s.trim().length > 0) {
-                    channel.send(s).catch(err => {
-                        oldError("Error when trying to send console output to Discord log channel:", err);
-                    });
-                }
-            }
+            return;
         }
 
-        messagesToLog.length = 0;
+        while (messagesToLog.length) {
+            let s = "";
+            while (messagesToLog.length && s.length + messagesToLog[0].length < 2000) {
+                s += messagesToLog.shift() + "\n";
+            }
+
+            if (s.length === 0 && messagesToLog.length > 0) {
+                const longMessage = messagesToLog.shift();
+                s = longMessage.substring(0, 1990) + "...\n";
+                if (longMessage.length > 1990) {
+                    messagesToLog.unshift("..." + longMessage.substring(1990));
+                }
+            }
+
+            if (s.trim().length > 0) {
+                channel.send(s).catch(err => {
+                    oldError("Error when trying to send console output to Discord log channel:", err);
+                });
+            }
+        }
     } catch (e) {
         oldError("Error sending console output to Discord log channel:", e);
     }

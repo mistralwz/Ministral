@@ -1,7 +1,6 @@
 import { fetch, isMaintenance, userRegion, riotClientHeaders } from "../misc/util.js";
 import { authUser, deleteUserAuth, getUser } from "./auth.js";
 import config from "../misc/config.js";
-import { getInventoryData, setInventoryData } from "../misc/redisQueue.js";
 
 export const getItemEntitlements = async (user, itemTypeId, itemType = "item") => {
     const req = await fetch(`https://pd.${userRegion(user)}.a.pvp.net/store/v1/entitlements/${user.puuid}/${itemTypeId}`, {
@@ -37,15 +36,6 @@ export const getSkins = async (user, account = null) => {
         } else {
             return { success: true, skins: cached.skins };
         }
-    } else {
-        const redisCache = await getInventoryData(user.puuid, "skins");
-        if (redisCache) {
-            const expiresIn = redisCache.timestamp - Date.now() + config.loadoutCacheExpiration;
-            if (expiresIn > 0) {
-                skinCache[user.puuid] = redisCache;
-                return { success: true, skins: redisCache.skins };
-            }
-        }
     }
 
     const authResult = await authUser(user.id, account);
@@ -62,7 +52,6 @@ export const getSkins = async (user, account = null) => {
     };
 
     skinCache[user.puuid] = skinData;
-    setInventoryData(user.puuid, "skins", skinData).catch(e => console.error(`Failed to write skins to Redis for ${user.puuid}:`, e.message));
 
     return {
         success: true,
@@ -80,15 +69,6 @@ export const getLoadout = async (user, account = null) => {
             delete loadoutCache[user.puuid];
         } else {
             return { success: true, loadout: cached.loadout, favorites: cached.favorites };
-        }
-    } else {
-        const redisCache = await getInventoryData(user.puuid, "loadout");
-        if (redisCache) {
-            const expiresIn = redisCache.timestamp - Date.now() + config.loadoutCacheExpiration;
-            if (expiresIn > 0) {
-                loadoutCache[user.puuid] = redisCache;
-                return { success: true, loadout: redisCache.loadout, favorites: redisCache.favorites };
-            }
         }
     }
 
@@ -136,7 +116,6 @@ export const getLoadout = async (user, account = null) => {
     };
 
     loadoutCache[user.puuid] = loadoutData;
-    setInventoryData(user.puuid, "loadout", loadoutData).catch(e => console.error(`Failed to write loadout to Redis for ${user.puuid}:`, e.message));
 
     return {
         success: true,

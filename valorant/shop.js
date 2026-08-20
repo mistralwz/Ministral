@@ -225,17 +225,7 @@ export const getShopCache = async (puuid, target = "offers", print = true) => {
     if (!config.useShopCache) return null;
 
     try {
-        let shopCache = memoryShopCache.get(puuid);
-
-        if (!shopCache) {
-            const { getShopData } = await import("../misc/redisQueue.js");
-            const redisCache = await getShopData(puuid);
-            if (redisCache) {
-                memoryShopCache.set(puuid, redisCache);
-                shopCache = redisCache;
-            }
-        }
-
+        const shopCache = memoryShopCache.get(puuid);
         if (!shopCache) return null;
 
         let expiresTimestamp;
@@ -294,24 +284,13 @@ const addShopCache = async (puuid, shopJson) => {
     if (shopJson.BonusStore) NMTimestamp = now;
 
     memoryShopCache.set(puuid, shopCache);
-
-    const { setShopData } = await import("../misc/redisQueue.js");
-    setShopData(puuid, shopCache).catch(e => console.error(`Failed to write shop to Redis for ${puuid}:`, e.message));
-
     console.log(`Added shop cache for user ${puuid}`);
 };
 
 export const clearShopMemoryCache = async () => {
     const memoryEntries = memoryShopCache.size;
     memoryShopCache.clear();
-
-    try {
-        const { clearAllShopData } = await import("../misc/redisQueue.js");
-        const redisEntries = await clearAllShopData();
-        console.log(`Cleared shop cache (memory: ${memoryEntries}, redis: ${redisEntries})`);
-    } catch (e) {
-        console.error("Failed to clear Redis shop cache:", e?.message || e);
-    }
+    console.log(`Cleared shop memory cache (${memoryEntries} entries)`);
 };
 
 const getMidnightTimestamp = (timestamp) => {

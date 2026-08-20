@@ -117,17 +117,6 @@ export const deleteUser = (id, accountNumber) => {
 };
 
 export const deleteWholeUser = async (id) => {
-    const userJson = readUserJson(id);
-    if (userJson) {
-        const { deleteShopData } = await import("../misc/redisQueue.js");
-        for (const puuid of userJson.accounts.map(a => a.puuid)) {
-            try {
-                await deleteShopData(puuid);
-            } catch (e) {
-                console.error(`Failed to delete shop cache for ${puuid}:`, e);
-            }
-        }
-    }
     deleteUserFromDb(id);
     clearSettingsCache(id);
 };
