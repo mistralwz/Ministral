@@ -21,11 +21,17 @@ export const sendShardMessage = async (message) => {
     await allShardsReadyPromise;
     if (!shardClient?.shard) return;
 
-    await shardClient.shard.broadcastEval((c, context) => {
-        if (typeof c.skinPeekShardMessageReceived === "function") {
-            c.skinPeekShardMessageReceived(context.message);
-        }
-    }, { context: { message } });
+    try {
+        await shardClient.shard.broadcastEval(async (c, context) => {
+            if (typeof c.skinPeekShardMessageReceived === "function") {
+                try {
+                    await c.skinPeekShardMessageReceived(context.message);
+                } catch {}
+            }
+        }, { context: { message } });
+    } catch (e) {
+        localError("Error broadcasting shard message:", e);
+    }
 };
 
 /**
@@ -40,10 +46,12 @@ export const sendShardMessageForChannel = async (message, channelId) => {
     const knownShard = channelToShardCache.get(channelId);
     if (knownShard != null) {
         try {
-            const [handled] = await shardClient.shard.broadcastEval((c, context) => {
+            const [handled] = await shardClient.shard.broadcastEval(async (c, context) => {
                 if (c.channels.cache.has(context.channelId)) {
                     if (typeof c.skinPeekShardMessageReceived === "function") {
-                        c.skinPeekShardMessageReceived(context.message);
+                        try {
+                            await c.skinPeekShardMessageReceived(context.message);
+                        } catch {}
                     }
                     return true;
                 }
@@ -64,10 +72,12 @@ export const sendShardMessageForChannel = async (message, channelId) => {
 
     // Single-pass broadcast: checks channel AND delivers immediately on the winning shard
     try {
-        const results = await shardClient.shard.broadcastEval((c, context) => {
+        const results = await shardClient.shard.broadcastEval(async (c, context) => {
             if (c.channels.cache.has(context.channelId)) {
                 if (typeof c.skinPeekShardMessageReceived === "function") {
-                    c.skinPeekShardMessageReceived(context.message);
+                    try {
+                        await c.skinPeekShardMessageReceived(context.message);
+                    } catch {}
                 }
                 return true;
             }
