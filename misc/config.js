@@ -73,10 +73,6 @@ export const loadConfig = (filename = "config.json", saveAfterLoad = true) => {
     applyConfig(loadedConfig, "rateLimitBackoff", 60);
     applyConfig(loadedConfig, "rateLimitCap", 10 * 60);
     applyConfig(loadedConfig, "shards", "auto");
-    applyConfig(loadedConfig, "redisHost", "127.0.0.1");
-    applyConfig(loadedConfig, "redisPort", 6379);
-    applyConfig(loadedConfig, "redisPassword", "");
-    applyConfig(loadedConfig, "redisDb", 0);
     applyConfig(loadedConfig, "trackStoreStats", true);
     applyConfig(loadedConfig, "statsExpirationDays", 14);
     applyConfig(loadedConfig, "statsPerPage", 8);

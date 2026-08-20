@@ -2,16 +2,8 @@ services:
   bot:
     image: ghcr.io/mistralwz/ministral:latest
     restart: unless-stopped
-    depends_on:
-      - redis
     volumes:
       - ./config.json:/usr/app/config.json
       - ./data:/usr/app/data
     container_name: skinpeek_bot
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - ./redis-data:/data
-    container_name: skinpeek_redis

@@ -59,13 +59,8 @@
 
 ## Installation
 
-> [!TIP]
-> The easiest way to run the bot is using **Docker Compose**, as it automatically sets up all required dependencies (like Redis) for you. See the [Docker deployment guide](#docker) below.
-> If you prefer a manual installation, follow the steps below.
-
 - [Create a discord bot](https://discordjs.guide/preparations/setting-up-a-bot-application.html#creating-your-bot) and [add it to your server](https://discordjs.guide/preparations/adding-your-bot-to-servers.html#creating-and-using-your-invite-link) with the `bot` and `applications.commands` scope
 - Install [Node.js](https://nodejs.org/en/) v18.0 or newer
-- Install and run **[Redis](https://redis.io/docs/install/install-redis/)** (the bot requires a Redis server to run)
 - Clone/[Download](https://github.com/mistralwz/Ministral/archive/refs/heads/master.zip) the repo, rename the `config.json.example` file to `config.json` and put your bot token into it.
 - [Open a command prompt in the same folder](https://www.thewindowsclub.com/how-to-open-command-prompt-from-right-click-menu#:~:text=To%20open%20a%20command%20prompt%20window%20in%20any%20folder%2C%20simply,the%20same%20inside%20any%20folder.) and type `npm i` to install dependencies
 - Run [SkinPeek.js](https://github.com/mistralwz/Ministral/blob/master/SkinPeek.js) using `node SkinPeek.js` in the command prompt
@@ -92,14 +87,12 @@
 ### Docker
 
 <details open>
-<summary>For users who want the easiest installation experience using Docker</summary>
-
-Using Docker automatically spins up both the bot and its required Redis dependency, making it the easiest way to host the bot.
+<summary>For users who want to host using Docker</summary>
 
 - [Create a discord bot](https://discordjs.guide/preparations/setting-up-a-bot-application.html#creating-your-bot) and [add it to your server](https://discordjs.guide/legacy/preparations/adding-your-app) with the `bot` and `applications.commands` scope
 - Download or clone the repository to get the `docker-compose.yml` and `config.json.example` files.
 - Rename `config.json.example` to `config.json`.
-- Put your bot token in [config.json](https://github.com/mistralwz/Ministral/blob/master/config.json.example) and make sure `"redisHost": "redis"` is set.
+- Put your bot token in [config.json](https://github.com/mistralwz/Ministral/blob/master/config.json.example).
 - Use `docker compose up -d` to start the bot, `docker compose logs -f` to see the logs and `docker compose down` to stop it.
 
 </details>
