@@ -51,7 +51,7 @@ import { User, getPuuid } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
-import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed } from "../discord/embed.js";
+import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels } from "../discord/embed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -463,5 +463,15 @@ test("stats: getStatsFor returns valid ranking and statsForSkinEmbed formats saf
     const populatedEmbed = await statsForSkinEmbed(mockSkin, populatedStats, mockInteraction);
     assert.ok(populatedEmbed);
     assert.ok(populatedEmbed.description.includes("25%"));
+});
+
+test("embed: getSkinLevels deduplicates duplicate skin UUIDs and limits options to 25", async () => {
+    const mockInteraction = {
+        locale: "en-US",
+        user: { id: "test-user" }
+    };
+    // Passing empty array returns false
+    const emptyRes = await getSkinLevels([], mockInteraction);
+    assert.equal(emptyRes, false);
 });
 

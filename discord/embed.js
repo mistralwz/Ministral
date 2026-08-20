@@ -445,13 +445,16 @@ export const getSkinLevels = async (offers, interaction, nightmarket = false) =>
         .setCustomId("select-skin-with-level")
         .setPlaceholder(s(interaction).info.SELECT_SKIN_WITH_LEVEL)
 
+    const seenValues = new Set();
+
     for (const uuid of offers) {
         let skin = await getSkin(nightmarket ? uuid.uuid : uuid);
-        if (!skin) continue;
+        if (!skin || seenValues.has(skin.uuid)) continue;
 
         for (let i = 0; i < skin.levels.length; i++) {
             const level = skin.levels[i];
             if (level.streamedVideo) {
+                seenValues.add(skin.uuid);
                 skinSelector.addOptions(
                     new StringSelectMenuOptionBuilder()
                         .setLabel(`${l(skin.names, interaction)}`)
@@ -460,6 +463,7 @@ export const getSkinLevels = async (offers, interaction, nightmarket = false) =>
                 break;
             }
         }
+        if (seenValues.size >= 25) break;
     }
 
     if (skinSelector.options.length === 0) return false;
@@ -906,8 +910,12 @@ export const weaponSelectDropdown = async (interaction, id, ownedSkins = null, s
     const skinCounts = {};
     if (ownedSkins && Array.isArray(ownedSkins)) {
         const skinsData = await Promise.all(ownedSkins.map(sUuid => getSkin(sUuid, false)));
+        const seenSkinUuids = new Set();
         for (const s of skinsData) {
-            if (s?.weapon) skinCounts[s.weapon] = (skinCounts[s.weapon] || 0) + 1;
+            if (s?.weapon && !seenSkinUuids.has(s.uuid)) {
+                seenSkinUuids.add(s.uuid);
+                skinCounts[s.weapon] = (skinCounts[s.weapon] || 0) + 1;
+            }
         }
     }
 
@@ -1328,7 +1336,14 @@ export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeU
     }
 
     const skinsData = await Promise.all(skins.map(skinUuid => getSkin(skinUuid, false)));
-    const filteredSkins = skinsData.filter(skin => skin?.weapon === weaponTypeUuid);
+    const seenSkinUuids = new Set();
+    const filteredSkins = [];
+    for (const skin of skinsData) {
+        if (skin?.weapon === weaponTypeUuid && !seenSkinUuids.has(skin.uuid)) {
+            seenSkinUuids.add(skin.uuid);
+            filteredSkins.push(skin);
+        }
+    }
     filteredSkins.sort((a, b) => {
         const priceDiff = (b.price || 0) - (a.price || 0);
         if (priceDiff !== 0) return priceDiff;
