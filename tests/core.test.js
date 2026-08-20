@@ -50,7 +50,8 @@ import {
 import { User, getPuuid } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
-import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown } from "../discord/embed.js";
+import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
+import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed } from "../discord/embed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -426,5 +427,41 @@ test("auth: refreshToken preserves credentials on rate limit or network error", 
     deleteUserFromDb("auth-test-user");
     closeUserDatabase();
     if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+});
+
+test("stats: getStatsFor returns valid ranking and statsForSkinEmbed formats safely", async () => {
+    const statsForKnownSkin = getStatsFor("nonexistent-skin-uuid");
+    assert.equal(statsForKnownSkin.count, 0);
+    assert.equal(Array.isArray(statsForKnownSkin.rank), true);
+    assert.equal(statsForKnownSkin.rank[0], 0);
+
+    const mockSkin = {
+        uuid: "mock-skin-uuid",
+        names: { "en-US": "Prime Vandal" },
+        icon: "https://example.com/prime.png",
+        rarity: null
+    };
+    const mockInteraction = {
+        channel: null,
+        locale: "en-US",
+        user: { id: "test-user" }
+    };
+
+    // Test with missing/empty stats (should not throw TypeError on rank[0])
+    const emptyStatsEmbed = await statsForSkinEmbed(mockSkin, statsForKnownSkin, mockInteraction);
+    assert.ok(emptyStatsEmbed);
+    assert.ok(emptyStatsEmbed.description);
+
+    // Test with valid populated stats
+    const populatedStats = {
+        shopsIncluded: 100,
+        count: 25,
+        amount: 25,
+        percentage: 25,
+        rank: [1, 50]
+    };
+    const populatedEmbed = await statsForSkinEmbed(mockSkin, populatedStats, mockInteraction);
+    assert.ok(populatedEmbed);
+    assert.ok(populatedEmbed.description.includes("25%"));
 });
 

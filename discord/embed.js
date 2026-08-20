@@ -1868,7 +1868,7 @@ export const alertTestResponse = async (interaction, success) => {
 }
 
 export const allStatsEmbed = async (interaction, stats, pageIndex = 0) => {
-    const skinCount = Object.keys(stats.items).length;
+    const skinCount = Object.keys(stats?.items || {}).length;
 
     if (skinCount === 0) return {
         embeds: [basicEmbed(config.trackStoreStats ? s(interaction).error.EMPTY_STATS : s(interaction).error.STATS_DISABLED)]
@@ -1880,7 +1880,7 @@ export const allStatsEmbed = async (interaction, stats, pageIndex = 0) => {
     if (pageIndex >= maxPages) pageIndex = 0;
 
     const skinsToDisplay = Object.keys(stats.items).slice(pageIndex * config.statsPerPage, pageIndex * config.statsPerPage + config.statsPerPage);
-    const embeds = [basicEmbed(s(interaction).info.STATS_HEADER.f({ c: stats.shopsIncluded, p: pageIndex + 1, t: maxPages }))];
+    const embeds = [basicEmbed(s(interaction).info.STATS_HEADER.f({ c: stats.shopsIncluded || 0, p: pageIndex + 1, t: maxPages }))];
     for (const uuid of skinsToDisplay) {
         const skin = await getSkin(uuid);
         const statsForSkin = getStatsFor(uuid);
@@ -1895,9 +1895,10 @@ export const allStatsEmbed = async (interaction, stats, pageIndex = 0) => {
 
 export const statsForSkinEmbed = async (skin, stats, interaction) => {
     let description;
-    if (stats.count === 0) description = s(interaction).error.NO_STATS_FOR_SKIN.f({ d: config.statsExpirationDays || '∞' });
-    else {
-        const percentage = Math.round(stats.count / stats.shopsIncluded * 100 * 100) / 100;
+    if (!stats || !stats.count || !stats.rank || stats.rank[0] === 0) {
+        description = s(interaction).error.NO_STATS_FOR_SKIN.f({ d: config.statsExpirationDays || '∞' });
+    } else {
+        const percentage = Math.round(stats.count / (stats.shopsIncluded || 1) * 100 * 100) / 100;
         const crownEmoji = stats.rank[0] === 1 || stats.rank[0] === stats.rank[1] ? ':crown: ' : '';
         description = s(interaction).info.STATS_DESCRIPTION.f({ c: crownEmoji, r: stats.rank[0], t: stats.rank[1], p: percentage });
     }

@@ -89,28 +89,33 @@ export const calculateOverallStats = () => {
     overallStats.shopsIncluded = 0;
     overallStats.items = {};
 
+    let items = {};
     for (const day in stats.stats) {
         const dayStats = stats.stats[day];
-        overallStats.shopsIncluded += dayStats.shopsIncluded;
+        overallStats.shopsIncluded += dayStats.shopsIncluded || 0;
         for (const item in dayStats.items) {
-            overallStats.items[item] = (overallStats.items[item] || 0) + dayStats.items[item];
+            items[item] = (items[item] || 0) + dayStats.items[item];
         }
+    }
+
+    const sortedItems = Object.entries(items).sort(([, a], [, b]) => b - a);
+    for (const [uuid, count] of sortedItems) {
+        overallStats.items[uuid] = count;
     }
 };
 
-export const getStatsFor = (item) => {
+export const getStatsFor = (uuid) => {
     loadStats();
-    let statsForItem = {
-        amount: 0,
-        percentage: 0
+    const count = overallStats.items[uuid] || 0;
+    const itemKeys = Object.keys(overallStats.items);
+    const rankIndex = itemKeys.indexOf(uuid);
+    return {
+        shopsIncluded: overallStats.shopsIncluded || 0,
+        count: count,
+        amount: count,
+        percentage: Math.round((count / (overallStats.shopsIncluded || 1)) * 1000) / 10,
+        rank: [count > 0 && rankIndex !== -1 ? rankIndex + 1 : 0, itemKeys.length]
     };
-
-    if (item in overallStats.items) {
-        statsForItem.amount = overallStats.items[item];
-        statsForItem.percentage = Math.round((overallStats.items[item] / (overallStats.shopsIncluded || 1)) * 1000) / 10;
-    }
-
-    return statsForItem;
 };
 
 export const getOverallStats = () => {
