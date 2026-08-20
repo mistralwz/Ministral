@@ -186,58 +186,80 @@ export const getRegion = async (user) => {
     return json.affinities.live;
 };
 
+const activeRefreshes = new Map();
+
 export const refreshToken = async (id, account = null) => {
     if (config.logUrls) console.log(`Refreshing token for ${id}...`);
 
     let user = getUser(id, account);
     if (!user) return { success: false };
 
-    if (user.auth && user.auth.refresh_token) {
-        if (config.logUrls) console.log(`[refreshToken] User has refresh_token, attempting refresh`);
-        try {
-            const refreshRes = await refreshWithRefreshToken(user.auth.refresh_token);
-            if (refreshRes.success && refreshRes.tokenData && refreshRes.tokenData.access_token) {
-                const tokenData = refreshRes.tokenData;
-                user.auth.rso = tokenData.access_token;
-                if (tokenData.id_token) user.auth.idt = tokenData.id_token;
-                if (tokenData.refresh_token) {
-                    user.auth.refresh_token = tokenData.refresh_token;
-                    user.auth.refresh_token_obtained = Date.now();
-                }
-                try {
-                    user.auth.ent = await fetchEntitlementsToken(user);
-                } catch (e) {
-                    console.error(`[refreshToken] Failed to re-fetch entitlements:`, e);
-                }
-                user.lastFetchedData = Date.now();
-                user.authFailures = 0;
-                saveUser(user);
-
-                const newExpiry = tokenExpiry(user.auth.rso);
-                const expiresIn = Math.floor((newExpiry - Date.now()) / 60000);
-                if (config.logUrls) console.log(`[refreshToken] Refresh token success for ${user.username} — new token expires in ${expiresIn} minutes`);
-                return { success: true };
-            } else if (refreshRes.invalidToken) {
-                console.error(`[refreshToken] Refresh token is invalid/expired for ${user.username} (HTTP invalid_grant/400/401)`);
-                deleteUserAuth(user);
-                return { success: false, authFailure: true };
-            } else if (refreshRes.rateLimit || refreshRes.statusCode === 429) {
-                const retryAfter = refreshRes.retryAfter || 30000;
-                console.warn(`[refreshToken] Rate limited while refreshing token for ${user.username} (retry after ${Math.ceil(retryAfter / 1000)}s)`);
-                return { success: false, rateLimit: Date.now() + retryAfter };
-            } else {
-                console.error(`[refreshToken] Transient error refreshing token for ${user.username} (status ${refreshRes.statusCode || 'network'}), keeping credentials`);
-                return { success: false, networkError: true };
-            }
-        } catch (e) {
-            console.error(`[refreshToken] Exception during refresh_token flow:`, e);
-            return { success: false, networkError: true };
-        }
+    const lockKey = `${user.id}:${user.puuid || account || ''}`;
+    if (activeRefreshes.has(lockKey)) {
+        return await activeRefreshes.get(lockKey);
     }
 
-    // Only delete auth if user does not have a refresh_token
-    deleteUserAuth(user);
-    return { success: false, authFailure: true };
+    const refreshPromise = (async () => {
+        try {
+            if (user.auth && user.auth.refresh_token) {
+                if (config.logUrls) console.log(`[refreshToken] User has refresh_token, attempting refresh`);
+                try {
+                    const refreshRes = await refreshWithRefreshToken(user.auth.refresh_token);
+                    if (refreshRes.success && refreshRes.tokenData && refreshRes.tokenData.access_token) {
+                        const tokenData = refreshRes.tokenData;
+                        user.auth.rso = tokenData.access_token;
+                        if (tokenData.id_token) user.auth.idt = tokenData.id_token;
+                        if (tokenData.refresh_token) {
+                            user.auth.refresh_token = tokenData.refresh_token;
+                            user.auth.refresh_token_obtained = Date.now();
+                        }
+                        try {
+                            user.auth.ent = await fetchEntitlementsToken(user);
+                        } catch (e) {
+                            console.error(`[refreshToken] Failed to re-fetch entitlements:`, e);
+                        }
+                        user.lastFetchedData = Date.now();
+                        user.authFailures = 0;
+                        saveUser(user);
+
+                        const newExpiry = tokenExpiry(user.auth.rso);
+                        const expiresIn = Math.floor((newExpiry - Date.now()) / 60000);
+                        if (config.logUrls) console.log(`[refreshToken] Refresh token success for ${user.username} — new token expires in ${expiresIn} minutes`);
+                        return { success: true };
+                    } else if (refreshRes.invalidToken) {
+                        // Check if another process/shard updated the DB with a newer refresh token before wiping auth
+                        const freshUser = getUserJson(user.id, account);
+                        if (freshUser?.auth?.refresh_token && freshUser.auth.refresh_token !== user.auth.refresh_token) {
+                            return { success: true };
+                        }
+
+                        console.error(`[refreshToken] Refresh token is invalid/expired for ${user.username} (HTTP invalid_grant/400/401)`);
+                        deleteUserAuth(user);
+                        return { success: false, authFailure: true };
+                    } else if (refreshRes.rateLimit || refreshRes.statusCode === 429) {
+                        const retryAfter = refreshRes.retryAfter || 30000;
+                        console.warn(`[refreshToken] Rate limited while refreshing token for ${user.username} (retry after ${Math.ceil(retryAfter / 1000)}s)`);
+                        return { success: false, rateLimit: Date.now() + retryAfter };
+                    } else {
+                        console.error(`[refreshToken] Transient error refreshing token for ${user.username} (status ${refreshRes.statusCode || 'network'}), keeping credentials`);
+                        return { success: false, networkError: true };
+                    }
+                } catch (e) {
+                    console.error(`[refreshToken] Exception during refresh_token flow:`, e);
+                    return { success: false, networkError: true };
+                }
+            }
+
+            // Only delete auth if user does not have a refresh_token
+            deleteUserAuth(user);
+            return { success: false, authFailure: true };
+        } finally {
+            activeRefreshes.delete(lockKey);
+        }
+    })();
+
+    activeRefreshes.set(lockKey, refreshPromise);
+    return await refreshPromise;
 };
 
 export const deleteUserAuth = (user) => {
