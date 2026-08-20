@@ -15,6 +15,7 @@
 
 import { fetch, riotClientHeaders, userRegion } from "../misc/util.js";
 import { authUser, getUser } from "./auth.js";
+import { getAccountByPuuid } from "../misc/userDatabase.js";
 
 // ──────────────────────────────────────────────
 // Region helpers
@@ -1278,41 +1279,83 @@ const playerPartyCache = new Map();
 const PARTY_CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
 
 /**
- * Batch-fetch party IDs for a list of PUUIDs from /parties/v1/players/{puuid}.
+ * Fetch party mappings for players in a match.
+ * 1. Fetches caller's /parties/v1/players/{user.puuid} and expands all /parties/v1/parties/{partyId} members.
+ * 2. Checks local playerPartyCache for any known player party IDs.
+ * 3. For any other registered bot players in the match, queries their party using their own auth.
  * Returns Map<puuid, partyId>.
  */
 const fetchPlayerParties = async (user, puuids) => {
     const glz = glzUrl(user);
     const headers = authHeaders(user);
     const now = Date.now();
-
-    const toFetch = [];
     const out = new Map();
 
+    // 1. Check in-memory cache for any known party IDs
+    const unmappedPuuids = [];
     for (const puuid of puuids) {
         const cached = playerPartyCache.get(puuid);
         if (cached && now - cached.ts < PARTY_CACHE_TTL) {
             out.set(puuid, cached.data);
         } else {
-            toFetch.push(puuid);
+            unmappedPuuids.push(puuid);
         }
     }
 
-    if (toFetch.length > 0) {
-        const results = await Promise.allSettled(
-            toFetch.map(puuid =>
-                fetch(`${glz}/parties/v1/players/${puuid}`, { headers })
-                    .then(r => r.statusCode === 200 ? JSON.parse(r.body)?.CurrentPartyID ?? null : null)
-            )
-        );
-
-        for (let i = 0; i < toFetch.length; i++) {
-            const puuid = toFetch[i];
-            const partyId = results[i].status === "fulfilled" ? results[i].value : null;
-            if (partyId) {
-                playerPartyCache.set(puuid, { data: partyId, ts: now });
+    // 2. Fetch the authenticated user's party and expand all members
+    try {
+        const playerResp = await fetch(`${glz}/parties/v1/players/${user.puuid}`, { headers });
+        if (playerResp.statusCode === 200) {
+            const { CurrentPartyID: myPartyId } = JSON.parse(playerResp.body);
+            if (myPartyId) {
+                const partyResp = await fetch(`${glz}/parties/v1/parties/${myPartyId}`, { headers });
+                if (partyResp.statusCode === 200) {
+                    const partyJson = JSON.parse(partyResp.body);
+                    for (const m of (partyJson.Members || [])) {
+                        const mPuuid = m.Subject;
+                        if (mPuuid) {
+                            out.set(mPuuid, myPartyId);
+                            playerPartyCache.set(mPuuid, { data: myPartyId, ts: now });
+                        }
+                    }
+                }
             }
-            out.set(puuid, partyId);
+        }
+    } catch (e) {
+        console.error("[livegame] fetchPlayerParties user party lookup failed:", e);
+    }
+
+    // 3. For remaining unmapped players, check if they are registered bot users and inspect their parties
+    for (const puuid of unmappedPuuids) {
+        if (!out.has(puuid) && puuid !== user.puuid) {
+            try {
+                const accountRow = getAccountByPuuid(puuid);
+                if (accountRow) {
+                    const otherUser = getUser(accountRow.userId);
+                    if (otherUser?.auth?.rso) {
+                        const otherGlz = glzUrl(otherUser);
+                        const otherHeaders = authHeaders(otherUser);
+                        const otherPlayerResp = await fetch(`${otherGlz}/parties/v1/players/${puuid}`, { headers: otherHeaders });
+                        if (otherPlayerResp.statusCode === 200) {
+                            const { CurrentPartyID: otherPartyId } = JSON.parse(otherPlayerResp.body);
+                            if (otherPartyId) {
+                                const otherPartyResp = await fetch(`${otherGlz}/parties/v1/parties/${otherPartyId}`, { headers: otherHeaders });
+                                if (otherPartyResp.statusCode === 200) {
+                                    const otherPartyJson = JSON.parse(otherPartyResp.body);
+                                    for (const m of (otherPartyJson.Members || [])) {
+                                        if (m.Subject) {
+                                            out.set(m.Subject, otherPartyId);
+                                            playerPartyCache.set(m.Subject, { data: otherPartyId, ts: now });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore errors for secondary accounts
+            }
         }
     }
 
