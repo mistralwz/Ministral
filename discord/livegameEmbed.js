@@ -41,24 +41,6 @@ const STATE_LABEL = {
     queuing: "🕒 Queuing",
 };
 
-// ─── Party Color Emojis ─────────────────────────────────────────────────────
-const PARTY_EMOJIS = ["🟥", "🟧", "🟨", "🟩", "🟦"];
-
-/** Assign color emojis to parties with >=2 members in the team. */
-const getPartyColorMap = (players) => {
-    const counts = new Map();
-    for (const p of players) if (p.partyId) counts.set(p.partyId, (counts.get(p.partyId) || 0) + 1);
-
-    const colors = new Map();
-    let idx = 0;
-    for (const p of players) {
-        if (p.partyId && counts.get(p.partyId) >= 2 && !colors.has(p.partyId)) {
-            colors.set(p.partyId, PARTY_EMOJIS[idx++ % PARTY_EMOJIS.length]);
-        }
-    }
-    return colors;
-};
-
 // ─── Server Flags Mapping ───────────────────────────────────────────────────
 const SERVER_FLAGS = {
     // Americas
@@ -163,7 +145,7 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  * Render one player as an embed field.
  *
  * Field Name:
- *   [PartyEmoji] <agent> `RiotName` <rank>**42**rr <peak>`E5A3`
+ *   <agent> `RiotName` <rank>**42**rr <peak>`E5A3`
  *
  * Field Value:
  *   **152** Damage/Round・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻🔹`
@@ -172,9 +154,8 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  * @param {Channel} channel       Discord channel (for emoji resolution)
  * @param {boolean} showCompStats Show WR + last 3 match results when true
  * @param {boolean} isPartyLobby  True when rendering party lobby members
- * @param {string}  partyEmoji    Color indicator for players partied together (e.g. 🟥)
  */
-const formatPlayerField = async (player, channel, showCompStats = false, isPartyLobby = false, partyEmoji = "") => {
+const formatPlayerField = async (player, channel, showCompStats = false, isPartyLobby = false) => {
     // Strip tagline from riotId: "Name#TAG" -> "Name" (no truncation)
     const displayName = (player.riotId || "Unknown").split('#')[0];
 
@@ -203,7 +184,6 @@ const formatPlayerField = async (player, channel, showCompStats = false, isParty
         ? `${peakRankEmojiStr} \`${player.peakActLabel}\``
         : (peakRankEmojiStr || "");
 
-    const partyPrefix = (!isPartyLobby && partyEmoji) ? `${partyEmoji} ` : "";
     const agentPrefix = agentEmojiStr ? `${agentEmojiStr} ` : "";
     const leaderBadge = (isPartyLobby && player.isLeader) ? "👑 " : "";
 
@@ -213,7 +193,7 @@ const formatPlayerField = async (player, channel, showCompStats = false, isParty
             : `${currentRankEmojiStr} **${player.currentRR}**rr`.trim())
         : (currentRankEmojiStr ? `${currentRankEmojiStr} \`Unranked\`` : "`Unranked`");
 
-    const fieldName = `${partyPrefix}${agentPrefix}${leaderBadge}\`${displayName}\` ${rankBadgePart} ${peakBadgePart}`.trim();
+    const fieldName = `${agentPrefix}${leaderBadge}\`${displayName}\` ${rankBadgePart} ${peakBadgePart}`.trim();
 
     // Value items: Damage/Round, K/D/A Ratio, Headshot %, Win%
     const statItems = [];
@@ -249,10 +229,9 @@ const formatPlayerField = async (player, channel, showCompStats = false, isParty
 /**
  * Build embed fields for a list of players, one field per player.
  */
-const buildPlayerFields = async (players, channel, showCompStats, _headerName = "\u200b", isPartyLobby = false, partyColorMap = null) => {
-    const colorMap = partyColorMap ?? getPartyColorMap(players);
+const buildPlayerFields = async (players, channel, showCompStats, _headerName = "\u200b", isPartyLobby = false) => {
     return Promise.all(players.map(p =>
-        formatPlayerField(p, channel, showCompStats, isPartyLobby, p.partyId ? colorMap.get(p.partyId) : "")
+        formatPlayerField(p, channel, showCompStats, isPartyLobby)
     ));
 };
 
@@ -275,18 +254,14 @@ const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId =
         ? `${data.mapName}・${formattedServer}`
         : data.mapName;
 
-    // Global party color map across both teams ensures distinct color indicators (e.g. two 5-stacks get 🟥 and 🟧)
-    const allPlayers = [...allyPlayers, ...enemyPlayers];
-    const partyColorMap = getPartyColorMap(allPlayers);
-
     let fields;
     if (data.isSingleTeam) {
-        fields = await buildPlayerFields(allPlayers, channel, showCompStats, "\u200b", false, partyColorMap);
+        fields = await buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b", false);
     } else {
         const [allyFields, enemyFields] = await Promise.all([
-            buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b", false, partyColorMap),
+            buildPlayerFields(allyPlayers, channel, showCompStats, "\u200b", false),
             enemyPlayers.length > 0
-                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b", false, partyColorMap)
+                ? buildPlayerFields(enemyPlayers, channel, showCompStats, "\u200b", false)
                 : Promise.resolve([]),
         ]);
         fields = [...allyFields, ...enemyFields];

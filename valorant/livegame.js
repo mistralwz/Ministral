@@ -15,7 +15,6 @@
 
 import { fetch, riotClientHeaders, userRegion } from "../misc/util.js";
 import { authUser, getUser } from "./auth.js";
-import { getAccountByPuuid } from "../misc/userDatabase.js";
 import config from "../misc/config.js";
 import unofficialValorantApi from "unofficial-valorant-api";
 
@@ -1283,93 +1282,6 @@ const fetchPlayerRecentMatches = async (user, puuids) => {
     return out;
 };
 
-const playerPartyCache = new Map();
-const PARTY_CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
-
-/**
- * Fetch party mappings for players in a match.
- * 1. Fetches caller's /parties/v1/players/{user.puuid} and expands all /parties/v1/parties/{partyId} members.
- * 2. Checks local playerPartyCache for any known player party IDs.
- * 3. For any other registered bot players in the match, queries their party using their own auth.
- * Returns Map<puuid, partyId>.
- */
-const fetchPlayerParties = async (user, puuids) => {
-    const glz = glzUrl(user);
-    const headers = authHeaders(user);
-    const now = Date.now();
-    const out = new Map();
-
-    // 1. Check in-memory cache for any known party IDs
-    const unmappedPuuids = [];
-    for (const puuid of puuids) {
-        const cached = playerPartyCache.get(puuid);
-        if (cached && now - cached.ts < PARTY_CACHE_TTL) {
-            out.set(puuid, cached.data);
-        } else {
-            unmappedPuuids.push(puuid);
-        }
-    }
-
-    // 2. Fetch the authenticated user's party and expand all members
-    try {
-        const playerResp = await fetch(`${glz}/parties/v1/players/${user.puuid}`, { headers });
-        if (playerResp.statusCode === 200) {
-            const { CurrentPartyID: myPartyId } = JSON.parse(playerResp.body);
-            if (myPartyId) {
-                const partyResp = await fetch(`${glz}/parties/v1/parties/${myPartyId}`, { headers });
-                if (partyResp.statusCode === 200) {
-                    const partyJson = JSON.parse(partyResp.body);
-                    for (const m of (partyJson.Members || [])) {
-                        const mPuuid = m.Subject;
-                        if (mPuuid) {
-                            out.set(mPuuid, myPartyId);
-                            playerPartyCache.set(mPuuid, { data: myPartyId, ts: now });
-                        }
-                    }
-                }
-            }
-        }
-    } catch (e) {
-        console.error("[livegame] fetchPlayerParties user party lookup failed:", e);
-    }
-
-    // 3. For remaining unmapped players, check if they are registered bot users and inspect their parties
-    for (const puuid of unmappedPuuids) {
-        if (!out.has(puuid) && puuid !== user.puuid) {
-            try {
-                const accountRow = getAccountByPuuid(puuid);
-                if (accountRow) {
-                    const otherUser = getUser(accountRow.userId);
-                    if (otherUser?.auth?.rso) {
-                        const otherGlz = glzUrl(otherUser);
-                        const otherHeaders = authHeaders(otherUser);
-                        const otherPlayerResp = await fetch(`${otherGlz}/parties/v1/players/${puuid}`, { headers: otherHeaders });
-                        if (otherPlayerResp.statusCode === 200) {
-                            const { CurrentPartyID: otherPartyId } = JSON.parse(otherPlayerResp.body);
-                            if (otherPartyId) {
-                                const otherPartyResp = await fetch(`${otherGlz}/parties/v1/parties/${otherPartyId}`, { headers: otherHeaders });
-                                if (otherPartyResp.statusCode === 200) {
-                                    const otherPartyJson = JSON.parse(otherPartyResp.body);
-                                    for (const m of (otherPartyJson.Members || [])) {
-                                        if (m.Subject) {
-                                            out.set(m.Subject, otherPartyId);
-                                            playerPartyCache.set(m.Subject, { data: otherPartyId, ts: now });
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                // Ignore errors for secondary accounts
-            }
-        }
-    }
-
-    return out;
-};
-
 const playerCombatStatsCache = new Map();
 const COMBAT_STATS_CACHE_TTL = 1000 * 60 * 30; // 30 mins
 
@@ -1527,29 +1439,24 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
     const showCompStats = queueId === "competitive" || queueId === "skirmish" || queueId === "skirmish 2v2" || !queueId;
-    const needsPartyLookup = rawPlayers.some(p => !p.partyId);
 
     // loadSeasons must finish first so that currentSeasonId (module-level) is
     // populated before fetchPlayerMMRs calls parseMMRData(raw, currentSeasonId).
     // Running them in parallel caused a race where every player appeared Unranked
     // on the first /livegame refresh while already in a match.
     const seasonMap = seasonsCache; // Pre-warmed by fetchLiveGame
-    const [mmrMap, nameMap, recentMatchesMap, partyMap, combatStatsMap] = await Promise.all([
+    const [mmrMap, nameMap, recentMatchesMap, combatStatsMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids),
         showCompStats ? fetchPlayerRecentMatches(user, puuids) : Promise.resolve(new Map()),
-        needsPartyLookup ? fetchPlayerParties(user, puuids) : Promise.resolve(new Map()),
         showCompStats ? fetchPlayerCombatStats(user, puuids) : Promise.resolve(new Map())
     ]);
-
-    const myPartyId = rawPlayers.find(rp => rp.puuid === user.puuid)?.partyId || partyMap.get(user.puuid) || null;
 
     // Enrich each player
     const enriched = await Promise.all(rawPlayers.map(async (p, idx) => {
         const mmr = mmrMap.get(p.puuid);
         const name = nameMap.get(p.puuid) ?? null;
         const actualCurrentTier = mmr?.currentTier || p.matchTier || 0;
-        const playerPartyId = p.partyId || partyMap.get(p.puuid) || null;
         const combatStats = combatStatsMap.get(p.puuid) ?? null;
 
         // Resolve agent and tier icons/names in parallel
@@ -1563,8 +1470,8 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
         const level = p.accountLevel ?? null;
         const levelHidden = p.isHideAccountLevel ?? false;
 
-        const isPartyMemberOfUser = p.puuid === user.puuid || (myPartyId && playerPartyId && playerPartyId === myPartyId);
-        const shouldHideName = p.incognito && !isPartyMemberOfUser;
+        const isUserSelf = p.puuid === user.puuid;
+        const shouldHideName = p.incognito && !isUserSelf;
 
         return {
             ...p,
@@ -1578,7 +1485,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
                     ? agentInfo.names["en-US"]
                     : `Player ${idx + 1}`)
                 : (name ? name.split('#')[0] : p.puuid.slice(0, 8)),
-            partyId: playerPartyId,
+            partyId: p.partyId ?? null,
             isLeader: p.isLeader ?? false,
             // Agent
             agentName: p.agentId ? agentInfo.names : null,
