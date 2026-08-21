@@ -83,10 +83,10 @@ const loadCompetitiveTiers = async () => {
         const latest = json.data[json.data.length - 1];
         competitiveTiersCache = {};
         for (const tier of latest.tiers) {
+            const rawName = tier.tierName === "Unused" ? "Unranked" : tier.tierName.replaceAll("_", " ");
+            const formattedName = rawName.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
             competitiveTiersCache[tier.tier] = {
-                name: tier.tierName === "Unused"
-                    ? "Unranked"
-                    : tier.tierName.replaceAll("_", " "),   // e.g. "GOLD 3"
+                name: formattedName,
                 color: "#" + (tier.color ?? "000000").slice(0, 6),
                 icon: tier.largeIcon ?? tier.smallIcon ?? null,
             };
