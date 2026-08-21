@@ -1708,6 +1708,7 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
     let losses = 0;
     let draws = 0;
     let totalScore = 0;
+    let totalADR = 0;
     let totalKills = 0;
     let totalDeaths = 0;
     let netRR = 0;
@@ -1731,21 +1732,26 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
         totalKills += m.player?.kills || 0;
         totalDeaths += m.player?.deaths || 0;
         totalScore += parseFloat(m.player?.average_combat_score || 0);
+        totalADR += parseFloat(m.player?.average_damage_round || 0);
     }
 
     const matchCount = matches.length;
     const winRate = matchCount > 0 ? Math.round((wins / matchCount) * 100) : 0;
     const avgACS = matchCount > 0 ? Math.round(totalScore / matchCount) : 0;
+    const avgADR = matchCount > 0 ? parseFloat((totalADR / matchCount).toFixed(1)) : 0;
     const avgKD = (totalKills / (totalDeaths || 1)).toFixed(2);
     const netRRStr = hasRRData ? (netRR >= 0 ? `+${netRR} RR` : `${netRR} RR`) : "N/A";
 
     const peakRank = await resolvePeakRankString(account.mmr?.highest_rank, interaction);
 
+    const recordStr = `${wins}W - ${losses}L${draws > 0 ? ` - ${draws}D` : ""}`;
+    const winRateStr = `(**${winRate}%** ${s(interaction).match?.WIN_RATE_SHORT || "wr"})`;
+
     const summaryLines = [
         `🏆 ${s(interaction).info.PROFILE_PEAK_RANK || "Peak Rank"} ┊ ${peakRank}`,
         `📊 ${(s(interaction).match?.CAREER_SUMMARY || "Recent {n} Matches Summary").f({ n: matchCount })}`,
-        `> ${s(interaction).match?.RECORD || "Record"}: **${wins}W - ${losses}L${draws > 0 ? ` - ${draws}D` : ""}** (${winRate}% ${s(interaction).match?.WIN_RATE || "Win Rate"}) ┊ ${s(interaction).match?.NET_RR || "Net RR"}: **${netRRStr}**`,
-        `> ${s(interaction).match?.AVG_ACS || "Avg ACS"}: **${avgACS}** ┊ ${s(interaction).match?.AVG_KD || "Avg K/D"}: **${avgKD}**`
+        `> \`${netRRStr}\` ${recordStr} ${winRateStr}`,
+        `${s(interaction).match?.AVG || "Avg"} ┊ ACS: ${avgACS} ・ ADR: ${avgADR} ・ K/D: ${avgKD}`
     ];
 
     const pageSize = 7;

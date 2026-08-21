@@ -202,11 +202,25 @@ export const fetchMatchHistory = async (interaction, user) => {
         data.metadata.game_start = match.metadata.game_start;
         data.metadata.game_length = match.metadata.game_length;
 
-        const teamData = match.teams[player.team.toLowerCase()];
+        const playerTeamKey = player.team ? player.team.toLowerCase() : "blue";
+        const enemyTeamKey = playerTeamKey === "blue" ? "red" : "blue";
+        const teamData = match.teams ? match.teams[playerTeamKey] : null;
+        const enemyTeamData = match.teams ? match.teams[enemyTeamKey] : null;
+
         data.metadata.pt_round_won = teamData?.rounds_won ?? null;
-        data.metadata.et_round_won = teamData?.rounds_lost ?? null;
-        data.player.has_won = teamData?.has_won ?? (data.metadata.pt_round_won > data.metadata.et_round_won);
-        data.player.is_draw = data.metadata.pt_round_won != null && data.metadata.pt_round_won === data.metadata.et_round_won;
+        data.metadata.et_round_won = teamData?.rounds_lost ?? (enemyTeamData?.rounds_won ?? null);
+
+        if (teamData?.has_won === true) {
+            data.player.has_won = true;
+            data.player.is_draw = false;
+        } else if (enemyTeamData?.has_won === true) {
+            data.player.has_won = false;
+            data.player.is_draw = false;
+        } else {
+            const isTie = data.metadata.pt_round_won != null && data.metadata.pt_round_won === data.metadata.et_round_won;
+            data.player.is_draw = isTie;
+            data.player.has_won = !isTie && (data.metadata.pt_round_won > data.metadata.et_round_won);
+        }
 
         if (matchMMR) {
             data.player.mmr = matchMMR.mmr_change_to_last_game;

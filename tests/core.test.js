@@ -624,6 +624,8 @@ test("profile embed: renderCompetitiveMatchHistory produces compact match histor
     assert.ok(embed.description.includes("Immortal 1"));
     assert.ok(embed.description.includes("1W - 1L"));
     assert.ok(embed.description.includes("+8 RR"));
+    assert.ok(embed.description.includes("ADR: 162.5"));
+    assert.ok(embed.description.includes("ACS: 265"));
     assert.ok(embed.fields[0].value.includes("🟩"));
     assert.ok(embed.fields[0].value.includes("🟥"));
     assert.ok(embed.fields[0].value.includes("+24"));
