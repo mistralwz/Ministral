@@ -28,6 +28,7 @@ export const setRoleSelection = (userId, role) => roleSelections.set(userId, rol
 // ─── Colours ────────────────────────────────────────────────────────────────
 const COLOR_PREGAME = 0xFFB300;   // amber   — agent select & queuing
 const COLOR_ALLY = 0x1E88E5;      // blue    — in-game ally
+const COLOR_ENEMY = 0xFD4553;     // red     — in-game enemy
 const COLOR_PARTY = 0x5865F2;     // blurple — idle party
 const COLOR_OFFLINE = 0x2B2D31;   // dark    — offline / neutral
 const COLOR_WARNING = 0xF59E0B;   // warning — maintenance
@@ -233,52 +234,66 @@ const buildPlayerFields = async (players, channel, showCompStats, valLang = DEFA
     ));
 };
 
-// ─── Single embed builder ─────────────────────────────────────────────────────
+const resolveTeamColor = (players, fallbackColor, isPreGame = false) => {
+    if (isPreGame) return COLOR_PREGAME;
+    const teamId = players?.[0]?.teamId?.toLowerCase();
+    if (teamId === "blue") return COLOR_ALLY; // 0x1E88E5 (Blue / Defense)
+    if (teamId === "red") return COLOR_ENEMY;  // 0xFD4553 (Red / Attack)
+    return fallbackColor;
+};
+
+// ─── Game embed builders ─────────────────────────────────────────────────────
 
 /**
- * Build the single embed for any game state.
- *
- * • Description: reserved for config.notice (or undefined if empty)
- * • Fields: one field per player
+ * Build the embed(s) for any game state.
+ * For team games with enemies: returns [allyEmbed, enemyEmbed].
+ * For single-team or ally-only modes: returns [allyEmbed].
  */
-const buildGameEmbed = async (data, allyPlayers, enemyPlayers, channel, userId = null, valLang = DEFAULT_VALORANT_LANG) => {
+const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId = null, valLang = DEFAULT_VALORANT_LANG) => {
     const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
     const showCompStats = data.queueId === "competitive" || data.queueId === "skirmish" || data.queueId === "skirmish 2v2";
-    const color = isPreGame ? COLOR_PREGAME : COLOR_ALLY;
+    const allyColor = resolveTeamColor(allyPlayers, COLOR_ALLY, isPreGame);
+    const enemyColor = resolveTeamColor(enemyPlayers, COLOR_ENEMY, isPreGame);
 
     const formattedServer = formatServerName(data.serverName);
     const mapAndServer = formattedServer
         ? `${data.mapName}・${formattedServer}`
         : data.mapName;
 
-    let fields;
-    if (data.isSingleTeam) {
-        fields = await buildPlayerFields(allyPlayers, channel, showCompStats, valLang, userId);
-    } else {
-        const [allyFields, enemyFields] = await Promise.all([
-            buildPlayerFields(allyPlayers, channel, showCompStats, valLang, userId),
-            enemyPlayers.length > 0
-                ? buildPlayerFields(enemyPlayers, channel, showCompStats, valLang, userId)
-                : Promise.resolve([]),
-        ]);
-        fields = [...allyFields, ...enemyFields];
-    }
+    const isTeamGame = !data.isSingleTeam && enemyPlayers && enemyPlayers.length > 0;
 
-    const embed = {
+    const [allyFields, enemyFields] = await Promise.all([
+        buildPlayerFields(allyPlayers, channel, showCompStats, valLang, userId),
+        isTeamGame
+            ? buildPlayerFields(enemyPlayers, channel, showCompStats, valLang, userId)
+            : Promise.resolve([]),
+    ]);
+
+    const allyEmbed = {
         author: {
             name: `${data.queueName}・${mapAndServer}`,
             icon_url: data.queueIcon ?? undefined,
         },
         description: config.notice ? config.notice : undefined,
-        color,
+        color: allyColor,
         image: data.mapImage ? { url: data.mapImage } : undefined,
-        footer: { text: stateLabel },
-        timestamp: new Date().toISOString(),
-        fields,
+        fields: allyFields,
     };
 
-    return embed;
+    if (isTeamGame) {
+        const enemyEmbed = {
+            color: enemyColor,
+            footer: { text: stateLabel },
+            timestamp: new Date().toISOString(),
+            fields: enemyFields,
+        };
+        return [allyEmbed, enemyEmbed];
+    }
+
+    allyEmbed.footer = { text: stateLabel };
+    allyEmbed.timestamp = new Date().toISOString();
+    return [allyEmbed];
 };
 
 // ─── Refresh & Action buttons ─────────────────────────────────────────────
@@ -463,7 +478,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         return { embeds: [embed], components };
     }
 
-    const embed = await buildGameEmbed(liveGameData, allyPlayers, enemyPlayers, channel, userId, valLang);
+    const embeds = await buildGameEmbeds(liveGameData, allyPlayers, enemyPlayers, channel, userId, valLang);
 
     let components = [liveGameRefreshRow(userId)];
 
@@ -559,7 +574,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
     }
 
     return {
-        embeds: [embed],
+        embeds,
         components,
     };
 };

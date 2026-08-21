@@ -492,6 +492,87 @@ test("livegame embed: renders party code and status description", async () => {
     assert.ok(desc?.includes("online in VALORANT") || desc?.includes("🎮"));
 });
 
+test("livegame embed: splits team games into ally and enemy embeds with blue/red team colors", async () => {
+    const ally = {
+        puuid: "ally-1",
+        riotId: "Ally#123",
+        teamId: "Blue",
+        currentTier: 20,
+        currentRR: 50,
+        agentName: { "en-US": "Jett" },
+        agentIcon: "https://example.com/jett.png"
+    };
+    const enemy = {
+        puuid: "enemy-1",
+        riotId: "Enemy#456",
+        teamId: "Red",
+        currentTier: 21,
+        currentRR: 75,
+        agentName: { "en-US": "Reyna" },
+        agentIcon: "https://example.com/reyna.png"
+    };
+
+    // Team game (2 embeds) - Ally is Blue (defense), Enemy is Red (attack)
+    const teamGameData = {
+        state: "ingame",
+        queueId: "competitive",
+        queueName: "Competitive",
+        mapName: "Ascent",
+        serverName: "Frankfurt",
+        mapImage: "https://example.com/ascent.png",
+        isSingleTeam: false,
+        allyPlayers: [ally],
+        enemyPlayers: [enemy]
+    };
+
+    const renderedTeam = await renderLiveGame(teamGameData, "test-user-id");
+    assert.equal(renderedTeam.embeds.length, 2);
+
+    const allyEmbed = renderedTeam.embeds[0];
+    assert.ok(allyEmbed.author);
+    assert.equal(allyEmbed.color, 0x1E88E5); // Blue (Defense)
+    assert.equal(allyEmbed.image?.url, "https://example.com/ascent.png");
+    assert.equal(allyEmbed.fields.length, 1);
+    assert.ok(allyEmbed.fields[0].name.includes("Ally"));
+    assert.equal(allyEmbed.footer, undefined);
+
+    const enemyEmbed = renderedTeam.embeds[1];
+    assert.equal(enemyEmbed.author, undefined);
+    assert.equal(enemyEmbed.color, 0xFD4553); // Red (Attack)
+    assert.equal(enemyEmbed.image, undefined);
+    assert.equal(enemyEmbed.fields.length, 1);
+    assert.ok(enemyEmbed.fields[0].name.includes("Enemy"));
+    assert.ok(enemyEmbed.footer?.text.includes("In-Game"));
+    assert.ok(enemyEmbed.timestamp);
+
+    // Swapped: Ally is Red (attack), Enemy is Blue (defense)
+    const swappedTeamGameData = {
+        ...teamGameData,
+        allyPlayers: [{ ...ally, teamId: "Red" }],
+        enemyPlayers: [{ ...enemy, teamId: "Blue" }]
+    };
+    const renderedSwapped = await renderLiveGame(swappedTeamGameData, "test-user-id");
+    assert.equal(renderedSwapped.embeds[0].color, 0xFD4553); // Red
+    assert.equal(renderedSwapped.embeds[1].color, 0x1E88E5); // Blue
+
+    // Single team game (1 embed with image and footer)
+    const singleTeamData = {
+        state: "ingame",
+        queueId: "deathmatch",
+        queueName: "Deathmatch",
+        mapName: "Ascent",
+        mapImage: "https://example.com/ascent.png",
+        isSingleTeam: true,
+        allyPlayers: [ally],
+        enemyPlayers: []
+    };
+
+    const renderedSingle = await renderLiveGame(singleTeamData, "test-user-id");
+    assert.equal(renderedSingle.embeds.length, 1);
+    assert.equal(renderedSingle.embeds[0].image?.url, "https://example.com/ascent.png");
+    assert.ok(renderedSingle.embeds[0].footer?.text.includes("In-Game"));
+});
+
 test("profile embed: rank colors and progress bar", async () => {
     assert.equal(getRankColor("Diamond 2"), 0xB366FF);
     assert.equal(getRankColor("Ascendant 1"), 0x2CD182);
