@@ -617,22 +617,24 @@ test("profile embed: renderCompetitiveMatchHistory produces compact match histor
 
     const result = await renderCompetitiveMatchHistory(mockInteraction, mockAccountData, mockMatchHistoryData, "test-user", 0);
     assert.ok(result.embeds);
-    assert.equal(result.embeds.length, 1);
+    assert.equal(result.embeds.length, 2);
 
-    const embed = result.embeds[0];
-    assert.ok(embed.title.includes("RadiantPlayer"));
-    assert.ok(embed.description.includes("Immortal 1"));
-    assert.ok(embed.description.includes("1W - 1L"));
-    assert.ok(embed.description.includes("+8 RR"));
-    assert.ok(embed.description.includes("ADR: 162.5"));
-    assert.ok(embed.description.includes("ACS: 265"));
-    assert.ok(embed.fields[0].value.includes("🟩"));
-    assert.ok(embed.fields[0].value.includes("🟥"));
-    assert.ok(embed.fields[0].value.includes("+24"));
-    assert.ok(embed.fields[0].value.includes("-16"));
-    assert.ok(embed.fields[0].value.includes("Lotus"));
-    assert.ok(embed.fields[0].value.includes("Split"));
-    assert.ok(embed.fields[0].value.includes("Reyna"));
+    const header = result.embeds[0];
+    assert.ok(header.title.includes("RadiantPlayer"));
+    assert.ok(header.description.includes("Immortal 1"));
+    assert.ok(header.description.includes("1W - 1L"));
+    assert.ok(header.description.includes("+8 RR"));
+    assert.ok(header.description.includes("**ADR**: 162.5"));
+    assert.ok(header.description.includes("**ACS**: 265"));
+
+    const matchesEmbed = result.embeds[1];
+    assert.ok(matchesEmbed.description.includes("🟩"));
+    assert.ok(matchesEmbed.description.includes("🟥"));
+    assert.ok(matchesEmbed.description.includes("+24"));
+    assert.ok(matchesEmbed.description.includes("-16"));
+    assert.ok(matchesEmbed.description.includes("Lotus"));
+    assert.ok(matchesEmbed.description.includes("Split"));
+    assert.ok(matchesEmbed.description.includes("Reyna"));
 
     assert.ok(result.components && result.components.length > 0);
 });

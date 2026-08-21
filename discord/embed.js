@@ -1750,16 +1750,11 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
     const summaryLines = [
         `🏆 ${s(interaction).info.PROFILE_PEAK_RANK || "Peak Rank"} ┊ ${peakRank}`,
         `📊 ${(s(interaction).match?.CAREER_SUMMARY || "Recent {n} Matches Summary").f({ n: matchCount })}`,
-        `> \`${netRRStr}\` ${recordStr} ${winRateStr}`,
-        `${s(interaction).match?.AVG || "Avg"} ┊ ACS: ${avgACS} ・ ADR: ${avgADR} ・ K/D: ${avgKD}`
+        `> \`${netRRStr}\` ┊ ${recordStr} ${winRateStr}`,
+        `> **${s(interaction).match?.AVERAGE_COMBAT_SCORE?.toUpperCase() || "ACS"}**: ${avgACS} ・ **${s(interaction).match?.AVERAGE_DAMAGE_ROUND?.toUpperCase() || "ADR"}**: ${avgADR} ・ **${s(interaction).match?.KD || "K/D"}**: ${avgKD}`
     ];
 
-    const pageSize = 7;
-    const maxPages = Math.max(1, Math.ceil(matches.length / pageSize));
-    const safePageIndex = Math.min(Math.max(0, pageIndex), maxPages - 1);
-    const pageMatches = matches.slice(safePageIndex * pageSize, (safePageIndex + 1) * pageSize);
-
-    const matchRows = await Promise.all(pageMatches.map(async m => {
+    const matchRows = await Promise.all(matches.map(async m => {
         const isDraw = Boolean(m.player?.is_draw);
         const isWin = Boolean(m.player?.has_won);
         const badge = isDraw ? "⬜" : (isWin ? "🟩" : "🟥");
@@ -1790,10 +1785,6 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
     const headerEmbed = {
         title: userName,
         description: summaryLines.join("\n"),
-        fields: [{
-            name: "\u200B",
-            value: matchRows.join("\n") || "No matches"
-        }],
         color: rankColor,
         author: {
             name: `${currentTierName} • ${currentRR} RR`,
@@ -1801,15 +1792,17 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
         },
         thumbnail: {
             url: account.account.card?.small
-        },
-        footer: {
-            text: `${s(interaction).match?.CAREER_SUMMARY?.split("{n}")[0]?.trim() || "Recent Matches"} • ${safePageIndex * pageSize + 1}-${Math.min((safePageIndex + 1) * pageSize, matches.length)} / ${matches.length}`
         }
     };
 
-    const rows = competitiveHistoryButtons(interaction, targetId, safePageIndex, maxPages);
+    const matchEmbed = {
+        description: matchRows.join("\n") || "No matches",
+        color: rankColor
+    };
 
-    return { embeds: [headerEmbed], components: rows };
+    const rows = competitiveHistoryButtons(interaction, targetId);
+
+    return { embeds: [headerEmbed, matchEmbed], components: rows };
 };
 
 export const renderProfile = async (interaction, data1, targetId = interaction.user.id) => {
