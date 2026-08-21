@@ -622,12 +622,30 @@ const commands = [
     {
         name: "profile",
         description: "Check your VALORANT profile",
-        options: [{
-            type: ApplicationCommandOptionType.User,
-            name: "user",
-            description: "Optional: see someone else's profile!",
-            required: false
-        }]
+        options: [
+            {
+                name: "overview",
+                description: "View VALORANT profile overview and rank",
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [{
+                    type: ApplicationCommandOptionType.User,
+                    name: "user",
+                    description: "Optional: see someone else's profile!",
+                    required: false
+                }]
+            },
+            {
+                name: "competitive",
+                description: "View recent competitive match history and performance",
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [{
+                    type: ApplicationCommandOptionType.User,
+                    name: "user",
+                    description: "Optional: see someone else's competitive match history!",
+                    required: false
+                }]
+            }
+        ]
     }
 ];
 
@@ -1524,6 +1542,13 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "profile": {
+                    let subcommand = "overview";
+                    try {
+                        subcommand = interaction.options.getSubcommand(false) || "overview";
+                    } catch {
+                        subcommand = "overview";
+                    }
+
                     let targetUser = interaction.user;
 
                     const otherUser = interaction.options.getUser("user");
@@ -1547,12 +1572,21 @@ client.on("interactionCreate", async (interaction) => {
                     });
 
                     await defer(interaction);
-                    const user = getUser(targetUser.id)
-                    const message = await renderProfile(interaction, await getAccountInfo(user, interaction), targetUser.id);
+                    const user = getUser(targetUser.id);
 
-                    await interaction.followUp(message);
-
-                    console.log(`Sent ${targetUser.tag}'s profile!`); // also logged if maintenance/login failed
+                    if (subcommand === "competitive") {
+                        const [accountInfo, matchHistory] = await Promise.all([
+                            getAccountInfo(user, interaction),
+                            fetchMatchHistory(interaction, user)
+                        ]);
+                        const message = await renderCompetitiveMatchHistory(interaction, accountInfo, matchHistory, targetUser.id);
+                        await interaction.followUp(message);
+                        console.log(`Sent ${targetUser.tag}'s competitive match history!`);
+                    } else {
+                        const message = await renderProfile(interaction, await getAccountInfo(user, interaction), targetUser.id);
+                        await interaction.followUp(message);
+                        console.log(`Sent ${targetUser.tag}'s profile overview!`);
+                    }
 
                     break;
                 }
@@ -2007,6 +2041,23 @@ client.on("interactionCreate", async (interaction) => {
                     components: [],
                     ...await renderBundle(bundle, interaction, emoji),
                 });
+            } else if (interaction.customId.startsWith("comppage/")) {
+                const [, id, pageIndex] = interaction.customId.split('/');
+
+                if (id !== interaction.user.id && !getSetting(id, "othersCanViewProfile")) return await interaction.reply({
+                    embeds: [basicEmbed(s(interaction).error.OTHER_PROFILE_DISABLED.f({ u: `<@${id}>` }))],
+                    flags: [MessageFlags.Ephemeral]
+                });
+
+                await deferInteraction(interaction);
+
+                const targetUser = getUser(id);
+                const [accountInfo, matchHistory] = await Promise.all([
+                    getAccountInfo(targetUser, interaction),
+                    fetchMatchHistory(interaction, targetUser)
+                ]);
+
+                await updateInteraction(interaction, await renderCompetitiveMatchHistory(interaction, accountInfo, matchHistory, id, parseInt(pageIndex || 0)));
             } else if (interaction.customId.startsWith("account")) {
 
                 const [, customId, id, accountIndex] = interaction.customId.split('/');
@@ -2058,8 +2109,8 @@ client.on("interactionCreate", async (interaction) => {
                     case "alerts": newMessage = await fetchAlerts(interaction); break;
                     case "cl": newMessage = await renderCollection(interaction, id); break;
                     case "clstats": newMessage = await collectionStatsEmbed(interaction, id, getUser(id)); break;
-                    case "profile": newMessage = await renderProfile(interaction, await getAccountInfo(getUser(id)), id); break;
-                    case "comphistory": newMessage = await renderCompetitiveMatchHistory(interaction, await getAccountInfo(getUser(id)), await fetchMatchHistory(interaction, getUser(id), "competitive"), id); break;
+                    case "profile": newMessage = await renderProfile(interaction, await getAccountInfo(getUser(id), interaction), id); break;
+                    case "comphistory": newMessage = await renderCompetitiveMatchHistory(interaction, await getAccountInfo(getUser(id), interaction), await fetchMatchHistory(interaction, getUser(id)), id); break;
                 }
                 /* else */ if (customId.startsWith("clw")) {
                     let valorantUser = getUser(id);
@@ -2110,7 +2161,7 @@ client.on("interactionCreate", async (interaction) => {
                 await interaction.showModal(modal);
             } else if (interaction.customId.startsWith("gotopage")) {
                 let [, pageId, userId, max] = interaction.customId.split('/');
-                let weaponTypeIndex
+                let weaponTypeIndex;
                 if (pageId === 'clwpage') [, pageId, weaponTypeIndex, userId, max] = interaction.customId.split('/');
 
                 if (userId !== interaction.user.id) {
@@ -2124,11 +2175,19 @@ client.on("interactionCreate", async (interaction) => {
                             embeds: [basicEmbed(s(interaction).error.NOT_UR_ALERT)],
                             flags: [MessageFlags.Ephemeral]
                         });
+                    } else if (pageId === 'comppage' && !getSetting(userId, "othersCanViewProfile")) {
+                        return await interaction.reply({
+                            embeds: [basicEmbed(s(interaction).error.OTHER_PROFILE_DISABLED.f({ u: `<@${userId}>` }))],
+                            flags: [MessageFlags.Ephemeral]
+                        });
                     }
                 }
 
+                let modalCustomId = `gotopage/${pageId}/${userId}/${max}`;
+                if (pageId === 'clwpage') modalCustomId = `gotopage/${pageId}/${weaponTypeIndex}/${userId}/${max}`;
+
                 const modal = new ModalBuilder()
-                    .setCustomId(`gotopage/${pageId}${weaponTypeIndex ? `/${weaponTypeIndex}` : ''}/${userId}/${max}`)
+                    .setCustomId(modalCustomId)
                     .setTitle(s(interaction).modal.PAGE_TITLE);
 
                 const pageInput = new TextInputBuilder()
@@ -2303,7 +2362,7 @@ client.on("interactionCreate", async (interaction) => {
                 }
             } else if (interaction.customId.startsWith("gotopage")) {
                 let [, pageId, userId, max] = interaction.customId.split('/');
-                let weaponTypeIndex
+                let weaponTypeIndex;
                 if (pageId === 'clwpage') [, pageId, weaponTypeIndex, userId, max] = interaction.customId.split('/');
                 const pageIndex = interaction.fields.getTextInputValue('pageIndex');
 
@@ -2322,6 +2381,15 @@ client.on("interactionCreate", async (interaction) => {
                 switch (pageId) {
                     case "clpage": await clpage(); break;
                     case "clwpage": await clwpage(); break;
+                    case "comppage":
+                        await deferInteraction(interaction);
+                        const targetUser = getUser(userId);
+                        const [accInfo, mHist] = await Promise.all([
+                            getAccountInfo(targetUser, interaction),
+                            fetchMatchHistory(interaction, targetUser)
+                        ]);
+                        await updateInteraction(interaction, await renderCompetitiveMatchHistory(interaction, accInfo, mHist, userId, parseInt(pageIndex - 1)));
+                        break;
                     case "changealertspage":
                         await deferInteraction(interaction);
                         await updateInteraction(interaction, await alertsPageEmbed(interaction, await filteredAlertsForUser(interaction), parseInt(pageIndex - 1), await VPEmoji(interaction)));

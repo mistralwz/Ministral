@@ -200,10 +200,15 @@ const loadMapImages = async () => {
         mapImagesCache = {};
         mapNamesCache = {};
         for (const m of json.data) {
+            const icon = m.displayIcon ?? m.listViewIcon ?? m.splash ?? null;
             if (m.mapUrl) {
-                // listViewIcon is the compact image used in the embed
-                mapImagesCache[m.mapUrl] = m.listViewIcon ?? m.splash ?? null;
+                // displayIcon or listViewIcon is the compact image used in the embed
+                mapImagesCache[m.mapUrl] = icon;
                 if (m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
+            }
+            if (m.displayName) {
+                mapImagesCache[m.displayName] = icon;
+                mapImagesCache[m.displayName.toLowerCase()] = icon;
             }
         }
     } catch (e) {
@@ -213,10 +218,12 @@ const loadMapImages = async () => {
     }
 };
 
-export const resolveMapImage = async (mapId) => {
+export const resolveMapImage = async (mapIdOrName) => {
+    if (!mapIdOrName) return null;
     await loadMapImages();
-    if (mapImagesCache[mapId]) return mapImagesCache[mapId];
-    if (mapId === "/Game/Maps/Arena/Arena") {
+    if (mapImagesCache[mapIdOrName]) return mapImagesCache[mapIdOrName];
+    if (mapImagesCache[mapIdOrName.toLowerCase()]) return mapImagesCache[mapIdOrName.toLowerCase()];
+    if (mapIdOrName === "/Game/Maps/Arena/Arena") {
         return mapImagesCache["/Game/Maps/Poveglia/Range"] ?? mapImagesCache["/Game/Maps/PovegliaV2/RangeV2"] ?? null;
     }
     return null;

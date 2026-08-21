@@ -51,7 +51,7 @@ import { User, getPuuid } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
-import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels } from "../discord/embed.js";
+import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, profileButtons, competitiveHistoryButtons } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
@@ -476,7 +476,7 @@ test("embed: getSkinLevels deduplicates duplicate skin UUIDs and limits options 
     assert.equal(emptyRes, false);
 });
 
-test("livegame embed: renders party code", async () => {
+test("livegame embed: renders party code and status description", async () => {
     const mockLiveGameData = {
         state: "not_in_game",
         allyPlayers: [],
@@ -489,6 +489,208 @@ test("livegame embed: renders party code", async () => {
     assert.ok(rendered.embeds && rendered.embeds.length > 0);
     const desc = rendered.embeds[0].description;
     assert.ok(desc?.includes("test-code-1234"));
+    assert.ok(desc?.includes("online in VALORANT") || desc?.includes("🎮"));
+});
+
+test("profile embed: rank colors and progress bar", async () => {
+    assert.equal(getRankColor("Diamond 2"), 0xB366FF);
+    assert.equal(getRankColor("Ascendant 1"), 0x2CD182);
+    assert.equal(getRankColor("Immortal 3"), 0xBE1E37);
+    assert.equal(getRankColor("Radiant"), 0xFFD700);
+    assert.equal(getRankColor("Bronze 2"), 0xA37449);
+    assert.equal(getRankColor("Gold 2"), 0xEFBF41);
+    assert.equal(getRankColor("Unranked"), 0xFD4553);
+    assert.equal(getRankColor(null), 0xFD4553);
+
+    // Tier name resolution from different API response shapes (e.g. HenrikDev v2)
+    assert.equal(getTierName({ currenttier: 7, currenttierpatched: "Bronze 2" }), "Bronze 2");
+    assert.equal(getTierName({ currenttier: 7, currenttier_patched: "Bronze 2" }), "Bronze 2");
+    assert.equal(getTierName({ currenttier: 7 }), "Bronze 2");
+    assert.equal(getTierName({ tier: 22 }), "Ascendant 2");
+    assert.equal(getTierName({ tier: 24 }), "Immortal 1");
+    // Season formatting (E10+ mapped to Riot's V25+ scheme, E1-E9 preserved)
+    assert.equal(formatSeason("e10a2"), "V25A2");
+    assert.equal(formatSeason("E10A2"), "V25A2");
+    assert.equal(formatSeason("e10:a2"), "V25A2");
+    assert.equal(formatSeason("e11a1"), "V26A1");
+    assert.equal(formatSeason("v25a2"), "V25A2");
+    assert.equal(formatSeason("v25a1"), "V25A1");
+    assert.equal(formatSeason("e8a1"), "E8A1");
+    assert.equal(formatSeason("e9a3"), "E9A3");
+    assert.equal(formatSeason(null), null);
+
+    const unrankedStr = await resolvePeakRankString(null);
+    assert.equal(unrankedStr, "**Unranked**");
+    const peakStr = await resolvePeakRankString({ tier: 22, season: "e10a2" });
+    assert.ok(peakStr.includes("Ascendant 2"));
+    assert.ok(peakStr.includes("V25A2"));
+
+    const bar50 = renderProgressBar(50, 100, 10);
+    assert.equal(bar50, "█████░░░░░");
+    const bar0 = renderProgressBar(0, 100, 10);
+    assert.equal(bar0, "░░░░░░░░░░");
+    const bar100 = renderProgressBar(100, 100, 10);
+    assert.equal(bar100, "██████████");
+});
+
+test("profile embed: renderCompetitiveMatchHistory produces compact match history embed with pagination", async () => {
+    const mockInteraction = {
+        locale: "en-US",
+        user: { id: "test-user" }
+    };
+
+    const mockAccountData = {
+        success: true,
+        data: {
+            account: {
+                name: "RadiantPlayer",
+                tag: "VAL",
+                account_level: 210,
+                card: { small: "https://example.com/card.png" }
+            },
+            mmr: {
+                current_data: {
+                    currenttier: 24,
+                    currenttier_patched: "Ascendant 2",
+                    ranking_in_tier: 65,
+                    images: { large: "https://example.com/asc2.png" }
+                },
+                highest_rank: {
+                    patched_tier: "Immortal 1",
+                    season: "e7a3"
+                }
+            }
+        }
+    };
+
+    const mockMatchHistoryData = {
+        success: true,
+        data: [
+            {
+                player: {
+                    is_draw: false,
+                    has_won: true,
+                    agent: { name: "Reyna", iconUrl: "https://example.com/reyna.png" },
+                    kills: 26,
+                    deaths: 10,
+                    assists: 4,
+                    kd: "2.60",
+                    position: "1st",
+                    mmr: "+24",
+                    average_combat_score: "350",
+                    average_damage_round: "210.0",
+                    hs_percent: 35
+                },
+                metadata: {
+                    map: "Lotus",
+                    game_start: 1700000000,
+                    game_length: 1600,
+                    pt_round_won: 13,
+                    et_round_won: 6
+                }
+            },
+            {
+                player: {
+                    is_draw: false,
+                    has_won: false,
+                    agent: { name: "Cypher", iconUrl: "https://example.com/cypher.png" },
+                    kills: 14,
+                    deaths: 16,
+                    assists: 6,
+                    kd: "0.88",
+                    position: "7th",
+                    mmr: "-16",
+                    average_combat_score: "180",
+                    average_damage_round: "115.0",
+                    hs_percent: 20
+                },
+                metadata: {
+                    map: "Split",
+                    game_start: 1700002000,
+                    game_length: 1900,
+                    pt_round_won: 8,
+                    et_round_won: 13
+                }
+            }
+        ]
+    };
+
+    const result = await renderCompetitiveMatchHistory(mockInteraction, mockAccountData, mockMatchHistoryData, "test-user", 0);
+    assert.ok(result.embeds);
+    assert.equal(result.embeds.length, 1);
+
+    const embed = result.embeds[0];
+    assert.ok(embed.title.includes("RadiantPlayer"));
+    assert.ok(embed.description.includes("Immortal 1"));
+    assert.ok(embed.description.includes("1W - 1L"));
+    assert.ok(embed.description.includes("+8 RR"));
+    assert.ok(embed.fields[0].value.includes("🟩"));
+    assert.ok(embed.fields[0].value.includes("🟥"));
+    assert.ok(embed.fields[0].value.includes("+24"));
+    assert.ok(embed.fields[0].value.includes("-16"));
+    assert.ok(embed.fields[0].value.includes("Lotus"));
+    assert.ok(embed.fields[0].value.includes("Split"));
+    assert.ok(embed.fields[0].value.includes("Reyna"));
+
+    assert.ok(result.components && result.components.length > 0);
+});
+
+test("profile embed: renderProfile produces valid overview embed", async () => {
+    const mockInteraction = {
+        locale: "en-US",
+        user: { id: "test-user" }
+    };
+
+    const mockAccountData = {
+        success: true,
+        data: {
+            account: {
+                name: "TestHero",
+                tag: "1234",
+                account_level: 95,
+                card: { small: "https://example.com/card.png" },
+                region: "eu"
+            },
+            mmr: {
+                current_data: {
+                    currenttier: 21,
+                    currenttier_patched: "Diamond 3",
+                    ranking_in_tier: 78,
+                    images: { large: "https://example.com/d3.png" }
+                },
+                highest_rank: {
+                    patched_tier: "Diamond 3",
+                    season: "e8a1"
+                }
+            }
+        }
+    };
+
+    const result = await renderProfile(mockInteraction, mockAccountData, "test-user");
+    assert.ok(result.embeds);
+    assert.equal(result.embeds.length, 1);
+
+    const embed = result.embeds[0];
+    assert.ok(embed.title.includes("TestHero"));
+    assert.ok(embed.fields[0].value.includes("95"));
+    assert.ok(embed.author.name.includes("Diamond 3"));
+    assert.ok(embed.fields[0].value.includes("**78**/100 RR"));
+    assert.ok(embed.fields[0].value.includes("EU"));
+
+    // Test with a multi-account user in database to exercise switchAccountButtons and getSetting
+    initUserDatabase("data/test_users.db");
+    saveUserToDb({
+        id: "multi-user",
+        accounts: [
+            { id: "multi-user", puuid: "puuid-1", username: "Hero#1111", auth: { rso: "t1" }, alerts: [] },
+            { id: "multi-user", puuid: "puuid-2", username: "Hero#2222", auth: { rso: "t2" }, alerts: [] }
+        ],
+        currentAccount: 1,
+        settings: { hideIgn: false }
+    });
+
+    const multiResult = await renderProfile(mockInteraction, mockAccountData, "multi-user");
+    assert.ok(multiResult.components.length >= 2); // profile buttons row + switch account row
 });
 
 

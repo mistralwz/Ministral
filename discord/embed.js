@@ -25,10 +25,12 @@ import { getStatsFor } from "../misc/stats.js";
 import { getUser } from "../valorant/auth.js";
 import { readUserJson, saveUser } from "../valorant/accountSwitcher.js";
 import { getSetting, humanifyValue, settingIsVisible, settingName, settings, setSetting } from "../misc/settings.js";
-import { VPEmoji, KCEmoji, rarityEmoji } from "./emoji.js";
+import { VPEmoji, KCEmoji, rarityEmoji, rankEmoji, agentEmoji, emojiToString } from "./emoji.js";
+import { resolveTier } from "../valorant/livegame.js";
 import { getOffers, getBundles, getNightMarket, getNextNightMarketTimestamp, NMTimestamp } from "../valorant/shop.js";
 import { getBattlepassProgress } from "../valorant/battlepass.js";
 import { getLoadout, getSkins } from "../valorant/inventory.js";
+import { TIER_NAMES, getAccountXP } from "../valorant/profile.js";
 
 let embedClient = null;
 export const setEmbedClient = (client) => {
@@ -1561,159 +1563,384 @@ export const botInfoEmbed = (interaction, client, guildCount, userCount, registe
         }]
     }
 }
-const competitiveMatchEmbed = (interaction, matchData) => {
-    const embedTitle = `${s(interaction).match.COMPETITIVE}┊${matchData.metadata.map}・<t:${matchData.metadata.game_start + matchData.metadata.game_length}:R>`;
-    const roundDesc = `[**${matchData.metadata.pt_round_won ?? "?"}** : **${matchData.metadata.et_round_won ?? "?"}**]`;
-    const hsPercentDesc = `**${s(interaction).match.PERCENT.f({ v: matchData.player.hs_percent })}** ${s(interaction).match.HS_PERCENT}`;
-    const adsDesc = `**${matchData.player.average_damage_round}** ${s(interaction).match.AVERAGE_DAMAGE_ROUND}`;
-    const acsDesc = `**${matchData.player.average_combat_score}** ${s(interaction).match.AVERAGE_COMBAT_SCORE}`;
-    const colors = {
-        red: 13195866,
-        grey: 9145227,
-        green: 7654512
-    }
-    let embedColor;
-    if (matchData.teams.red?.has_won === true) {
-        if (matchData.player.team === "Red") {
-            embedColor = colors.green;
-        } else embedColor = colors.red;
-    } else if (matchData.teams.blue?.has_won === true) {
-        if (matchData.player.team === "Blue") {
-            embedColor = colors.green;
-        } else embedColor = colors.red;
-    } else {
-        embedColor = colors.grey;
-    }
+export const RANK_TIER_COLORS = {
+    "iron": 0x6F6F6F,
+    "bronze": 0xA37449,
+    "silver": 0xA6B4B9,
+    "gold": 0xEFBF41,
+    "platinum": 0x2EC2BA,
+    "diamond": 0xB366FF,
+    "ascendant": 0x2CD182,
+    "immortal": 0xBE1E37,
+    "radiant": 0xFFD700
+};
 
-    const mmrValue = matchData.player.mmr !== undefined ? matchData.player.mmr : "N/A";
-    const mapDesc = `**${"`" + mmrValue + "`"}**`;
-    const embedDescription = `${mapDesc}・${roundDesc}・${hsPercentDesc}・${adsDesc}・${acsDesc}`;
-    const embed = {
-        "title": embedTitle,
-        "description": embedDescription,
-        "color": embedColor,
-        "author": {
-            "name": `${matchData.player.agent.name}・${matchData.player.kills} / ${matchData.player.deaths} / ${matchData.player.assists}・${matchData.player.kd} KD┊${matchData.player.position}`,
-            "icon_url": matchData.player.agent.iconUrl
-        }/*,
-        "thumbnail": {
-            "url": matchData.player.currentTierImageUrl
-        }*/
+export const getTierName = (tierData) => {
+    if (!tierData) return "Unranked";
+    if (typeof tierData === "string") return tierData;
+    if (typeof tierData === "number") return TIER_NAMES[tierData] || "Unranked";
+    return tierData.currenttier_patched
+        || tierData.currenttierpatched
+        || tierData.patched_tier
+        || tierData.patchedtier
+        || tierData.name
+        || (tierData.currenttier != null ? TIER_NAMES[tierData.currenttier] : null)
+        || (tierData.tier != null ? TIER_NAMES[tierData.tier] : null)
+        || "Unranked";
+};
+
+export const getRankColor = (rankTierName) => {
+    if (!rankTierName || typeof rankTierName !== "string") return VAL_COLOR_1;
+    const lower = rankTierName.toLowerCase();
+    for (const [tier, color] of Object.entries(RANK_TIER_COLORS)) {
+        if (lower.includes(tier)) return color;
     }
+    return VAL_COLOR_1;
+};
 
-    return embed
-}
+export const renderProgressBar = (current = 0, max = 100, length = 10) => {
+    const safeCurrent = Math.max(0, Math.min(Number(current) || 0, max));
+    const filled = Math.round((safeCurrent / max) * length);
+    const empty = length - filled;
+    return "█".repeat(filled) + "░".repeat(empty);
+};
 
-export const renderCompetitiveMatchHistory = async (interaction, accountData, matchHistoryData, targetId = interaction.user.id) => { //will be edited in the future
-    if (!accountData.success) return { embeds: [basicEmbed(s(interaction).error.GENERIC_ERROR.f({ e: accountData.error }))] }
-    if (!matchHistoryData.success) return { embeds: [basicEmbed(s(interaction).error.GENERIC_ERROR.f({ e: matchHistoryData.error }))] }
-    const account = accountData.data
-    const userName = hideUsername({ u: account.account.name + "`#" + account.account.tag + "`" }, targetId).u
-    const embeds = [{
-        "title": userName + ` • Lv. ${account.account.account_level}`,
-        "description": `${s(interaction).info.PROFILE_PEAK_RANK} ┊ **${account.mmr.highest_rank?.patched_tier}**`,
-        "color": 16632621, //TODO color according to account level
-        "author": {
-            "name": interaction.user.username + ` • ${account.mmr.current_data?.ranking_in_tier ?? 0} RR`,
-            "icon_url": account.mmr.current_data?.images?.large
-        },
-        "thumbnail": {
-            "url": account.account.card?.small
+export const formatSeason = (season) => {
+    if (!season || typeof season !== "string") return null;
+    const s = season.trim().toUpperCase();
+
+    // Map E10+ to Riot's official V25+ season naming (E10 -> V25, E11 -> V26, etc.)
+    const eMatch = s.match(/^E(\d+)[\s:_]*A?(\d+)$/i);
+    if (eMatch) {
+        const ep = parseInt(eMatch[1], 10);
+        const act = eMatch[2];
+        if (ep >= 10) {
+            const year = ep + 15; // 10 -> 25 (V25), 11 -> 26 (V26)
+            return `V${year}A${act}`;
         }
-    }];
-    for (let i = 0; i < matchHistoryData.data.length; i++) {
-        const embed = competitiveMatchEmbed(interaction, matchHistoryData.data[i])
-        embeds.push(embed);
+        return `E${ep}A${act}`;
     }
-    const rows = switchAccountButtons(interaction, "comphistory", true, false, targetId)
-    return { embeds: embeds, components: rows }
-}
 
-export const renderProfile = async (interaction, data1, targetId = interaction.user.id) => { //will be edited in the future
-    if (!data1.success) return { embeds: [basicEmbed(s(interaction).error.GENERIC_ERROR.f({ e: data1.error }))] }
-    const valorantUser = getUser(targetId)
-    const data = data1.data
-    const userName = hideUsername({ u: data.account.name + "`#" + data.account.tag + "`" }, targetId).u
-    const embeds = [{
-        "title": userName + ` • Lv. ${data.account.account_level}`,
-        "description": `${s(interaction).info.PROFILE_PEAK_RANK} ┊ **${data.mmr.highest_rank?.patched_tier}**`,
-        "color": 16632621, //TODO color according to account level
-        "author": {
-            "name": interaction.user.username + ` • ${data.mmr.current_data?.ranking_in_tier ?? 0} RR`,
-            "icon_url": data.mmr.current_data?.images?.large
+    // Standardize V25A2 format (e.g. v25a2, V25:A2, V25 A2 -> V25A2)
+    const vMatch = s.match(/^V(\d+)[\s:_]*A?(\d+)$/i);
+    if (vMatch) {
+        return `V${vMatch[1]}A${vMatch[2]}`;
+    }
+
+    return s;
+};
+
+export const getTierNumber = (tierData) => {
+    if (!tierData) return 0;
+    if (typeof tierData === "number") return tierData;
+    if (typeof tierData === "object") {
+        if (tierData.tier != null && Number(tierData.tier) > 0) return Number(tierData.tier);
+        if (tierData.currenttier != null && Number(tierData.currenttier) > 0) return Number(tierData.currenttier);
+        const name = getTierName(tierData);
+        const idx = TIER_NAMES.indexOf(name);
+        return idx >= 0 ? idx : 0;
+    }
+    if (typeof tierData === "string") {
+        const idx = TIER_NAMES.indexOf(tierData);
+        return idx >= 0 ? idx : 0;
+    }
+    return 0;
+};
+
+export const resolvePeakRankString = async (highestRankData, interaction = null) => {
+    const peakTierName = getTierName(highestRankData);
+    if (!peakTierName || peakTierName === "Unranked") return "**Unranked**";
+
+    const seasonFormatted = formatSeason(highestRankData?.season);
+    const peakTierNum = getTierNumber(highestRankData);
+
+    let peakEmojiStr = "";
+    if (peakTierNum > 0) {
+        try {
+            const peakTierInfo = await resolveTier(peakTierNum);
+            if (peakTierInfo?.icon) {
+                const rEmoji = await rankEmoji(peakTierNum, peakTierInfo.icon, interaction);
+                peakEmojiStr = emojiToString(rEmoji) || "";
+            }
+        } catch {}
+    }
+
+    const emojiPrefix = peakEmojiStr ? `${peakEmojiStr} ` : "";
+    return `${emojiPrefix}**${peakTierName}**${seasonFormatted ? ` *(${seasonFormatted})*` : ""}`;
+};
+
+export const getPlayerTitle = async (titleUuid, interaction = null) => {
+    if (!titleUuid || titleUuid === "d13e579c-435e-44d4-cec2-6eae5a3c5ed4") return null;
+    try {
+        const titleObj = await getTitle(titleUuid);
+        if (!titleObj) return null;
+        const nameMap = titleObj.text || titleObj.names;
+        if (!nameMap) return null;
+        return typeof nameMap === "string" ? nameMap.trim() : (l(nameMap, interaction) || "").trim();
+    } catch {
+        return null;
+    }
+};
+
+export const renderCompetitiveMatchHistory = async (interaction, accountData, matchHistoryData, targetId = interaction.user.id, pageIndex = 0) => {
+    if (!accountData.success) return { embeds: [basicEmbed(s(interaction).error.GENERIC_ERROR.f({ e: accountData.error }))] };
+    if (!matchHistoryData.success) return { embeds: [basicEmbed(s(interaction).error.GENERIC_ERROR.f({ e: matchHistoryData.error }))] };
+
+    const account = accountData.data;
+    const userName = hideUsername({ u: account.account.name + "`#" + account.account.tag + "`" }, targetId).u;
+    const currentTierName = getTierName(account.mmr?.current_data);
+    const currentRR = account.mmr?.current_data?.ranking_in_tier ?? 0;
+    const rankColor = getRankColor(currentTierName);
+
+    const matches = matchHistoryData.data || [];
+    let wins = 0;
+    let losses = 0;
+    let draws = 0;
+    let totalScore = 0;
+    let totalKills = 0;
+    let totalDeaths = 0;
+    let netRR = 0;
+    let hasRRData = false;
+
+    for (const m of matches) {
+        const isDraw = Boolean(m.player?.is_draw);
+        const isWin = Boolean(m.player?.has_won);
+        if (isDraw) draws++;
+        else if (isWin) wins++;
+        else losses++;
+
+        if (m.player?.mmr !== undefined && m.player.mmr !== "N/A") {
+            const num = parseInt(m.player.mmr, 10);
+            if (!isNaN(num)) {
+                netRR += num;
+                hasRRData = true;
+            }
+        }
+
+        totalKills += m.player?.kills || 0;
+        totalDeaths += m.player?.deaths || 0;
+        totalScore += parseFloat(m.player?.average_combat_score || 0);
+    }
+
+    const matchCount = matches.length;
+    const winRate = matchCount > 0 ? Math.round((wins / matchCount) * 100) : 0;
+    const avgACS = matchCount > 0 ? Math.round(totalScore / matchCount) : 0;
+    const avgKD = (totalKills / (totalDeaths || 1)).toFixed(2);
+    const netRRStr = hasRRData ? (netRR >= 0 ? `+${netRR} RR` : `${netRR} RR`) : "N/A";
+
+    const peakRank = await resolvePeakRankString(account.mmr?.highest_rank, interaction);
+
+    const summaryLines = [
+        `🏆 ${s(interaction).info.PROFILE_PEAK_RANK || "Peak Rank"} ┊ ${peakRank}`,
+        `📊 ${(s(interaction).match?.CAREER_SUMMARY || "Recent {n} Matches Summary").f({ n: matchCount })}`,
+        `> ${s(interaction).match?.RECORD || "Record"}: **${wins}W - ${losses}L${draws > 0 ? ` - ${draws}D` : ""}** (${winRate}% ${s(interaction).match?.WIN_RATE || "Win Rate"}) ┊ ${s(interaction).match?.NET_RR || "Net RR"}: **${netRRStr}**`,
+        `> ${s(interaction).match?.AVG_ACS || "Avg ACS"}: **${avgACS}** ┊ ${s(interaction).match?.AVG_KD || "Avg K/D"}: **${avgKD}**`
+    ];
+
+    const pageSize = 10;
+    const maxPages = Math.max(1, Math.ceil(matches.length / pageSize));
+    const safePageIndex = Math.min(Math.max(0, pageIndex), maxPages - 1);
+    const pageMatches = matches.slice(safePageIndex * pageSize, (safePageIndex + 1) * pageSize);
+
+    const matchRows = await Promise.all(pageMatches.map(async m => {
+        const isDraw = Boolean(m.player?.is_draw);
+        const isWin = Boolean(m.player?.has_won);
+        const badge = isDraw ? "⬜" : (isWin ? "🟩" : "🟥");
+        const tierNum = getTierNumber(m.player?.currenttier ?? m.player?.tier ?? m.player?.currenttier_patched);
+        const [rankEmojiObj, agentEmojiObj] = await Promise.all([
+            rankEmoji(tierNum, m.player?.currentTierImageUrl, interaction),
+            agentEmoji(m.player?.agent?.name, m.player?.agent?.iconUrl, interaction)
+        ]);
+        const rankEmojiStr = emojiToString(rankEmojiObj) || "";
+        const agentEmojiStr = emojiToString(agentEmojiObj) || "";
+        const emojiCombo = `${rankEmojiStr}${agentEmojiStr}`;
+        const mapName = m.metadata?.map || "Map";
+        const ptScore = m.metadata?.pt_round_won ?? "?";
+        const etScore = m.metadata?.et_round_won ?? "?";
+        const scoreStr = isWin ? `**${ptScore}**-${etScore}` : (isDraw ? `${ptScore}-${etScore}` : `${ptScore}-**${etScore}**`);
+        const agent = m.player?.agent?.name || "Agent";
+        const kd = `**${m.player?.kills ?? 0}**/${m.player?.deaths ?? 0}/${m.player?.assists ?? 0}`;
+        const mmr = m.player?.mmr !== undefined && m.player.mmr !== "N/A" ? `**${m.player.mmr}**` : "";
+        const timeAgo = m.metadata?.game_start ? `<t:${(m.metadata.game_start + (m.metadata.game_length || 0))}:R>` : "";
+        
+        const mapSection = `${badge}${mmr ? ` ${mmr}` : ""} ${emojiCombo ? `${emojiCombo} ` : ""}**${mapName}**`;
+        const scoreSection = `${scoreStr}${!agentEmojiStr ? ` ・ ${agent}` : ""}`;
+        const statsSection = [kd, timeAgo || null].filter(Boolean).join(" ・ ");
+
+        return [mapSection, scoreSection, statsSection].filter(Boolean).join(" ┊ ");
+    }));
+
+    const headerEmbed = {
+        title: userName,
+        description: summaryLines.join("\n"),
+        fields: [{
+            name: "\u200B",
+            value: matchRows.join("\n") || "No matches"
+        }],
+        color: rankColor,
+        author: {
+            name: `${currentTierName} • ${currentRR} RR`,
+            icon_url: account.mmr?.current_data?.images?.large
         },
-        "thumbnail": {
-            "url": data.account.card?.small
+        thumbnail: {
+            url: account.account.card?.small
+        },
+        footer: {
+            text: `${s(interaction).match?.CAREER_SUMMARY?.split("{n}")[0]?.trim() || "Recent Matches"} • ${safePageIndex * pageSize + 1}-${Math.min((safePageIndex + 1) * pageSize, matches.length)} / ${matches.length}`
+        }
+    };
+
+    const rows = competitiveHistoryButtons(interaction, targetId, safePageIndex, maxPages);
+
+    return { embeds: [headerEmbed], components: rows };
+};
+
+export const renderProfile = async (interaction, data1, targetId = interaction.user.id) => {
+    if (!data1.success) return { embeds: [basicEmbed(s(interaction).error.GENERIC_ERROR.f({ e: data1.error }))] };
+    const valorantUser = getUser(targetId);
+    const data = data1.data;
+    const userName = hideUsername({ u: data.account.name + "`#" + data.account.tag + "`" }, targetId).u;
+    const currentTierName = getTierName(data.mmr?.current_data);
+    const currentRR = data.mmr?.current_data?.ranking_in_tier ?? 0;
+    const rankColor = getRankColor(currentTierName);
+
+    const peakRank = await resolvePeakRankString(data.mmr?.highest_rank, interaction);
+
+    const progressBar = renderProgressBar(currentRR, 100, 10);
+    const region = (valorantUser?.region || data.account.region || "N/A").toUpperCase();
+
+    let playerTitle = null;
+    let xpData = null;
+    if (valorantUser) {
+        try {
+            const [loadoutRes, xpRes] = await Promise.all([
+                getLoadout(valorantUser),
+                getAccountXP(valorantUser)
+            ]);
+            xpData = xpRes;
+            if (loadoutRes?.success && loadoutRes.loadout?.Identity?.PlayerTitleID) {
+                playerTitle = await getPlayerTitle(loadoutRes.loadout.Identity.PlayerTitleID, interaction);
+            }
+        } catch {}
+    }
+
+    const level = xpData?.level ?? data.account?.account_level ?? 0;
+    const xpProgressBar = xpData ? renderProgressBar(xpData.xp, xpData.maxXP, 10) : "";
+    const levelStr = `🎮 ${s(interaction).info.PROFILE_LEVEL || "Level"} **${level}**${xpData ? ` ┊ \`[${xpProgressBar}]\` **${xpData.xp.toLocaleString()}**/${xpData.maxXP.toLocaleString()} XP` : ""}`;
+
+    const titleStr = userName;
+    const descriptionStr = playerTitle ? `-# ${playerTitle}` : "";
+
+    const descLines = [
+        levelStr,
+        `🏆 ${s(interaction).info.PROFILE_PEAK_RANK || "Peak Rank"} ┊ ${peakRank}`,
+        `📈 ${s(interaction).info.PROFILE_PROGRESS || "Rank Rating"} ┊ \`[${progressBar}]\` **${currentRR}**/100 RR`,
+        `🌍 ${s(interaction).info.PROFILE_REGION || "Region"} ┊ **${region}**`
+    ];
+
+    const embeds = [{
+        title: titleStr,
+        ...(descriptionStr ? { description: descriptionStr } : {}),
+        fields: [{
+            name: "\u200B",
+            value: descLines.join("\n")
+        }],
+        color: rankColor,
+        author: {
+            name: `${currentTierName} • ${currentRR} RR`,
+            icon_url: data.mmr.current_data?.images?.large
+        },
+        thumbnail: {
+            url: data.account.card?.small
         }
     }];
 
     if (config.notice && valorantUser) {
         // users shouldn't see the same notice twice
         if (!config.onlyShowNoticeOnce || valorantUser.lastNoticeSeen !== config.notice) {
-
             // the notice can either be just a simple string, or a raw JSON embed data object
-            if (typeof config.notice === "string") {
-                if (config.notice.startsWith('{')) embeds.push(EmbedBuilder.from(JSON.parse(config.notice)).toJSON());
-                else embeds.push(basicEmbed(config.notice));
-            }
-            else embeds.push(EmbedBuilder.from(config.notice).toJSON());
+            if (typeof config.notice === "string") embeds.push(basicEmbed(config.notice));
+            else embeds.push(config.notice);
 
             valorantUser.lastNoticeSeen = config.notice;
             saveUser(valorantUser);
         }
     }
 
-    const rows = profileButtons(interaction, targetId)
-    switchAccountButtons(interaction, "profile", true, false, targetId).map(a => rows.push(a))
+    const rows = profileButtons(interaction, targetId);
+    rows.push(...switchAccountButtons(interaction, "profile", true, false, targetId));
 
-    return { embeds: embeds, components: rows }
-}
+    return { embeds: embeds, components: rows };
+};
 
-const profileButtons = (interaction, id, back = false) => {
-    if (back) { // not implemented yet
-        const returnButton = new ButtonBuilder()
-            .setStyle(ButtonStyle.Primary)
-            .setLabel(s(interaction).info.RETURN_BUTTON)
-            .setEmoji("↩️")
-            .setCustomId(`account/profile/${id}/c`);
-        return [new ActionRowBuilder().setComponents(returnButton)]
-    }
+export const profileButtons = (interaction, id) => {
+    const compButton = new ButtonBuilder()
+        .setStyle(ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.PROFILE_COMP_BUTTON || "Competitive History")
+        .setEmoji("🏆")
+        .setCustomId(`account/comphistory/${id}/c`);
+
     const shopButton = new ButtonBuilder()
-        .setStyle(ButtonStyle.Primary)
-        .setLabel(s(interaction).info.DAILY_SHOP_SWITCH_BUTTON)
+        .setStyle(ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.PROFILE_SHOP_BUTTON || "Daily Shop")
         .setEmoji("🛒")
         .setCustomId(`account/shop/${id}/daily`);
 
     const nightMarketButton = new ButtonBuilder()
-        .setStyle(ButtonStyle.Danger)
-        .setLabel(s(interaction).info.NIGHT_MARKET_BUTTON)
-        .setEmoji("🌑")
-        .setDisabled(!isThereANM()) // should be working
+        .setStyle(ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.PROFILE_NIGHTMARKET_BUTTON || "Night Market")
+        .setEmoji("🌙")
         .setCustomId(`account/nm/${id}/c`);
 
     const battlepassButton = new ButtonBuilder()
         .setStyle(ButtonStyle.Secondary)
-        .setLabel(s(interaction).info.BATTLEPASS_BUTTON)
-        .setEmoji("🗓️")
+        .setLabel(s(interaction).info.PROFILE_BATTLEPASS_BUTTON || "Battlepass")
+        .setEmoji("🎟️")
         .setCustomId(`account/bp/${id}/c`);
 
     const collectionButton = new ButtonBuilder()
-        .setStyle(ButtonStyle.Primary)
-        .setLabel(s(interaction).info.COLLECTION_BUTTON)
-        .setEmoji("🔫")
+        .setStyle(ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.PROFILE_COLLECTION_BUTTON || "Collection")
+        .setEmoji("🎒")
         .setCustomId(`account/cl/${id}/c`);
 
-    const competitiveHistoryButton = new ButtonBuilder()
-        .setStyle(ButtonStyle.Primary)
-        .setLabel(s(interaction).info.COMPETITIVE_HISTORY_BUTTON)
-        .setEmoji("⚔️")
-        .setCustomId(`account/comphistory/${id}/c`);
+    const row1 = new ActionRowBuilder().setComponents(compButton, shopButton, nightMarketButton, battlepassButton, collectionButton);
+    return [row1];
+};
 
-    const row1 = new ActionRowBuilder().setComponents(shopButton, nightMarketButton, battlepassButton, collectionButton, competitiveHistoryButton);
-    const rows = [row1]
+export const competitiveHistoryButtons = (interaction, id, pageIndex = 0, maxPages = 1) => {
+    const rows = [];
+    const components = [];
 
+    const overviewButton = new ButtonBuilder()
+        .setStyle(ButtonStyle.Secondary)
+        .setLabel(s(interaction).info.PROFILE_OVERVIEW_BUTTON || "Overview")
+        .setEmoji("👤")
+        .setCustomId(`account/profile/${id}/c`);
+    components.push(overviewButton);
+
+    if (maxPages > 1) {
+        const leftButton = new ButtonBuilder()
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji("◀")
+            .setCustomId(`comppage/${id}/${pageIndex - 1}`)
+            .setDisabled(pageIndex === 0);
+        const pageIndicator = new ButtonBuilder()
+            .setStyle(ButtonStyle.Secondary)
+            .setLabel(`${pageIndex + 1}/${maxPages}`)
+            .setCustomId(`gotopage/comppage/${id}/${maxPages}`)
+            .setEmoji("🔍");
+        const rightButton = new ButtonBuilder()
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji("▶")
+            .setCustomId(`comppage/${id}/${pageIndex + 1}`)
+            .setDisabled(pageIndex >= maxPages - 1);
+        components.push(leftButton, pageIndicator, rightButton);
+    }
+
+    rows.push(new ActionRowBuilder().setComponents(...components));
     return rows;
-}
+};
 
 export const ownerMessageEmbed = (messageContent, author) => {
     return {
@@ -1725,7 +1952,7 @@ export const ownerMessageEmbed = (messageContent, author) => {
             icon_url: author.displayAvatarURL()
         }
     }
-}
+};
 
 const priceDescription = (VPemojiString, price) => {
     if (price) return `${VPemojiString} ${price}`;
