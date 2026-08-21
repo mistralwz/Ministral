@@ -46,7 +46,7 @@ export const sendShardMessageForChannel = async (message, channelId) => {
     const knownShard = channelToShardCache.get(channelId);
     if (knownShard != null) {
         try {
-            const [handled] = await shardClient.shard.broadcastEval(async (c, context) => {
+            const handled = await shardClient.shard.broadcastEval(async (c, context) => {
                 if (c.channels.cache.has(context.channelId)) {
                     if (typeof c.skinPeekShardMessageReceived === "function") {
                         try {
