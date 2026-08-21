@@ -1748,7 +1748,7 @@ export const renderCompetitiveMatchHistory = async (interaction, accountData, ma
         `> ${s(interaction).match?.AVG_ACS || "Avg ACS"}: **${avgACS}** ┊ ${s(interaction).match?.AVG_KD || "Avg K/D"}: **${avgKD}**`
     ];
 
-    const pageSize = 10;
+    const pageSize = 7;
     const maxPages = Math.max(1, Math.ceil(matches.length / pageSize));
     const safePageIndex = Math.min(Math.max(0, pageIndex), maxPages - 1);
     const pageMatches = matches.slice(safePageIndex * pageSize, (safePageIndex + 1) * pageSize);
