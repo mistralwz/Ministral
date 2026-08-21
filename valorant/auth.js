@@ -358,11 +358,11 @@ export const refreshWithRefreshToken = async (refreshToken) => {
             let invalidToken = false;
             try {
                 const json = JSON.parse(req.body);
-                if (json.error === "invalid_grant" || json.error === "bad_claims" || req.statusCode === 400 || req.statusCode === 401) {
+                if (json.error === "invalid_grant" || json.error === "bad_claims") {
                     invalidToken = true;
                 }
             } catch {
-                if (req.statusCode === 400 || req.statusCode === 401) invalidToken = true;
+                invalidToken = false;
             }
             return { success: false, invalidToken, statusCode: req.statusCode };
         }

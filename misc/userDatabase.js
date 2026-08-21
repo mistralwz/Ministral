@@ -193,14 +193,8 @@ const saveUserToDbTransaction = (user) => {
     }
 };
 
-export const saveUserToDb = async (user) => {
+export const saveUserToDb = (user) => {
     if (!user?.id || !db) return;
-    const shardId = dbClient?.shard?.ids?.[0];
-    if (shardId !== undefined && shardId !== 0) {
-        const { sendShardMessage } = await import("./shardMessage.js");
-        sendShardMessage({ type: "db_saveUser", user });
-        return;
-    }
     if (db.inTransaction) {
         saveUserToDbTransaction(user);
     } else {
@@ -211,14 +205,8 @@ export const saveUserToDb = async (user) => {
 export const beginBatchWrites = () => {};
 export const commitBatchWrites = () => {};
 
-export const deleteUserFromDb = async (id) => {
+export const deleteUserFromDb = (id) => {
     if (!id || !db) return;
-    const shardId = dbClient?.shard?.ids?.[0];
-    if (shardId !== undefined && shardId !== 0) {
-        const { sendShardMessage } = await import("./shardMessage.js");
-        sendShardMessage({ type: "db_deleteUser", id });
-        return;
-    }
     const transaction = db.transaction(() => {
         stmts.deleteUserAccounts.run(id);
         stmts.deleteUser.run(id);
@@ -255,26 +243,13 @@ export const getUserIdsWithAlertsOrDailyShop = () => {
     return stmts.getUserIdsWithAlertsOrDailyShop.all().map(row => row.id);
 };
 
-export const deleteAccountFromDb = async (puuid) => {
+export const deleteAccountFromDb = (puuid) => {
     if (!puuid || !db || !stmts?.deleteAccount) return;
-    const shardId = dbClient?.shard?.ids?.[0];
-    if (shardId !== undefined && shardId !== 0) {
-        const { sendShardMessage } = await import("./shardMessage.js");
-        sendShardMessage({ type: "db_deleteAccount", puuid });
-        return;
-    }
     stmts.deleteAccount.run(puuid);
 };
 
 export const updateSingleAccountInDb = (account) => {
     if (!account?.puuid || !db || !stmts?.updateSingleAccount) return false;
-    const shardId = dbClient?.shard?.ids?.[0];
-    if (shardId !== undefined && shardId !== 0) {
-        import("./shardMessage.js").then(({ sendShardMessage }) => {
-            sendShardMessage({ type: "db_updateAccount", account });
-        });
-        return true;
-    }
     const result = stmts.updateSingleAccount.run(
         account.username || "",
         account.region || null,

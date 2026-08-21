@@ -1,5 +1,6 @@
 import { removeDupeAlerts } from "../misc/util.js";
 import { defaultSettings, clearSettingsCache } from "../misc/settings.js";
+import { invalidateUserCache } from "./auth.js";
 import {
     getUserFromDb,
     saveUserToDb,
@@ -24,10 +25,12 @@ export const getUserJson = (id, account = null) => {
 export const saveUserJson = (id, json) => {
     if (!json.id) json.id = id;
     saveUserToDb(json);
+    invalidateUserCache(id);
 };
 
 export const saveUser = (user, account = null) => {
     if (user.puuid && updateSingleAccountInDb(user)) {
+        invalidateUserCache(user.id);
         return;
     }
 
@@ -40,6 +43,7 @@ export const saveUser = (user, account = null) => {
                 currentAccount: 1,
                 settings: defaultSettings
             });
+            invalidateUserCache(user.id);
             return;
         }
 
@@ -53,6 +57,7 @@ export const saveUser = (user, account = null) => {
         }
 
         saveUserToDb(userJson);
+        invalidateUserCache(user.id);
     });
 };
 
@@ -91,6 +96,7 @@ export const addUser = (user) => {
                 settings: defaultSettings
             });
         }
+        invalidateUserCache(user.id);
     });
 };
 
@@ -115,6 +121,7 @@ export const deleteUser = (id, accountNumber) => {
             saveUserToDb(userJson);
             clearSettingsCache(id);
         }
+        invalidateUserCache(id);
 
         return userToDelete.username;
     });
@@ -123,6 +130,7 @@ export const deleteUser = (id, accountNumber) => {
 export const deleteWholeUser = async (id) => {
     deleteUserFromDb(id);
     clearSettingsCache(id);
+    invalidateUserCache(id);
 };
 
 export const getNumberOfAccounts = (id) => {
@@ -137,6 +145,7 @@ export const switchAccount = (id, accountNumber) => {
 
     userJson.currentAccount = accountNumber;
     saveUserToDb(userJson);
+    invalidateUserCache(id);
 
     return userJson.accounts[accountNumber - 1];
 };
