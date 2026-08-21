@@ -231,7 +231,7 @@ export const formatPlayerRow = async (player, channel, showCompStats = false, va
 };
 
 /**
- * Calculate average rank, average peak rank, and matching embed color across players.
+ * Calculate average rank and matching embed color across players.
  */
 export const calculateLobbyRank = async (players) => {
     if (!players || players.length === 0) return { avgRankQuote: "", color: null };
@@ -249,22 +249,13 @@ export const calculateLobbyRank = async (players) => {
         const avgRankEmoji = emojiToString(await rankEmoji(avgCurrentTier, avgTierInfo.icon)) ?? "";
         avgRankStr = `${avgRankEmoji ? `${avgRankEmoji} ` : ""}**${avgTierInfo.name}** (${avgCurrentRR} RR)`.trim();
         lobbyColor = getRankColor(avgTierInfo.name);
-    }
-
-    let avgPeakStr = "";
-    if (peakPlayers.length > 0) {
+    } else if (peakPlayers.length > 0) {
         const avgPeakTier = Math.round(peakPlayers.reduce((sum, p) => sum + p.peakTier, 0) / peakPlayers.length);
         const avgPeakTierInfo = await resolveTier(avgPeakTier);
-        const avgPeakRankEmoji = emojiToString(await rankEmoji(avgPeakTier, avgPeakTierInfo.icon)) ?? "";
-        avgPeakStr = `${avgPeakRankEmoji ? `${avgPeakRankEmoji} ` : ""}**${avgPeakTierInfo.name}**`.trim();
-        if (!lobbyColor) lobbyColor = getRankColor(avgPeakTierInfo.name);
+        lobbyColor = getRankColor(avgPeakTierInfo.name);
     }
 
-    const parts = [];
-    if (avgRankStr) parts.push(`**Avg. Rank:** ${avgRankStr}`);
-    if (avgPeakStr) parts.push(`**Peak Rank:** ${avgPeakStr}`);
-
-    const avgRankQuote = parts.length > 0 ? `> ${parts.join(" ┊ ")}` : "";
+    const avgRankQuote = avgRankStr ? `> 🏆 **Avg. Rank:** ${avgRankStr}` : "";
     return { avgRankQuote, color: lobbyColor };
 };
 

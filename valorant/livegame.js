@@ -1517,7 +1517,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
             ...p,
             playerIndex: idx + 1,
             incognito: shouldHideName,
-            riotId: name ? name.split('#')[0] : p.puuid.slice(0, 8),
+            riotId: name ?? p.puuid.slice(0, 8),
             partyId: p.partyId ?? null,
             isLeader: p.isLeader ?? false,
             // Agent
