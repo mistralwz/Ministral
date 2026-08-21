@@ -492,7 +492,7 @@ test("livegame embed: renders party code and status description", async () => {
     assert.ok(desc?.includes("online in VALORANT") || desc?.includes("🎮"));
 });
 
-test("livegame embed: splits team games into ally and enemy embeds with blue/red team colors", async () => {
+test("livegame embed: renders team games in a single embed with ally and enemy teams separated", async () => {
     const ally = {
         puuid: "ally-1",
         riotId: "Ally#123",
@@ -512,7 +512,7 @@ test("livegame embed: splits team games into ally and enemy embeds with blue/red
         agentIcon: "https://example.com/reyna.png"
     };
 
-    // Team game (2 embeds) - Ally is Blue (defense), Enemy is Red (attack)
+    // Team game (1 unified embed with ally & enemy blocks in description)
     const teamGameData = {
         state: "ingame",
         queueId: "competitive",
@@ -526,34 +526,18 @@ test("livegame embed: splits team games into ally and enemy embeds with blue/red
     };
 
     const renderedTeam = await renderLiveGame(teamGameData, "test-user-id");
-    assert.equal(renderedTeam.embeds.length, 2);
+    assert.equal(renderedTeam.embeds.length, 1);
 
-    const allyEmbed = renderedTeam.embeds[0];
-    assert.ok(allyEmbed.author);
-    assert.equal(allyEmbed.color, 0x1E88E5); // Blue (Defense)
-    assert.equal(allyEmbed.image, undefined);
-    assert.ok(allyEmbed.description.includes("Ally"));
-    assert.ok(allyEmbed.description.includes("50**rr") || allyEmbed.description.includes("50"));
-    assert.equal(allyEmbed.footer, undefined);
-
-    const enemyEmbed = renderedTeam.embeds[1];
-    assert.equal(enemyEmbed.author, undefined);
-    assert.equal(enemyEmbed.color, 0xFD4553); // Red (Attack)
-    assert.equal(enemyEmbed.image, undefined);
-    assert.ok(enemyEmbed.description.includes("Enemy"));
-    assert.ok(enemyEmbed.description.includes("75**rr") || enemyEmbed.description.includes("75"));
-    assert.ok(enemyEmbed.footer?.text.includes("In-Game"));
-    assert.ok(enemyEmbed.timestamp);
-
-    // Swapped: Ally is Red (attack), Enemy is Blue (defense)
-    const swappedTeamGameData = {
-        ...teamGameData,
-        allyPlayers: [{ ...ally, teamId: "Red" }],
-        enemyPlayers: [{ ...enemy, teamId: "Blue" }]
-    };
-    const renderedSwapped = await renderLiveGame(swappedTeamGameData, "test-user-id");
-    assert.equal(renderedSwapped.embeds[0].color, 0xFD4553); // Red
-    assert.equal(renderedSwapped.embeds[1].color, 0x1E88E5); // Blue
+    const gameEmbed = renderedTeam.embeds[0];
+    assert.ok(gameEmbed.author);
+    assert.equal(gameEmbed.color, 0x1E88E5); // Blue (Defense)
+    assert.equal(gameEmbed.image, undefined);
+    assert.ok(gameEmbed.description.includes("Ally"));
+    assert.ok(gameEmbed.description.includes("Enemy"));
+    assert.ok(gameEmbed.description.includes("50**rr") || gameEmbed.description.includes("50"));
+    assert.ok(gameEmbed.description.includes("75**rr") || gameEmbed.description.includes("75"));
+    assert.ok(gameEmbed.footer?.text.includes("In-Game"));
+    assert.ok(gameEmbed.timestamp);
 
     // Single team game (1 embed with footer)
     const singleTeamData = {

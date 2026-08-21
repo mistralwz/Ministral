@@ -229,7 +229,7 @@ export const formatPlayersBlock = async (players, channel, showCompStats, valLan
     const lines = await Promise.all(players.map(p =>
         formatPlayerRow(p, channel, showCompStats, valLang, userId)
     ));
-    return lines.join("\n\n");
+    return lines.join("\n");
 };
 
 const resolveTeamColor = (players, fallbackColor, isPreGame = false) => {
@@ -243,16 +243,14 @@ const resolveTeamColor = (players, fallbackColor, isPreGame = false) => {
 // ─── Game embed builders ─────────────────────────────────────────────────────
 
 /**
- * Build the embed(s) for any game state.
- * For team games with enemies: returns [allyEmbed, enemyEmbed].
- * For single-team or ally-only modes: returns [allyEmbed].
+ * Build the single unified embed for any game state.
+ * Both ally and enemy players are formatted in the description with one line gap between teams.
  */
 const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId = null, valLang = DEFAULT_VALORANT_LANG) => {
     const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
     const showCompStats = data.queueId === "competitive" || data.queueId === "skirmish" || data.queueId === "skirmish 2v2";
     const allyColor = resolveTeamColor(allyPlayers, COLOR_ALLY, isPreGame);
-    const enemyColor = resolveTeamColor(enemyPlayers, COLOR_ENEMY, isPreGame);
 
     const formattedServer = formatServerName(data.serverName);
     const mapAndServer = formattedServer
@@ -268,32 +266,23 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
             : Promise.resolve(""),
     ]);
 
-    const allyDescParts = [];
-    if (config.notice) allyDescParts.push(config.notice);
-    if (allyBlock) allyDescParts.push(allyBlock);
+    const descParts = [];
+    if (config.notice) descParts.push(config.notice);
+    if (allyBlock) descParts.push(allyBlock);
+    if (enemyBlock) descParts.push(enemyBlock);
 
-    const allyEmbed = {
+    const gameEmbed = {
         author: {
             name: `${data.queueName}・${mapAndServer}`,
             icon_url: data.queueIcon ?? undefined,
         },
-        description: allyDescParts.length > 0 ? allyDescParts.join("\n\n") : undefined,
+        description: descParts.length > 0 ? descParts.join("\n\n") : undefined,
         color: allyColor,
+        footer: { text: stateLabel },
+        timestamp: new Date().toISOString(),
     };
 
-    if (isTeamGame) {
-        const enemyEmbed = {
-            description: enemyBlock || undefined,
-            color: enemyColor,
-            footer: { text: stateLabel },
-            timestamp: new Date().toISOString(),
-        };
-        return [allyEmbed, enemyEmbed];
-    }
-
-    allyEmbed.footer = { text: stateLabel };
-    allyEmbed.timestamp = new Date().toISOString();
-    return [allyEmbed];
+    return [gameEmbed];
 };
 
 // ─── Refresh & Action buttons ─────────────────────────────────────────────
