@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Mercado Nocturno",
     "BATTLEPASS_BUTTON": "Pase de batalla",
     "COLLECTION_BUTTON": "Colección",
-    "COMPETITIVE_HISTORY_BUTTON": "Historial Competitivo",
+    "COMPETITIVE_HISTORY_BUTTON": "Historial competitivo",
     "RETURN_BUTTON": "Volver",
     "LOADING": "Cargando...",
     "HIDDEN_USERNAME": "usuario oculto",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Nivel del diseño:",
     "SHARDS_LOADING": "¡El bot todavía se está iniciando! Por favor, espera unos segundos y vuelve a intentarlo. (Cargando fragmentos...)",
     "NO_MORE_ACCESSORIES": "¡Ya tienes todo el estilo! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Rango Más Alto"
+    "PROFILE_PEAK_RANK": "Rango Más Alto",
+    "PROFILE_OVERVIEW_BUTTON": "Resumen",
+    "PROFILE_PROGRESS": "Puntuación de rango",
+    "PROFILE_LEVEL": "Nivel",
+    "PROFILE_LEVEL_PROGRESS": "Progreso de nivel",
+    "PROFILE_REGION": "Región"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Calculadora de Pase de Batalla",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Daño prom. (ronda)",
     "AVERAGE_COMBAT_SCORE": "Punt. cbte. (prom)",
     "HS_PERCENT": "% TC",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Victoria",
+    "DEFEAT": "Derrota",
+    "DRAW": "Empate",
+    "MATCH_MVP": "MVP de la partida",
+    "TEAM_MVP": "MVP de equipo",
+    "CAREER_SUMMARY": "Resumen de las últimas {n} partidas",
+    "RECORD": "Récord",
+    "WIN_RATE": "Tasa de victoria",
+    "NET_RR": "RR neto",
+    "AVG_ACS": "ACS promedio",
+    "AVG_KD": "K/D promedio"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Partida en Curso・{mapName}",

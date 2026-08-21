@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Nattmarknad",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Samling",
-    "COMPETITIVE_HISTORY_BUTTON": "Rankad matchhistorik",
+    "COMPETITIVE_HISTORY_BUTTON": "Tävlingsmatchhistorik",
     "RETURN_BUTTON": "Tillbaka",
     "LOADING": "Laddar...",
     "HIDDEN_USERNAME": "användarnamn dolt",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Välj nivå på skin:",
     "SHARDS_LOADING": "Botten startar fortfarande upp! Vänta några sekunder och försök igen. (Shards laddas...)",
     "NO_MORE_ACCESSORIES": "Du har redan samlat allt! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Högsta rank"
+    "PROFILE_PEAK_RANK": "Högsta rank",
+    "PROFILE_OVERVIEW_BUTTON": "Översikt",
+    "PROFILE_PROGRESS": "Rankningsbetyg",
+    "PROFILE_LEVEL": "Nivå",
+    "PROFILE_LEVEL_PROGRESS": "Nivåframsteg",
+    "PROFILE_REGION": "Region"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Battlepass-beräkning",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Seger",
+    "DEFEAT": "Förlust",
+    "DRAW": "Oavgjort",
+    "MATCH_MVP": "Matchens MVP",
+    "TEAM_MVP": "Lagets MVP",
+    "CAREER_SUMMARY": "Sammanfattning av de senaste {n} matcherna",
+    "RECORD": "Statistik",
+    "WIN_RATE": "Vinstprocent",
+    "NET_RR": "Netto RR",
+    "AVG_ACS": "Genomsnittlig ACS",
+    "AVG_KD": "Genomsnittlig K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live-match・{mapName}",

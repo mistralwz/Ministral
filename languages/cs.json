@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Night Market",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Sbírka",
-    "COMPETITIVE_HISTORY_BUTTON": "Historie kompetitivních zápasů",
+    "COMPETITIVE_HISTORY_BUTTON": "Historie hodnocených zápasů",
     "RETURN_BUTTON": "Vrátit se",
     "LOADING": "Načítání...",
     "HIDDEN_USERNAME": "uživatelské jméno skryto",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Vyber úroveň skinu:",
     "SHARDS_LOADING": "Bot se stále spouští! Počkej prosím pár sekund a zkus to znovu. (Načítání shardů...)",
     "NO_MORE_ACCESSORIES": "Už máš všechen swag! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Nejvyšší hodnost"
+    "PROFILE_PEAK_RANK": "Nejvyšší hodnost",
+    "PROFILE_OVERVIEW_BUTTON": "Přehled",
+    "PROFILE_PROGRESS": "Hodnocení hodnosti",
+    "PROFILE_LEVEL": "Úroveň",
+    "PROFILE_LEVEL_PROGRESS": "Postup úrovně",
+    "PROFILE_REGION": "Region"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Výpočet Battlepassu",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Vítězství",
+    "DEFEAT": "Porážka",
+    "DRAW": "Remíza",
+    "MATCH_MVP": "MVP zápasu",
+    "TEAM_MVP": "MVP týmu",
+    "CAREER_SUMMARY": "Přehled posledních {n} zápasů",
+    "RECORD": "Bilance",
+    "WIN_RATE": "Úspěšnost výher",
+    "NET_RR": "Čisté RR",
+    "AVG_ACS": "Průměrné ACS",
+    "AVG_KD": "Průměrné K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Živá Hra・{mapName}",

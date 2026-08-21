@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Éjszakai piac",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Gyűjtemény",
-    "COMPETITIVE_HISTORY_BUTTON": "Kompetitív Meccselőzmények",
+    "COMPETITIVE_HISTORY_BUTTON": "Versenymérkőzések előzményei",
     "RETURN_BUTTON": "Vissza",
     "LOADING": "Betöltés...",
     "HIDDEN_USERNAME": "felhasználónév rejtve",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Válassz skinszintet:",
     "SHARDS_LOADING": "A bot még indul! Kérlek, várj néhány másodpercet és próbáld újra. (Shardok betöltése...)",
     "NO_MORE_ACCESSORIES": "Már az összes megszerezhető kiegészítővel rendelkezel! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Legmagasabb rang"
+    "PROFILE_PEAK_RANK": "Legmagasabb rang",
+    "PROFILE_OVERVIEW_BUTTON": "Áttekintés",
+    "PROFILE_PROGRESS": "Rangpontszám",
+    "PROFILE_LEVEL": "Szint",
+    "PROFILE_LEVEL_PROGRESS": "Szint előrehaladás",
+    "PROFILE_REGION": "Régió"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Battlepass kalkulátor",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "Fejlövés %",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Győzelem",
+    "DEFEAT": "Vereség",
+    "DRAW": "Döntetlen",
+    "MATCH_MVP": "A mérkőzés MVP-je",
+    "TEAM_MVP": "A csapat MVP-je",
+    "CAREER_SUMMARY": "Legutóbbi {n} mérkőzés összefoglalója",
+    "RECORD": "Mérleg",
+    "WIN_RATE": "Győzelmi arány",
+    "NET_RR": "Nettó RR",
+    "AVG_ACS": "Átlagos ACS",
+    "AVG_KD": "Átlagos K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Élő játék・{mapName}",
@@ -258,7 +274,7 @@
     "AUTO_SERVERS": "Automatikus",
     "JOIN_PARTY": "Csatlakozás a csapathoz",
     "PARTY_CLOSED": "Csapat lezárva",
-    "PLAYER_NUM": "Játékos {n}"
+    "PLAYER_NUM": "{n}. játékos"
   },
   "queues": {
     "COMPETITIVE": "Kompetitív",

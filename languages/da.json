@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Natmarked",
     "BATTLEPASS_BUTTON": "Kamppas",
     "COLLECTION_BUTTON": "Samling",
-    "COMPETITIVE_HISTORY_BUTTON": "Konkurrencehistorik",
+    "COMPETITIVE_HISTORY_BUTTON": "Konkurrencekampshistorik",
     "RETURN_BUTTON": "Tilbage",
     "LOADING": "Henter...",
     "HIDDEN_USERNAME": "brugernavn skjult",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Vælg niveau af skin:",
     "SHARDS_LOADING": "Botten starter stadig op! Vent venligst et par sekunder, før du prøver igen. (Henter...)",
     "NO_MORE_ACCESSORIES": "Du har allerede stilen i orden! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Højeste Rank"
+    "PROFILE_PEAK_RANK": "Højeste Rank",
+    "PROFILE_OVERVIEW_BUTTON": "Oversigt",
+    "PROFILE_PROGRESS": "Rangvurdering",
+    "PROFILE_LEVEL": "Niveau",
+    "PROFILE_LEVEL_PROGRESS": "Niveau fremskridt",
+    "PROFILE_REGION": "Region"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Kamppas Beregning",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Gns. skade pr. runde",
     "AVERAGE_COMBAT_SCORE": "Gns. kampscore",
     "HS_PERCENT": "Hovedskud %",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Sejr",
+    "DEFEAT": "Nederlag",
+    "DRAW": "Uafgjort",
+    "MATCH_MVP": "Kampens MVP",
+    "TEAM_MVP": "Holdets MVP",
+    "CAREER_SUMMARY": "Oversigt over de seneste {n} kampe",
+    "RECORD": "Statistik",
+    "WIN_RATE": "Sejrsrate",
+    "NET_RR": "Netto RR",
+    "AVG_ACS": "Gns. ACS",
+    "AVG_KD": "Gns. K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Kamp・{mapName}",

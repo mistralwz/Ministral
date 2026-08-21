@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "夜市",
     "BATTLEPASS_BUTTON": "戰鬥通行證",
     "COLLECTION_BUTTON": "收藏",
-    "COMPETITIVE_HISTORY_BUTTON": "競技比賽歷史",
+    "COMPETITIVE_HISTORY_BUTTON": "競技對戰紀錄",
     "RETURN_BUTTON": "返回",
     "LOADING": "正在載入...",
     "HIDDEN_USERNAME": "隱藏的用戶名",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "選擇造型的等級：",
     "SHARDS_LOADING": "機器人仍在啟動中！請稍候幾秒鐘，然後重試。（正在載入...）",
     "NO_MORE_ACCESSORIES": "沒有更多配件了！:sunglasses:",
-    "PROFILE_PEAK_RANK": "高峰排名"
+    "PROFILE_PEAK_RANK": "高峰排名",
+    "PROFILE_OVERVIEW_BUTTON": "概覽",
+    "PROFILE_PROGRESS": "競技階級評分",
+    "PROFILE_LEVEL": "等級",
+    "PROFILE_LEVEL_PROGRESS": "等級進度",
+    "PROFILE_REGION": "地區"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 戰鬥通行證計算",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "平均傷害/回合",
     "AVERAGE_COMBAT_SCORE": "平均戰鬥分數",
     "HS_PERCENT": "爆頭率",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "勝利",
+    "DEFEAT": "戰敗",
+    "DRAW": "平手",
+    "MATCH_MVP": "全場 MVP",
+    "TEAM_MVP": "隊伍 MVP",
+    "CAREER_SUMMARY": "近 {n} 場對戰摘要",
+    "RECORD": "戰績",
+    "WIN_RATE": "勝率",
+    "NET_RR": "淨勝 RR",
+    "AVG_ACS": "平均 ACS",
+    "AVG_KD": "平均 K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ 實況遊戲・{mapName}",

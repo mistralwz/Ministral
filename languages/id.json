@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Night.Market",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Koleksi",
-    "COMPETITIVE_HISTORY_BUTTON": "Riwayat Pertandingan Competitive",
+    "COMPETITIVE_HISTORY_BUTTON": "Riwayat Pertandingan Kompetitif",
     "RETURN_BUTTON": "Kembali",
     "LOADING": "Memuat...",
     "HIDDEN_USERNAME": "username disembunyikan",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "pilih skin level:",
     "SHARDS_LOADING": "Bot masih startup! Tunggu sebentar dan coba lagi. (Shards loading...)",
     "NO_MORE_ACCESSORIES": "Kamu sudah dapat semua aksesori! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Rank Tertinggi"
+    "PROFILE_PEAK_RANK": "Rank Tertinggi",
+    "PROFILE_OVERVIEW_BUTTON": "Ringkasan",
+    "PROFILE_PROGRESS": "Peringkat Rank",
+    "PROFILE_LEVEL": "Level",
+    "PROFILE_LEVEL_PROGRESS": "Progres Level",
+    "PROFILE_REGION": "Wilayah"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Kalkulasi Battlepass",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Kemenangan",
+    "DEFEAT": "Kekalahan",
+    "DRAW": "Seri",
+    "MATCH_MVP": "MVP Pertandingan",
+    "TEAM_MVP": "MVP Tim",
+    "CAREER_SUMMARY": "Ringkasan {n} Pertandingan Terakhir",
+    "RECORD": "Rekor",
+    "WIN_RATE": "Persentase Kemenangan",
+    "NET_RR": "RR Bersih",
+    "AVG_ACS": "Rata-rata ACS",
+    "AVG_KD": "Rata-rata K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Game・{mapName}",

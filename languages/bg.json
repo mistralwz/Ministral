@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "The Night Market",
     "BATTLEPASS_BUTTON": "Боен Пропуск",
     "COLLECTION_BUTTON": "Лична Колекция",
-    "COMPETITIVE_HISTORY_BUTTON": "Класация Игри",
+    "COMPETITIVE_HISTORY_BUTTON": "История на състезателните мачове",
     "RETURN_BUTTON": "НаЗаД",
     "LOADING": "Зарежда....",
     "HIDDEN_USERNAME": "потрб. Име е прикрито",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Визуални промени в скин-виделината:",
     "SHARDS_LOADING": "Този Бот още тръгва! Чакай още една шегичка от секунди пък може пак да натиснеш (Докато изчакваме процеси...)",
     "NO_MORE_ACCESSORIES": "Ти си изпълнил своята цел тук! Красавец! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Пиков Успех от Ранк"
+    "PROFILE_PEAK_RANK": "Пиков Успех от Ранк",
+    "PROFILE_OVERVIEW_BUTTON": "Преглед",
+    "PROFILE_PROGRESS": "Рейтинг на ранг",
+    "PROFILE_LEVEL": "Ниво",
+    "PROFILE_LEVEL_PROGRESS": "Прогрес на нивото",
+    "PROFILE_REGION": "Регион"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Състояние Боен-Пропуск",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Зли Точки (Демидж)",
     "AVERAGE_COMBAT_SCORE": "Демидж по Рунд (Acs)",
     "HS_PERCENT": "Демидж от Главна(HS) Съставка в %",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Победа",
+    "DEFEAT": "Загуба",
+    "DRAW": "Равенство",
+    "MATCH_MVP": "MVP на мача",
+    "TEAM_MVP": "MVP на отбора",
+    "CAREER_SUMMARY": "Обобщение на последните {n} мача",
+    "RECORD": "Резултат",
+    "WIN_RATE": "Процент победи",
+    "NET_RR": "Нетно RR",
+    "AVG_ACS": "Среден ACS",
+    "AVG_KD": "Средно K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ В Жива Процесия ・{mapName}",

@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Nattmarked",
     "BATTLEPASS_BUTTON": "Kamppass",
     "COLLECTION_BUTTON": "Samling",
-    "COMPETITIVE_HISTORY_BUTTON": "Konkurransehistorikk",
+    "COMPETITIVE_HISTORY_BUTTON": "Konkurransekamphistorikk",
     "RETURN_BUTTON": "Gå tilbake",
     "LOADING": "Laster...",
     "HIDDEN_USERNAME": "brukernavn skjult",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Velg skin-nivå:",
     "SHARDS_LOADING": "Boten starter fortsatt opp! Vennligst vent et par sekunder, og deretter prøv igjen. (Laster ...)",
     "NO_MORE_ACCESSORIES": "Du har allerede alt utstyret på plass! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Topp Rangering"
+    "PROFILE_PEAK_RANK": "Topp Rangering",
+    "PROFILE_OVERVIEW_BUTTON": "Oversikt",
+    "PROFILE_PROGRESS": "Rangvurdering",
+    "PROFILE_LEVEL": "Nivå",
+    "PROFILE_LEVEL_PROGRESS": "Nivåprogresjon",
+    "PROFILE_REGION": "Region"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Kamppass-beregning",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Gjns skade (per runde)",
     "AVERAGE_COMBAT_SCORE": "Gjns kamp-poeng (ACS)",
     "HS_PERCENT": "Hodeskudd %",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Seier",
+    "DEFEAT": "Tap",
+    "DRAW": "Uavgjort",
+    "MATCH_MVP": "Kampens MVP",
+    "TEAM_MVP": "Lagets MVP",
+    "CAREER_SUMMARY": "Sammendrag av de siste {n} kampene",
+    "RECORD": "Statistikk",
+    "WIN_RATE": "Seiersrate",
+    "NET_RR": "Netto RR",
+    "AVG_ACS": "Gjennomsnittlig ACS",
+    "AVG_KD": "Gjennomsnittlig K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Spill・{mapName}",

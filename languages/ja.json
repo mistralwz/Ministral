@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "ナイトマーケット",
     "BATTLEPASS_BUTTON": "バトルパス",
     "COLLECTION_BUTTON": "コレクション",
-    "COMPETITIVE_HISTORY_BUTTON": "コンペティティブマッチ履歴",
+    "COMPETITIVE_HISTORY_BUTTON": "コンペティティブ対戦履歴",
     "RETURN_BUTTON": "戻る",
     "LOADING": "読み込み中...",
     "HIDDEN_USERNAME": "ユーザー名を非表示",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "スキンのレベルを選択してください：",
     "SHARDS_LOADING": "ボットはまだ起動中です！数秒待ってからもう一度お試しください。（シャードの読み込み中...）",
     "NO_MORE_ACCESSORIES": "あなたはすでにすべてのカッコよさを手に入れています！ :sunglasses:",
-    "PROFILE_PEAK_RANK": "最高ランク"
+    "PROFILE_PEAK_RANK": "最高ランク",
+    "PROFILE_OVERVIEW_BUTTON": "概要",
+    "PROFILE_PROGRESS": "ランクレーティング",
+    "PROFILE_LEVEL": "レベル",
+    "PROFILE_LEVEL_PROGRESS": "レベル進行状況",
+    "PROFILE_REGION": "地域"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 バトルパス進捗状況",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "勝利",
+    "DEFEAT": "敗北",
+    "DRAW": "引き分け",
+    "MATCH_MVP": "マッチ MVP",
+    "TEAM_MVP": "チーム MVP",
+    "CAREER_SUMMARY": "直近 {n} 試合の概要",
+    "RECORD": "戦績",
+    "WIN_RATE": "勝率",
+    "NET_RR": "増減 RR",
+    "AVG_ACS": "平均 ACS",
+    "AVG_KD": "平均 K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ ライブゲーム・{mapName}",

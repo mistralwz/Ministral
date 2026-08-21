@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "选择皮肤等级:",
     "SHARDS_LOADING": "bot仍在启动中! 请等待然后重试. (加载中...)",
     "NO_MORE_ACCESSORIES": "你已经拥有了所有配件! :sunglasses:",
-    "PROFILE_PEAK_RANK": "历史最高段位"
+    "PROFILE_PEAK_RANK": "历史最高段位",
+    "PROFILE_OVERVIEW_BUTTON": "概览",
+    "PROFILE_PROGRESS": "排位分数",
+    "PROFILE_LEVEL": "等级",
+    "PROFILE_LEVEL_PROGRESS": "等级进度",
+    "PROFILE_REGION": "地区"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 通行证计算",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "平均伤害/回合",
     "AVERAGE_COMBAT_SCORE": "平均战斗分数",
     "HS_PERCENT": "爆头率",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "胜利",
+    "DEFEAT": "失败",
+    "DRAW": "平局",
+    "MATCH_MVP": "全场 MVP",
+    "TEAM_MVP": "队伍 MVP",
+    "CAREER_SUMMARY": "最近 {n} 场比赛总结",
+    "RECORD": "战绩",
+    "WIN_RATE": "胜率",
+    "NET_RR": "净胜 RR",
+    "AVG_ACS": "平均 ACS",
+    "AVG_KD": "平均 K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ 实况比赛・{mapName}",

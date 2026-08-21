@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Nachtmarkt",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Collectie",
-    "COMPETITIVE_HISTORY_BUTTON": "Competitieve wedstrijdgeschiedenis",
+    "COMPETITIVE_HISTORY_BUTTON": "Geschiedenis competitieve wedstrijden",
     "RETURN_BUTTON": "Terug",
     "LOADING": "Laden...",
     "HIDDEN_USERNAME": "gebruikersnaam verborgen",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Selecteer niveau van skin:",
     "SHARDS_LOADING": "De bot start nog op! Wacht een paar seconden en probeer het opnieuw. (Shards laden...)",
     "NO_MORE_ACCESSORIES": "Je hebt alle accessoires al verzameld! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Hoogste rang"
+    "PROFILE_PEAK_RANK": "Hoogste rang",
+    "PROFILE_OVERVIEW_BUTTON": "Overzicht",
+    "PROFILE_PROGRESS": "Rangscore",
+    "PROFILE_LEVEL": "Niveau",
+    "PROFILE_LEVEL_PROGRESS": "Niveauvoortgang",
+    "PROFILE_REGION": "Regio"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Battlepass-berekening",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Overwinning",
+    "DEFEAT": "Nederlaag",
+    "DRAW": "Gelijkspel",
+    "MATCH_MVP": "Match-MVP",
+    "TEAM_MVP": "Team-MVP",
+    "CAREER_SUMMARY": "Overzicht laatste {n} wedstrijden",
+    "RECORD": "Balans",
+    "WIN_RATE": "Winstpercentage",
+    "NET_RR": "Netto RR",
+    "AVG_ACS": "Gem. ACS",
+    "AVG_KD": "Gem. K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Wedstrijd・{mapName}",

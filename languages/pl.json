@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Wybierz poziom skórki:",
     "SHARDS_LOADING": "Bot wciąż się uruchamia! Proszę poczekać kilka sekund i spróbuj ponownie. (Ładowanie shardów...)",
     "NO_MORE_ACCESSORIES": "Masz już wszystkie akcesoria! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Najwyższy Rank"
+    "PROFILE_PEAK_RANK": "Najwyższy Rank",
+    "PROFILE_OVERVIEW_BUTTON": "Przegląd",
+    "PROFILE_PROGRESS": "Ocena rangi",
+    "PROFILE_LEVEL": "Poziom",
+    "PROFILE_LEVEL_PROGRESS": "Postęp poziomu",
+    "PROFILE_REGION": "Region"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Obliczanie przepustki bojowej",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Średnie obrażenia/runda",
     "AVERAGE_COMBAT_SCORE": "Średni wynik walki",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Zwycięstwo",
+    "DEFEAT": "Porażka",
+    "DRAW": "Remis",
+    "MATCH_MVP": "MVP meczu",
+    "TEAM_MVP": "MVP drużyny",
+    "CAREER_SUMMARY": "Podsumowanie ostatnich {n} meczów",
+    "RECORD": "Bilans",
+    "WIN_RATE": "Wskaźnik wygranych",
+    "NET_RR": "Bilans RR",
+    "AVG_ACS": "Średni ACS",
+    "AVG_KD": "Średnie K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Game・{mapName}",

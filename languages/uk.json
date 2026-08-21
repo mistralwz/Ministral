@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Нічний Ринок",
     "BATTLEPASS_BUTTON": "Бойова перепустка",
     "COLLECTION_BUTTON": "Колекція",
-    "COMPETITIVE_HISTORY_BUTTON": "Історія Змагань",
+    "COMPETITIVE_HISTORY_BUTTON": "Історія рейтингових матчів",
     "RETURN_BUTTON": "Повернутись",
     "LOADING": "Завантаження...",
     "HIDDEN_USERNAME": "прихований користувач",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Виберіть рівень скіну:",
     "SHARDS_LOADING": "Бот все ще запускається! Будь ласка, почекайте пару секунд і спробуйте знову. (Завантаження...)",
     "NO_MORE_ACCESSORIES": "У вас вже є всі аксесуари! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Максимальний Ранг"
+    "PROFILE_PEAK_RANK": "Максимальний Ранг",
+    "PROFILE_OVERVIEW_BUTTON": "Огляд",
+    "PROFILE_PROGRESS": "Рейтинг рангу",
+    "PROFILE_LEVEL": "Рівень",
+    "PROFILE_LEVEL_PROGRESS": "Прогрес рівня",
+    "PROFILE_REGION": "Регіон"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 БП Калькулятор",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Урон за Раунд (ADR)",
     "AVERAGE_COMBAT_SCORE": "БР (ACS)",
     "HS_PERCENT": "% ВГ",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Перемога",
+    "DEFEAT": "Поразка",
+    "DRAW": "Нічия",
+    "MATCH_MVP": "MVP матчу",
+    "TEAM_MVP": "MVP команди",
+    "CAREER_SUMMARY": "Підсумок останніх {n} матчів",
+    "RECORD": "Рахунок",
+    "WIN_RATE": "Відсоток перемог",
+    "NET_RR": "Чистий RR",
+    "AVG_ACS": "Середній ACS",
+    "AVG_KD": "Середнє K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Жива Гра・{mapName}",

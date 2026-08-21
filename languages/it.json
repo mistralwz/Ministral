@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Mercato della Notte",
     "BATTLEPASS_BUTTON": "Pass battaglia",
     "COLLECTION_BUTTON": "Collezione",
-    "COMPETITIVE_HISTORY_BUTTON": "Cronologia Partite Competitive",
+    "COMPETITIVE_HISTORY_BUTTON": "Cronologia partite competitive",
     "RETURN_BUTTON": "Indietro",
     "LOADING": "Caricamento...",
     "HIDDEN_USERNAME": "nome utente nascosto",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Seleziona il livello del modello:",
     "SHARDS_LOADING": "Il bot si sta ancora avviando! Attendi qualche secondo e riprova. (Caricamento shard...)",
     "NO_MORE_ACCESSORIES": "Hai già tutto l'inventario pieno! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Grado Massimo"
+    "PROFILE_PEAK_RANK": "Grado Massimo",
+    "PROFILE_OVERVIEW_BUTTON": "Panoramica",
+    "PROFILE_PROGRESS": "Punti Classificati",
+    "PROFILE_LEVEL": "Livello",
+    "PROFILE_LEVEL_PROGRESS": "Avanzamento livello",
+    "PROFILE_REGION": "Regione"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Calcolo Pass Battaglia",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Danni medi/round",
     "AVERAGE_COMBAT_SCORE": "Punt. combat. medio",
     "HS_PERCENT": "% Colpi alla testa",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Vittoria",
+    "DEFEAT": "Sconfitta",
+    "DRAW": "Pareggio",
+    "MATCH_MVP": "MVP della partita",
+    "TEAM_MVP": "MVP della squadra",
+    "CAREER_SUMMARY": "Riepilogo ultime {n} partite",
+    "RECORD": "Bilancio",
+    "WIN_RATE": "Percentuale di vittorie",
+    "NET_RR": "RR netto",
+    "AVG_ACS": "ACS medio",
+    "AVG_KD": "K/D medio"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Partita in Corso・{mapName}",

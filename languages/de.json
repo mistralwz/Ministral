@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Night.Market",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Sammlung",
-    "COMPETITIVE_HISTORY_BUTTON": "Wettbewerbs-Matchverlauf",
+    "COMPETITIVE_HISTORY_BUTTON": "Gewertet-Spielverlauf",
     "RETURN_BUTTON": "Zurück",
     "LOADING": "Laden...",
     "HIDDEN_USERNAME": "Benutzername versteckt",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Wähle Level des Skins:",
     "SHARDS_LOADING": "Der Bot startet noch! Bitte warte ein paar Sekunden und versuche es erneut. (Shards werden geladen...)",
     "NO_MORE_ACCESSORIES": "Du hast bereits den ganzen Swagger! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Höchster Rang"
+    "PROFILE_PEAK_RANK": "Höchster Rang",
+    "PROFILE_OVERVIEW_BUTTON": "Übersicht",
+    "PROFILE_PROGRESS": "Rang-Wertung",
+    "PROFILE_LEVEL": "Stufe",
+    "PROFILE_LEVEL_PROGRESS": "Stufenfortschritt",
+    "PROFILE_REGION": "Region"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Battlepass Berechnung",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Sieg",
+    "DEFEAT": "Niederlage",
+    "DRAW": "Unentschieden",
+    "MATCH_MVP": "Match-MVP",
+    "TEAM_MVP": "Team-MVP",
+    "CAREER_SUMMARY": "Zusammenfassung der letzten {n} Spiele",
+    "RECORD": "Bilanz",
+    "WIN_RATE": "Siegquote",
+    "NET_RR": "Netto-RR",
+    "AVG_ACS": "Durchschn. ACS",
+    "AVG_KD": "Durchschn. K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live-Spiel・{mapName}",

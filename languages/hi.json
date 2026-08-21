@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "नाइट मार्केट",
     "BATTLEPASS_BUTTON": "बैटलपास",
     "COLLECTION_BUTTON": "संग्रह",
-    "COMPETITIVE_HISTORY_BUTTON": "प्रतिस्पर्धी इतिहास",
+    "COMPETITIVE_HISTORY_BUTTON": "प्रतिस्पर्धी मैच इतिहास",
     "RETURN_BUTTON": "वापस जाएं",
     "LOADING": "लोड हो रहा है...",
     "HIDDEN_USERNAME": "उपयोगकर्ता नाम छिपा हुआ है",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "स्किन स्तर चुनें:",
     "SHARDS_LOADING": "बोट अभी भी बूट हो रहा है! कृपया कुछ सेकंड प्रतीक्षा करें और पुनः प्रयास करें। (शार्ड लोड हो रहे हैं...)",
     "NO_MORE_ACCESSORIES": "आपके पास पहले से ही सभी स्वैग हैं! :sunglasses:",
-    "PROFILE_PEAK_RANK": "पीक रैंक"
+    "PROFILE_PEAK_RANK": "पीक रैंक",
+    "PROFILE_OVERVIEW_BUTTON": "अवलोकन",
+    "PROFILE_PROGRESS": "रैंक रेटिंग",
+    "PROFILE_LEVEL": "लेवल",
+    "PROFILE_LEVEL_PROGRESS": "लेवल प्रगति",
+    "PROFILE_REGION": "क्षेत्र"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 बैटलपास गणना",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "जीत",
+    "DEFEAT": "हार",
+    "DRAW": "ड्रा",
+    "MATCH_MVP": "मैच MVP",
+    "TEAM_MVP": "टीम MVP",
+    "CAREER_SUMMARY": "हाल के {n} मैचों का सारांश",
+    "RECORD": "रिकॉर्ड",
+    "WIN_RATE": "जीत दर",
+    "NET_RR": "कुल RR",
+    "AVG_ACS": "औसत ACS",
+    "AVG_KD": "औसत K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ लाइव गेम・{mapName}",

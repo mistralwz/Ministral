@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Noćni Market",
     "BATTLEPASS_BUTTON": "Propusnica Bitke",
     "COLLECTION_BUTTON": "Kolekcija",
-    "COMPETITIVE_HISTORY_BUTTON": "Uspješnost igara (Kompetitivno)",
+    "COMPETITIVE_HISTORY_BUTTON": "Povijest natjecateljskih mečeva",
     "RETURN_BUTTON": "Vrati nazad",
     "LOADING": "Učitavam...",
     "HIDDEN_USERNAME": "Ime Sakriveno",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Koju 'količinu nadogradnje' oružja odabrati:",
     "SHARDS_LOADING": "Bot se još uvijek pokreće! Probaj ponovno ili pričekaj trenutak... (Shards u pokretanju...)",
     "NO_MORE_ACCESSORIES": "Ti si onaj sa neograničenim swegom! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Najveći Postignuti Rank/Svrstavanje"
+    "PROFILE_PEAK_RANK": "Najveći Postignuti Rank/Svrstavanje",
+    "PROFILE_OVERVIEW_BUTTON": "Pregled",
+    "PROFILE_PROGRESS": "Bodovi ranga",
+    "PROFILE_LEVEL": "Razina",
+    "PROFILE_LEVEL_PROGRESS": "Napredak razine",
+    "PROFILE_REGION": "Regija"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Bitkovni kalkulator",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Šte. Pros (Adr)",
     "AVERAGE_COMBAT_SCORE": "Udar. Sk (Acs)",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Pobjeda",
+    "DEFEAT": "Poraz",
+    "DRAW": "Neriješeno",
+    "MATCH_MVP": "MVP meča",
+    "TEAM_MVP": "MVP tima",
+    "CAREER_SUMMARY": "Sažetak zadnjih {n} mečeva",
+    "RECORD": "Omjer",
+    "WIN_RATE": "Postotak pobjeda",
+    "NET_RR": "Neto RR",
+    "AVG_ACS": "Prosječni ACS",
+    "AVG_KD": "Prosječni K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Kamp・{mapName}",

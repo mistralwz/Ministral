@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Nakties turgus",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Kolekcija",
-    "COMPETITIVE_HISTORY_BUTTON": "Competitive rungtynių istorija",
+    "COMPETITIVE_HISTORY_BUTTON": "Reitinguotų rungtynių istorija",
     "RETURN_BUTTON": "Grįžti",
     "LOADING": "Kraunama...",
     "HIDDEN_USERNAME": "naudotojo vardas paslėptas",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Pasirinkite skino lygį:",
     "SHARDS_LOADING": "Botas vis dar startuoja! Palaukite kelias sekundes ir bandykite vėl. (Kraunami shardai...)",
     "NO_MORE_ACCESSORIES": "Jūs jau turite visus priedus! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Aukščiausias rangas"
+    "PROFILE_PEAK_RANK": "Aukščiausias rangas",
+    "PROFILE_OVERVIEW_BUTTON": "Apžvalga",
+    "PROFILE_PROGRESS": "Rango įvertinimas",
+    "PROFILE_LEVEL": "Lygis",
+    "PROFILE_LEVEL_PROGRESS": "Lygio pažanga",
+    "PROFILE_REGION": "Regionas"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Battlepass skaičiavimas",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Pergalė",
+    "DEFEAT": "Pralaimėjimas",
+    "DRAW": "Lygiosios",
+    "MATCH_MVP": "Rungtynių MVP",
+    "TEAM_MVP": "Komandos MVP",
+    "CAREER_SUMMARY": "Paskutinių {n} rungtynių suvestinė",
+    "RECORD": "Rezultatas",
+    "WIN_RATE": "Pergalių rodiklis",
+    "NET_RR": "Grynasis RR",
+    "AVG_ACS": "Vidutinis ACS",
+    "AVG_KD": "Vidutinis K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Tiesioginės rungtynės・{mapName}",

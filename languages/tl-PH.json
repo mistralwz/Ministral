@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Pumili ng level ng skin:",
     "SHARDS_LOADING": "Nagsisimula pa ang bot! Maghintay ng ilang segundo at subukan muli. (Naglo-load ang Shards...)",
     "NO_MORE_ACCESSORIES": "Mayroon ka na ng lahat ng swagger! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Pinakamataas na Rank"
+    "PROFILE_PEAK_RANK": "Pinakamataas na Rank",
+    "PROFILE_OVERVIEW_BUTTON": "Pangkalahatang-ideya",
+    "PROFILE_PROGRESS": "Ranggo Rating",
+    "PROFILE_LEVEL": "Lebel",
+    "PROFILE_LEVEL_PROGRESS": "Progreso ng Lebel",
+    "PROFILE_REGION": "Rehiyon"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Kalkulasyon ng Battlepass",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Tagumpay",
+    "DEFEAT": "Pagkatalo",
+    "DRAW": "Tabla",
+    "MATCH_MVP": "Match MVP",
+    "TEAM_MVP": "Team MVP",
+    "CAREER_SUMMARY": "Buod ng Nakaraang {n} Match",
+    "RECORD": "Rekord",
+    "WIN_RATE": "Rate ng Panalo",
+    "NET_RR": "Net RR",
+    "AVG_ACS": "Avg ACS",
+    "AVG_KD": "Avg K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Game・{mapName}",

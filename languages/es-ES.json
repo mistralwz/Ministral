@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Selecciona nivel del skin:",
     "SHARDS_LOADING": "¡El bot todavía se está iniciando! Por favor espera unos segundos e inténtalo de nuevo. (Cargando shards...)",
     "NO_MORE_ACCESSORIES": "¡Ya tienes todo el estilo! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Rango máximo"
+    "PROFILE_PEAK_RANK": "Rango máximo",
+    "PROFILE_OVERVIEW_BUTTON": "Resumen",
+    "PROFILE_PROGRESS": "Puntuación de rango",
+    "PROFILE_LEVEL": "Nivel",
+    "PROFILE_LEVEL_PROGRESS": "Progreso de nivel",
+    "PROFILE_REGION": "Región"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Cálculo del pase de batalla",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Victoria",
+    "DEFEAT": "Derrota",
+    "DRAW": "Empate",
+    "MATCH_MVP": "MVP de la partida",
+    "TEAM_MVP": "MVP de equipo",
+    "CAREER_SUMMARY": "Resumen de las últimas {n} partidas",
+    "RECORD": "Historial",
+    "WIN_RATE": "Tasa de victoria",
+    "NET_RR": "RR neto",
+    "AVG_ACS": "ACS medio",
+    "AVG_KD": "K/D medio"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Partida en vivo・{mapName}",

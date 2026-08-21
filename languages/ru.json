@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Выберите уровень скина:",
     "SHARDS_LOADING": "Бот всё ещё запускается! Пожалуйста, подождите несколько секунд и попробуйте снова. (Загрузка шардов...)",
     "NO_MORE_ACCESSORIES": "У вас уже есть всё, что нужно для стиля! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Пиковый Рейтинг"
+    "PROFILE_PEAK_RANK": "Пиковый Рейтинг",
+    "PROFILE_OVERVIEW_BUTTON": "Обзор",
+    "PROFILE_PROGRESS": "Рейтинг ранга",
+    "PROFILE_LEVEL": "Уровень",
+    "PROFILE_LEVEL_PROGRESS": "Прогресс уровня",
+    "PROFILE_REGION": "Регион"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Подсчёт Боевого Пропуска",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Ср. урон",
     "AVERAGE_COMBAT_SCORE": "БС",
     "HS_PERCENT": "% В голову",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Победа",
+    "DEFEAT": "Поражение",
+    "DRAW": "Ничья",
+    "MATCH_MVP": "MVP матча",
+    "TEAM_MVP": "MVP команды",
+    "CAREER_SUMMARY": "Сводка последних {n} матчей",
+    "RECORD": "Счет",
+    "WIN_RATE": "Процент побед",
+    "NET_RR": "Чистый RR",
+    "AVG_ACS": "Средний ACS",
+    "AVG_KD": "Средний K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Текущая игра・{mapName}",

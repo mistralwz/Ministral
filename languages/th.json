@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "ตลาดกลางคืน",
     "BATTLEPASS_BUTTON": "แบทเทิลพาส",
     "COLLECTION_BUTTON": "คอลเลคชั่น",
-    "COMPETITIVE_HISTORY_BUTTON": "ประวัติการเล่นโหมดแข่งขัน",
+    "COMPETITIVE_HISTORY_BUTTON": "ประวัติการแข่งขันจัดอันดับ",
     "RETURN_BUTTON": "ย้อนกลับ",
     "LOADING": "กำลังโหลด...",
     "HIDDEN_USERNAME": "ซ่อนชื่อผู้ใช้",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "เลือกระดับของสกิน:",
     "SHARDS_LOADING": "บอทยังคงเริ่มต้นขึ้น! โปรดรอสักครู่แล้วลองอีกครั้ง (กำลังโหลด...)",
     "NO_MORE_ACCESSORIES": "คุณมีของตกเเต่งทั้งหมดเเล้ว! :sunglasses:",
-    "PROFILE_PEAK_RANK": "แรงค์สูงสุด"
+    "PROFILE_PEAK_RANK": "แรงค์สูงสุด",
+    "PROFILE_OVERVIEW_BUTTON": "ภาพรวม",
+    "PROFILE_PROGRESS": "คะแนนอันดับ",
+    "PROFILE_LEVEL": "เลเวล",
+    "PROFILE_LEVEL_PROGRESS": "ความคืบหน้าเลเวล",
+    "PROFILE_REGION": "ภูมิภาค"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 ระบบ คำนวนแบทเทิลพาส",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "ความเสียหายเฉลี่ยต่อรอบ",
     "AVERAGE_COMBAT_SCORE": "คะแนนการต่อสู้เฉลี่ย",
     "HS_PERCENT": "อัตรา Headshot",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "ชัยชนะ",
+    "DEFEAT": "พ่ายแพ้",
+    "DRAW": "เสมอ",
+    "MATCH_MVP": "MVP ของแมตช์",
+    "TEAM_MVP": "MVP ของทีม",
+    "CAREER_SUMMARY": "สรุปผล {n} แมตช์ล่าสุด",
+    "RECORD": "สถิติ",
+    "WIN_RATE": "อัตราการชนะ",
+    "NET_RR": "RR สุทธิ",
+    "AVG_ACS": "ACS เฉลี่ย",
+    "AVG_KD": "K/D เฉลี่ย"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ เกมสด・{mapName}",

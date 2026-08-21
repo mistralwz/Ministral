@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Νυχτερινή Αγορά",
     "BATTLEPASS_BUTTON": "Πάσο Μάχης",
     "COLLECTION_BUTTON": "Συλλογή",
-    "COMPETITIVE_HISTORY_BUTTON": "Ιστορικό Ανταγωνιστικού",
+    "COMPETITIVE_HISTORY_BUTTON": "Ιστορικό αγώνων κατάταξης",
     "RETURN_BUTTON": "Επιστροφή",
     "LOADING": "Φόρτωση...",
     "HIDDEN_USERNAME": "όνομα χρήστη κρυμμένο",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Επίλεξε επίπεδο εμφάνισης:",
     "SHARDS_LOADING": "Το bot βρίσκεσαι ακόμα σε διαδικασία εκκίνησης! Παρακαλώ περίμενε μερικά δευτερόλεπτα και δοκίμασε ξανά. (Τα shards φορτώνουν...)",
     "NO_MORE_ACCESSORIES": "Έχεις ήδη όλο το στιλ που χρειάζεσαι! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Κορυφαία Κατάταξη"
+    "PROFILE_PEAK_RANK": "Κορυφαία Κατάταξη",
+    "PROFILE_OVERVIEW_BUTTON": "Επισκόπηση",
+    "PROFILE_PROGRESS": "Βαθμολογία κατάταξης",
+    "PROFILE_LEVEL": "Επίπεδο",
+    "PROFILE_LEVEL_PROGRESS": "Πρόοδος επιπέδου",
+    "PROFILE_REGION": "Περιοχή"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Υπολογισμός Πάσο Μάχης",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Μέση Ζημιά / Γύρο",
     "AVERAGE_COMBAT_SCORE": "Μέσο Σκορ Μάχης",
     "HS_PERCENT": "% Βολών στο Κεφάλι",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Νίκη",
+    "DEFEAT": "Ήττα",
+    "DRAW": "Ισοπαλία",
+    "MATCH_MVP": "MVP αγώνα",
+    "TEAM_MVP": "MVP ομάδας",
+    "CAREER_SUMMARY": "Σύνοψη τελευταίων {n} αγώνων",
+    "RECORD": "Στατιστικά",
+    "WIN_RATE": "Ποσοστό νικών",
+    "NET_RR": "Καθαρό RR",
+    "AVG_ACS": "Μ.Ο. ACS",
+    "AVG_KD": "Μ.Ο. K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Ζωντανό Παιχνίδι・{mapName}",

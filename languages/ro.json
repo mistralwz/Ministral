@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Night Market",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Colecție",
-    "COMPETITIVE_HISTORY_BUTTON": "Istoric Meciuri Competitive",
+    "COMPETITIVE_HISTORY_BUTTON": "Istoric meciuri competitive",
     "RETURN_BUTTON": "Înapoi",
     "LOADING": "Se încarcă...",
     "HIDDEN_USERNAME": "nume de utilizator ascuns",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Selectați nivelul skinului:",
     "SHARDS_LOADING": "Botul încă pornește! Vă rugăm așteptați câteva secunde și încercați din nou. (Shards se încarcă...)",
     "NO_MORE_ACCESSORIES": "Ai deja tot stilul! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Rang Maxim"
+    "PROFILE_PEAK_RANK": "Rang Maxim",
+    "PROFILE_OVERVIEW_BUTTON": "Prezentare generală",
+    "PROFILE_PROGRESS": "Punctaj de rang",
+    "PROFILE_LEVEL": "Nivel",
+    "PROFILE_LEVEL_PROGRESS": "Progres nivel",
+    "PROFILE_REGION": "Regiune"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Calculatie la battlepass",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Dpr",
     "AVERAGE_COMBAT_SCORE": "Pmc",
     "HS_PERCENT": "HS%",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Victorie",
+    "DEFEAT": "Înfrângere",
+    "DRAW": "Egalitate",
+    "MATCH_MVP": "MVP-ul meciului",
+    "TEAM_MVP": "MVP-ul echipei",
+    "CAREER_SUMMARY": "Rezumatul ultimelor {n} meciuri",
+    "RECORD": "Bilanț",
+    "WIN_RATE": "Rată de victorie",
+    "NET_RR": "RR net",
+    "AVG_ACS": "ACS mediu",
+    "AVG_KD": "K/D mediu"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Joc live・{mapName}",
@@ -258,7 +274,7 @@
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Alătură-te Grupului",
     "PARTY_CLOSED": "Grup Închis",
-    "PLAYER_NUM": "Jucător {n}"
+    "PLAYER_NUM": "Jucătorul {n}"
   },
   "queues": {
     "COMPETITIVE": "Competitiv",

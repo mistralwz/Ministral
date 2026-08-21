@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "야시장",
     "BATTLEPASS_BUTTON": "배틀패스",
     "COLLECTION_BUTTON": "스킨 컬렉션",
-    "COMPETITIVE_HISTORY_BUTTON": "경쟁전 기록",
+    "COMPETITIVE_HISTORY_BUTTON": "경쟁전 대전 기록",
     "RETURN_BUTTON": "뒤로 가기",
     "LOADING": "로딩 중...",
     "HIDDEN_USERNAME": "닉네임 숨겨짐",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "스킨 레벨 선택:",
     "SHARDS_LOADING": "봇이 아직 부팅 중입니다! 잠시 후 다시 시도해주세요. (샤드 로딩 중...)",
     "NO_MORE_ACCESSORIES": "이미 모든 액세서리를 보유하고 있습니다! 멋쟁이시네요 😎",
-    "PROFILE_PEAK_RANK": "최고 티어"
+    "PROFILE_PEAK_RANK": "최고 티어",
+    "PROFILE_OVERVIEW_BUTTON": "개요",
+    "PROFILE_PROGRESS": "랭크 평점",
+    "PROFILE_LEVEL": "레벨",
+    "PROFILE_LEVEL_PROGRESS": "레벨 진행도",
+    "PROFILE_REGION": "지역"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 배틀패스 계산기",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "평균 피해량",
     "AVERAGE_COMBAT_SCORE": "평균 전투 점수",
     "HS_PERCENT": "헤드샷 %",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "승리",
+    "DEFEAT": "패배",
+    "DRAW": "무승부",
+    "MATCH_MVP": "매치 MVP",
+    "TEAM_MVP": "팀 MVP",
+    "CAREER_SUMMARY": "최근 {n}게임 요약",
+    "RECORD": "전적",
+    "WIN_RATE": "승률",
+    "NET_RR": "순 RR",
+    "AVG_ACS": "평균 ACS",
+    "AVG_KD": "평균 K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ 라이브 게임・{mapName}",

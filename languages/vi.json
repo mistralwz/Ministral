@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Chợ đêm",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Bộ sưu tập",
-    "COMPETITIVE_HISTORY_BUTTON": "Lịch sử Xếp hạng",
+    "COMPETITIVE_HISTORY_BUTTON": "Lịch sử đấu xếp hạng",
     "RETURN_BUTTON": "Quay lại",
     "LOADING": "Đang tải...",
     "HIDDEN_USERNAME": "tên đã ẩn",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Chọn cấp độ của skin:",
     "SHARDS_LOADING": "Bot đang chuẩn bị khởi động! Vui lòng đợi vài giây và thử lại. (Shards loading...)",
     "NO_MORE_ACCESSORIES": "Phòng thủ quá tốt, bạn đã có hết các trang bị phụ kiện có thể mua được rồi! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Rank cao nhất"
+    "PROFILE_PEAK_RANK": "Rank cao nhất",
+    "PROFILE_OVERVIEW_BUTTON": "Tổng quan",
+    "PROFILE_PROGRESS": "Điểm xếp hạng",
+    "PROFILE_LEVEL": "Cấp độ",
+    "PROFILE_LEVEL_PROGRESS": "Tiến độ cấp độ",
+    "PROFILE_REGION": "Khu vực"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Tiến trình Battlepass",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Sát thương TB/Hiệp",
     "AVERAGE_COMBAT_SCORE": "Điểm chiến đấu TB",
     "HS_PERCENT": "% Headshot",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Chiến thắng",
+    "DEFEAT": "Thất bại",
+    "DRAW": "Hòa",
+    "MATCH_MVP": "MVP trận đấu",
+    "TEAM_MVP": "MVP đội",
+    "CAREER_SUMMARY": "Tổng kết {n} trận gần nhất",
+    "RECORD": "Thành tích",
+    "WIN_RATE": "Tỉ lệ thắng",
+    "NET_RR": "RR thay đổi",
+    "AVG_ACS": "ACS trung bình",
+    "AVG_KD": "K/D trung bình"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Trận đấu trực tiếp・{mapName}",

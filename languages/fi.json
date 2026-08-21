@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Yömarkkinat",
     "BATTLEPASS_BUTTON": "Battlepass",
     "COLLECTION_BUTTON": "Kokoelma",
-    "COMPETITIVE_HISTORY_BUTTON": "Ranked-otteluhistoria",
+    "COMPETITIVE_HISTORY_BUTTON": "Kilpailullinen otteluhistoria",
     "RETURN_BUTTON": "Takaisin",
     "LOADING": "Ladataan...",
     "HIDDEN_USERNAME": "käyttäjänimi piilotettu",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Valitse skinin taso:",
     "SHARDS_LOADING": "Botti käynnistyy vielä! Odota muutama sekunti ja yritä uudelleen. (Shardeja ladataan...)",
     "NO_MORE_ACCESSORIES": "Sinulla on jo kaikki tarvikkeet! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Korkein rank"
+    "PROFILE_PEAK_RANK": "Korkein rank",
+    "PROFILE_OVERVIEW_BUTTON": "Yleiskatsaus",
+    "PROFILE_PROGRESS": "Sijoituspisteet",
+    "PROFILE_LEVEL": "Taso",
+    "PROFILE_LEVEL_PROGRESS": "Tason edistyminen",
+    "PROFILE_REGION": "Alue"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Battlepass-laskuri",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
     "HS_PERCENT": "HS%",
-    "PERCENT": "{v}%"
+    "PERCENT": "{v}%",
+    "VICTORY": "Voitto",
+    "DEFEAT": "Tappio",
+    "DRAW": "Tasapeli",
+    "MATCH_MVP": "Ottelun MVP",
+    "TEAM_MVP": "Joukkueen MVP",
+    "CAREER_SUMMARY": "Viimeisten {n} ottelun yhteenveto",
+    "RECORD": "Saldo",
+    "WIN_RATE": "Voittoprosentti",
+    "NET_RR": "Netto RR",
+    "AVG_ACS": "Keskim. ACS",
+    "AVG_KD": "Keskim. K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live-ottelu・{mapName}",

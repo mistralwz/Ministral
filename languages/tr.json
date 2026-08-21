@@ -154,7 +154,7 @@
     "NIGHT_MARKET_BUTTON": "Gece.Pazarı",
     "BATTLEPASS_BUTTON": "Savaş bileti",
     "COLLECTION_BUTTON": "Koleksiyon",
-    "COMPETITIVE_HISTORY_BUTTON": "Rekabetçi Maç Geçmişi",
+    "COMPETITIVE_HISTORY_BUTTON": "Dereceli Karşılaşma Geçmişi",
     "RETURN_BUTTON": "Geri dön",
     "LOADING": "Yükleniyor...",
     "HIDDEN_USERNAME": "Kullanıcı adı gizli",
@@ -169,7 +169,12 @@
     "SELECT_LEVEL_OF_SKIN": "Kaplama seviyesini seçin:",
     "SHARDS_LOADING": "Bot hala başlatılıyor! Lütfen birkaç saniye bekleyin ve tekrar deneyin. ( Shard yükleniyor...)",
     "NO_MORE_ACCESSORIES": "Zaten bütün aksesuarlara sahipsin! :sunglasses:",
-    "PROFILE_PEAK_RANK": "En Yüksek Rütbe"
+    "PROFILE_PEAK_RANK": "En Yüksek Rütbe",
+    "PROFILE_OVERVIEW_BUTTON": "Genel Bakış",
+    "PROFILE_PROGRESS": "Kademe Puanı",
+    "PROFILE_LEVEL": "Seviye",
+    "PROFILE_LEVEL_PROGRESS": "Seviye İlerlemesi",
+    "PROFILE_REGION": "Bölge"
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Savaş bileti hesaplaması",
@@ -229,7 +234,18 @@
     "AVERAGE_DAMAGE_ROUND": "OrtHsr",
     "AVERAGE_COMBAT_SCORE": "OrtÇS",
     "HS_PERCENT": "%HS",
-    "PERCENT": "%{v}"
+    "PERCENT": "%{v}",
+    "VICTORY": "Galibiyet",
+    "DEFEAT": "Mağlubiyet",
+    "DRAW": "Beraberlik",
+    "MATCH_MVP": "Maçın MVP'si",
+    "TEAM_MVP": "Takımın MVP'si",
+    "CAREER_SUMMARY": "Son {n} Karşılaşmanın Özeti",
+    "RECORD": "Skor",
+    "WIN_RATE": "Kazanma Oranı",
+    "NET_RR": "Net KP",
+    "AVG_ACS": "Ort. ACS",
+    "AVG_KD": "Ort. K/D"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Canlı Oyun・{mapName}",
