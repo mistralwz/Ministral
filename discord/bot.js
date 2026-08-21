@@ -48,6 +48,7 @@ import {
     defer,
     deferInteraction,
     updateInteraction,
+    replyOrFollowUp,
     actionRow,
     removeAlertButton,
     removeAlertActionRow,
@@ -1621,7 +1622,7 @@ client.on("interactionCreate", async (interaction) => {
                     await deferInteraction(interaction);
 
                     const skinsResponse = await getSkins(user);
-                    if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                    if (!skinsResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
                     await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, 0, "card"));
                     break;
@@ -1640,7 +1641,7 @@ client.on("interactionCreate", async (interaction) => {
                     const skin = await getSkin(chosenSkin);
 
                     const otherAlert = alertExists(interaction.user.id, chosenSkin);
-                    if (otherAlert) return await interaction.followUp({
+                    if (otherAlert) return await replyOrFollowUp(interaction, {
                         embeds: [basicEmbed(s(interaction).error.DUPLICATE_ALERT.f({ s: await skinNameAndEmoji(skin, interaction.channel, interaction), c: otherAlert.channel_id }))],
                         components: [removeAlertActionRow(interaction.user.id, otherAlert.uuid, s(interaction).info.REMOVE_ALERT_BUTTON)],
                         flags: [MessageFlags.Ephemeral]
@@ -1649,7 +1650,7 @@ client.on("interactionCreate", async (interaction) => {
                     // Check if we can access the channel before adding the alert
                     const canAccess = await canAccessChannel(interaction.channelId);
                     if (!canAccess) {
-                        return await interaction.followUp({
+                        return await replyOrFollowUp(interaction, {
                             embeds: [basicEmbed(s(interaction).error.ALERT_NO_PERMS)],
                             flags: [MessageFlags.Ephemeral]
                         });
@@ -1949,11 +1950,11 @@ client.on("interactionCreate", async (interaction) => {
                     await updateInteraction(interaction, await collectionStatsEmbed(interaction, id, user));
                 } else if (mode === "gallery") {
                     const loadoutResponse = await getLoadout(user);
-                    if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                    if (!loadoutResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
                     await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, id, user, loadoutResponse));
                 } else {
                     const loadoutResponse = await getLoadout(user);
-                    if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                    if (!loadoutResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
                     await updateInteraction(interaction, await skinCollectionSingleEmbed(interaction, id, user, loadoutResponse));
                 }
             } else if (interaction.customId.startsWith("clw_view/")) {
@@ -1967,7 +1968,7 @@ client.on("interactionCreate", async (interaction) => {
                 await deferInteraction(interaction);
 
                 const skinsResponse = await getSkins(user);
-                if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                if (!skinsResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
                 await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, parseInt(pageIndex || 0), viewType));
             } else if (interaction.customId.startsWith("clpage")) {
@@ -1980,7 +1981,7 @@ client.on("interactionCreate", async (interaction) => {
                 await deferInteraction(interaction);
 
                 const loadoutResponse = await getLoadout(user);
-                if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                if (!loadoutResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
                 await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, id, user, loadoutResponse, parseInt(pageIndex)));
             } else if (interaction.customId.startsWith("clswitch")) {
@@ -1994,7 +1995,7 @@ client.on("interactionCreate", async (interaction) => {
                 await deferInteraction(interaction);
 
                 const loadoutResponse = await getLoadout(user);
-                if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                if (!loadoutResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
                 if (switchToPage) await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, id, user, loadoutResponse));
                 else await updateInteraction(interaction, await skinCollectionSingleEmbed(interaction, id, user, loadoutResponse));
@@ -2009,7 +2010,7 @@ client.on("interactionCreate", async (interaction) => {
                 await deferInteraction(interaction);
 
                 const skinsResponse = await getSkins(user);
-                if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                if (!skinsResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
                 await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, parseInt(pageIndex), viewType || "card"));
             } else if (interaction.customId.startsWith("clwswitch")) {
@@ -2024,7 +2025,7 @@ client.on("interactionCreate", async (interaction) => {
                 await deferInteraction(interaction);
 
                 const skinsResponse = await getSkins(user);
-                if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
+                if (!skinsResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
                 await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, 0, switchToPage ? "card" : "list"));
             } else if (interaction.customId.startsWith("viewbundle")) {
@@ -2410,7 +2411,7 @@ client.on("interactionCreate", async (interaction) => {
                     await deferInteraction(interaction);
 
                     const loadoutResponse = await getLoadout(user);
-                    if (!loadoutResponse.success) return await interaction.followUp(authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
+                    if (!loadoutResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, loadoutResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
 
                     await updateInteraction(interaction, await skinCollectionPageEmbed(interaction, userId, user, loadoutResponse, parseInt(pageIndex - 1)));
                 }
@@ -2425,7 +2426,7 @@ client.on("interactionCreate", async (interaction) => {
                     await deferInteraction(interaction);
 
                     const skinsResponse = await getSkins(user);
-                    if (!skinsResponse.success) return await interaction.followUp(authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
+                    if (!skinsResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, userId !== interaction.user.id));
 
                     await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, userId, user, weaponType, skinsResponse.skins, parseInt(pageIndex - 1)));
                 }

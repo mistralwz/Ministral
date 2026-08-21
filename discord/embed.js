@@ -95,7 +95,15 @@ export const defer = async (interaction, ephemeral = false) => {
 };
 
 export const deferInteraction = async (interaction) => {
-    if (config.deferInteractions) await interaction.deferUpdate();
+    if (config.deferInteractions) {
+        await interaction.deferUpdate();
+        interaction.deferred = true;
+    }
+};
+
+export const replyOrFollowUp = async (interaction, data) => {
+    if (interaction.deferred || interaction.replied) return await interaction.followUp(data);
+    return await interaction.reply(data);
 };
 
 export const updateInteraction = async (interaction, data) => {
@@ -166,7 +174,10 @@ export const renderBattlepassProgress = async (interaction, targetId = interacti
 
 export const renderCollection = async (interaction, targetId = interaction.user.id, weaponName = null, mode = "loadout") => {
     const user = getUser(targetId);
-    if (!user) return await interaction.reply({ embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED)] });
+    if (!user) return {
+        embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED)],
+        flags: [MessageFlags.Ephemeral]
+    };
 
     if (weaponName) return await renderCollectionOfWeapon(interaction, targetId, weaponName);
 

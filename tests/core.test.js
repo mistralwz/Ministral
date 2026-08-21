@@ -51,7 +51,7 @@ import { User, getPuuid } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
-import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, profileButtons, competitiveHistoryButtons } from "../discord/embed.js";
+import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
@@ -692,5 +692,49 @@ test("profile embed: renderProfile produces valid overview embed", async () => {
     const multiResult = await renderProfile(mockInteraction, mockAccountData, "multi-user");
     assert.ok(multiResult.components.length >= 2); // profile buttons row + switch account row
 });
+
+test("interaction helpers: replyOrFollowUp routes correctly based on interaction state", async () => {
+    let replyCalled = false;
+    let followUpCalled = false;
+
+    const unacknowledgedInteraction = {
+        deferred: false,
+        replied: false,
+        reply: async () => { replyCalled = true; },
+        followUp: async () => { followUpCalled = true; }
+    };
+
+    await replyOrFollowUp(unacknowledgedInteraction, { content: "test" });
+    assert.equal(replyCalled, true);
+    assert.equal(followUpCalled, false);
+
+    replyCalled = false;
+    followUpCalled = false;
+
+    const deferredInteraction = {
+        deferred: true,
+        replied: false,
+        reply: async () => { replyCalled = true; },
+        followUp: async () => { followUpCalled = true; }
+    };
+
+    await replyOrFollowUp(deferredInteraction, { content: "test" });
+    assert.equal(replyCalled, false);
+    assert.equal(followUpCalled, true);
+});
+
+test("collection: renderCollection returns error object when user is unregistered", async () => {
+    initUserDatabase("data/test_users.db");
+    const mockInteraction = {
+        user: { id: "nonexistent-user", tag: "Ghost#0000" },
+        locale: "en-US"
+    };
+
+    const result = await renderCollection(mockInteraction, "nonexistent-user");
+    assert.ok(result);
+    assert.ok(result.embeds);
+    assert.ok(result.flags);
+});
+
 
 
