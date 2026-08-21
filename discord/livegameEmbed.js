@@ -126,16 +126,16 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
     return flags.join(" ");
 };
 
-// ─── Player match field renderer ─────────────────────────────────────────────
+// ─── Player match row renderer ─────────────────────────────────────────────
 
 /**
- * Render one player as an embed field.
+ * Render one player as a compact 2-line markdown block.
  *
- * Field Name:
+ * Line 1 (Header):
  *   <agent> `RiotName` <rank>**42**rr <peak>`E5A3`
  *
- * Field Value:
- *   **152** ADR・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻🔹`
+ * Line 2 (Subtext):
+ *   -# **152** ADR・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻🔹`
  *
  * @param {object}  player
  * @param {Channel} channel       Discord channel (for emoji resolution)
@@ -143,7 +143,7 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  * @param {string}  valLang       Valorant language code (e.g. en-US, ja-JP)
  * @param {string}  userId        Discord user ID for localized text
  */
-const formatPlayerField = async (player, channel, showCompStats = false, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
+export const formatPlayerRow = async (player, channel, showCompStats = false, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
     const localizedAgentName = player.agentName ? (player.agentName[valLang] || player.agentName["en-US"] || "Unknown") : null;
     const enAgentName = player.agentName ? (player.agentName["en-US"] || "Unknown") : null;
 
@@ -190,7 +190,7 @@ const formatPlayerField = async (player, channel, showCompStats = false, valLang
             : `${currentRankEmojiStr} **${player.currentRR}**rr`.trim())
         : (currentRankEmojiStr ? `${currentRankEmojiStr} \`Unranked\`` : "`Unranked`");
 
-    const fieldName = `${agentPrefix}${leaderBadge}\`${displayName}\` ${rankBadgePart} ${peakBadgePart}`.trim();
+    const line1 = `${agentPrefix}${leaderBadge}\`${displayName}\` ${rankBadgePart} ${peakBadgePart}`.trim();
 
     // Value items: ADR, K/D/A Ratio, Headshot %, Win% (fallback to 0 when no stats available)
     const adr = player.adr ?? 0;
@@ -216,22 +216,20 @@ const formatPlayerField = async (player, channel, showCompStats = false, valLang
         recentMatchesStr = ` \`${symbols}\``;
     }
 
-    const fieldValue = `${statItems.join("・")}${recentMatchesStr}`;
+    const line2 = `-# ${statItems.join("・")}${recentMatchesStr}`;
 
-    return {
-        name: fieldName,
-        value: fieldValue,
-        inline: false,
-    };
+    return `${line1}\n${line2}`;
 };
 
 /**
- * Build embed fields for a list of players, one field per player.
+ * Format a list of players into a unified markdown block for embed descriptions.
  */
-const buildPlayerFields = async (players, channel, showCompStats, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
-    return Promise.all(players.map(p =>
-        formatPlayerField(p, channel, showCompStats, valLang, userId)
+export const formatPlayersBlock = async (players, channel, showCompStats, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
+    if (!players || players.length === 0) return "";
+    const lines = await Promise.all(players.map(p =>
+        formatPlayerRow(p, channel, showCompStats, valLang, userId)
     ));
+    return lines.join("\n\n");
 };
 
 const resolveTeamColor = (players, fallbackColor, isPreGame = false) => {
@@ -263,30 +261,32 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
 
     const isTeamGame = !data.isSingleTeam && enemyPlayers && enemyPlayers.length > 0;
 
-    const [allyFields, enemyFields] = await Promise.all([
-        buildPlayerFields(allyPlayers, channel, showCompStats, valLang, userId),
+    const [allyBlock, enemyBlock] = await Promise.all([
+        formatPlayersBlock(allyPlayers, channel, showCompStats, valLang, userId),
         isTeamGame
-            ? buildPlayerFields(enemyPlayers, channel, showCompStats, valLang, userId)
-            : Promise.resolve([]),
+            ? formatPlayersBlock(enemyPlayers, channel, showCompStats, valLang, userId)
+            : Promise.resolve(""),
     ]);
+
+    const allyDescParts = [];
+    if (config.notice) allyDescParts.push(config.notice);
+    if (allyBlock) allyDescParts.push(allyBlock);
 
     const allyEmbed = {
         author: {
             name: `${data.queueName}・${mapAndServer}`,
             icon_url: data.queueIcon ?? undefined,
         },
-        description: config.notice ? config.notice : undefined,
+        description: allyDescParts.length > 0 ? allyDescParts.join("\n\n") : undefined,
         color: allyColor,
-        image: data.mapImage ? { url: data.mapImage } : undefined,
-        fields: allyFields,
     };
 
     if (isTeamGame) {
         const enemyEmbed = {
+            description: enemyBlock || undefined,
             color: enemyColor,
             footer: { text: stateLabel },
             timestamp: new Date().toISOString(),
-            fields: enemyFields,
         };
         return [allyEmbed, enemyEmbed];
     }
@@ -383,23 +383,27 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             }
         }
 
-        const descriptionParts = [];
-        if (config.notice) descriptionParts.push(config.notice);
-        if (statusText) descriptionParts.push(statusText);
-        if (serverFormatted) descriptionParts.push(`-# 🌐 **Servers:** ${serverFormatted}`);
+        const headerLines = [];
+        if (config.notice) headerLines.push(config.notice);
+        if (statusText) headerLines.push(statusText);
+        if (serverFormatted) headerLines.push(`-# 🌐 **Servers:** ${serverFormatted}`);
         if (liveGameData.inviteCode) {
-            descriptionParts.push(`-# 🔑 **${s(userId).livegame?.PARTY_CODE || "Party Code"}** \`${liveGameData.inviteCode}\``);
+            headerLines.push(`-# 🔑 **${s(userId).livegame?.PARTY_CODE || "Party Code"}** \`${liveGameData.inviteCode}\``);
         }
-        const description = descriptionParts.length > 0 ? descriptionParts.join("\n") : undefined;
 
-        const lobbyFields = hasParty ? await buildPlayerFields(allyPlayers, channel, true, valLang, userId) : undefined;
+        const descriptionParts = [];
+        if (headerLines.length > 0) descriptionParts.push(headerLines.join("\n"));
+        if (hasParty) {
+            const playerBlock = await formatPlayersBlock(allyPlayers, channel, true, valLang, userId);
+            if (playerBlock) descriptionParts.push(playerBlock);
+        }
+        const description = descriptionParts.length > 0 ? descriptionParts.join("\n\n") : undefined;
 
         const embed = {
             author,
             title,
             description,
             color,
-            fields: lobbyFields,
         };
 
         let components = [liveGameRefreshRow(userId, liveGameData.inviteCode, hasParty)];

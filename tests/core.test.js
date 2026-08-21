@@ -531,17 +531,17 @@ test("livegame embed: splits team games into ally and enemy embeds with blue/red
     const allyEmbed = renderedTeam.embeds[0];
     assert.ok(allyEmbed.author);
     assert.equal(allyEmbed.color, 0x1E88E5); // Blue (Defense)
-    assert.equal(allyEmbed.image?.url, "https://example.com/ascent.png");
-    assert.equal(allyEmbed.fields.length, 1);
-    assert.ok(allyEmbed.fields[0].name.includes("Ally"));
+    assert.equal(allyEmbed.image, undefined);
+    assert.ok(allyEmbed.description.includes("Ally"));
+    assert.ok(allyEmbed.description.includes("50**rr") || allyEmbed.description.includes("50"));
     assert.equal(allyEmbed.footer, undefined);
 
     const enemyEmbed = renderedTeam.embeds[1];
     assert.equal(enemyEmbed.author, undefined);
     assert.equal(enemyEmbed.color, 0xFD4553); // Red (Attack)
     assert.equal(enemyEmbed.image, undefined);
-    assert.equal(enemyEmbed.fields.length, 1);
-    assert.ok(enemyEmbed.fields[0].name.includes("Enemy"));
+    assert.ok(enemyEmbed.description.includes("Enemy"));
+    assert.ok(enemyEmbed.description.includes("75**rr") || enemyEmbed.description.includes("75"));
     assert.ok(enemyEmbed.footer?.text.includes("In-Game"));
     assert.ok(enemyEmbed.timestamp);
 
@@ -555,7 +555,7 @@ test("livegame embed: splits team games into ally and enemy embeds with blue/red
     assert.equal(renderedSwapped.embeds[0].color, 0xFD4553); // Red
     assert.equal(renderedSwapped.embeds[1].color, 0x1E88E5); // Blue
 
-    // Single team game (1 embed with image and footer)
+    // Single team game (1 embed with footer)
     const singleTeamData = {
         state: "ingame",
         queueId: "deathmatch",
@@ -569,7 +569,8 @@ test("livegame embed: splits team games into ally and enemy embeds with blue/red
 
     const renderedSingle = await renderLiveGame(singleTeamData, "test-user-id");
     assert.equal(renderedSingle.embeds.length, 1);
-    assert.equal(renderedSingle.embeds[0].image?.url, "https://example.com/ascent.png");
+    assert.equal(renderedSingle.embeds[0].image, undefined);
+    assert.ok(renderedSingle.embeds[0].description.includes("Ally"));
     assert.ok(renderedSingle.embeds[0].footer?.text.includes("In-Game"));
 });
 
