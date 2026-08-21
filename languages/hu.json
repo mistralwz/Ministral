@@ -110,7 +110,7 @@
     "LOGGED_IN": "Sikeres bejelentkezés, mint **{u}**!",
     "LOGIN_TITLE": "🔐 Jelentkezz be a Riot fiókodba",
     "LOGIN_DESCRIPTION": "**1. Lépés:** Kattints az alábbi linkre a bejelentkezéshez:\n\n🔗 **[Kattints ide a bejelentkezéshez]({url})**\n\n**2. Lépés:** Bejelentkezés után a böngésződ egy hibaüzenetet fog mutatni - **ez teljesen normális!**\n\n**3. Lépés:** Kattints az alábbi gombra, és illeszd be a teljes linket a böngésződből.",
-    "LOGIN_FOOTER": "Tipp: Jelöld be a 'Maradjak bejelentkezve' opciót a kijelentkezés elkerülése érdekében.",
+    "LOGIN_FOOTER": "💡 Jelöld be a 'Maradjak bejelentkezve' és a 'Böngésző megjegyzése 30 napig' lehetőséget a kijelentkezés elkerülése érdekében.",
     "LOGIN_BUTTON": "Bejelentkeztem - URL beillesztése",
     "AUTH_ERROR_RETRY": "Újra",
     "ACCOUNT_DELETED": "A fiókodat töröltük az adatbázisból!",

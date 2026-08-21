@@ -110,7 +110,7 @@
     "LOGGED_IN": "Te-ai logat cu succes ca **{u}**!",
     "LOGIN_TITLE": "🔐 Autentifică-te în contul tău Riot",
     "LOGIN_DESCRIPTION": "**Pasul 1:** Faceți clic pe linkul de mai jos pentru a vă autentifica:\n\n🔗 **[Faceți clic aici pentru autentificare]({url})**\n\n**Pasul 2:** După autentificare, browserul va afișa o pagină de eroare - **acest lucru este normal!**\n\n**Pasul 3:** Faceți clic pe butonul de mai jos și lipiți URL-ul din browser.",
-    "LOGIN_FOOTER": "Sfat: Bifați 'Rămâi conectat' pentru a evita deconectarea.",
+    "LOGIN_FOOTER": "💡 Bifează „Rămâi conectat” și „Ține minte acest browser timp de 30 de zile” pentru a evita deconectarea.",
     "LOGIN_BUTTON": "M-am autentificat - lipește URL-ul",
     "AUTH_ERROR_RETRY": "Reîncercă",
     "ACCOUNT_DELETED": "Contul tău a fost șters din baza de date!",

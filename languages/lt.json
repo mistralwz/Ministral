@@ -110,7 +110,7 @@
     "LOGGED_IN": "Sėkmingai prisijungta kaip **{u}**!",
     "LOGIN_TITLE": "🔐 Prisijunkite prie savo Riot paskyros",
     "LOGIN_DESCRIPTION": "**1 žingsnis:** Spustelėkite žemiau esančią nuorodą, kad prisijungtumėte:\n\n🔗 **[Spustelėkite čia, kad prisijungtumėte]({url})**\n\n**2 žingsnis:** Prisijungus jūsų naršyklė parodys klaidos puslapį – **tai normalu!**\n\n**3 žingsnis:** Spustelėkite žemiau esantį mygtuką ir įklijuokite URL iš savo naršyklės.",
-    "LOGIN_FOOTER": "Patarimas: Pažymėkite 'Likti prisijungusiam', kad išvengtumėte atjungimo.",
+    "LOGIN_FOOTER": "💡 Pažymėkite „Likti prisijungusiam“ ir „Prisiminti šią naršyklę 30 dienų“, kad išvengtumėte atjungimo.",
     "LOGIN_BUTTON": "Aš prisijungiau – įklijuoti URL",
     "AUTH_ERROR_RETRY": "Bandyti dar kartą",
     "ACCOUNT_DELETED": "Jūsų paskyra buvo ištrinta iš duomenų bazės!",

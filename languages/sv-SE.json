@@ -110,7 +110,7 @@
     "LOGGED_IN": "Inloggad som **{u}**!",
     "LOGIN_TITLE": "🔐 Logga in på ditt Riot-konto",
     "LOGIN_DESCRIPTION": "**Steg 1:** Klicka på länken nedan för att logga in:\n\n🔗 **[Klicka här för att logga in]({url})**\n\n**Steg 2:** Efter inloggning visar din webbläsare en felsida – **detta är helt normalt!**\n\n**Steg 3:** Klicka på knappen nedan och klistra in URL:en från din webbläsare.",
-    "LOGIN_FOOTER": "Tips: Markera 'Förbli inloggad' för att undvika att bli utloggad.",
+    "LOGIN_FOOTER": "💡 Markera 'Förbli inloggad' och 'Kom ihåg den här webbläsaren i 30 dagar' för att undvika att bli utloggad.",
     "LOGIN_BUTTON": "Jag har loggat in - klistra in URL",
     "AUTH_ERROR_RETRY": "Försök igen",
     "ACCOUNT_DELETED": "Ditt konto har tagits bort från databasen!",

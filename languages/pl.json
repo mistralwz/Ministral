@@ -110,7 +110,7 @@
     "LOGGED_IN": "Pomyślnie zalogowano jako **{u}**!",
     "LOGIN_TITLE": "🔐 Zaloguj się do swojego konta Riot",
     "LOGIN_DESCRIPTION": "**Krok 1:** Kliknij poniższy link, aby się zalogować:\n\n🔗 **[Kliknij tutaj, aby się zalogować]({url})**\n\n**Krok 2:** Po zalogowaniu przeglądarka wyświetli stronę błędu - **to normalne!**\n\n**Krok 3:** Kliknij poniższy przycisk i wklej adres URL z przeglądarki.",
-    "LOGIN_FOOTER": "Wskazówka: Zaznacz 'Pozostań zalogowany', aby uniknąć wylogowania.",
+    "LOGIN_FOOTER": "💡 Zaznacz „Nie wylogowuj mnie” oraz „Zapamiętaj tę przeglądarkę na 30 dni”, aby uniknąć wylogowania.",
     "LOGIN_BUTTON": "Zalogowałem się - wklej URL",
     "AUTH_ERROR_RETRY": "Spróbuj ponownie",
     "ACCOUNT_DELETED": "Twoje konto zostało usunięte z bazy danych!",

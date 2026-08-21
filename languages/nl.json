@@ -110,7 +110,7 @@
     "LOGGED_IN": "Succesvol ingelogd als **{u}**!",
     "LOGIN_TITLE": "🔐 Inloggen op je Riot-account",
     "LOGIN_DESCRIPTION": "**Stap 1:** Klik op de onderstaande link om in te loggen:\n\n🔗 **[Klik hier om in te loggen]({url})**\n\n**Stap 2:** Na het inloggen toont je browser een foutpagina – **dit is normaal!**\n\n**Stap 3:** Klik op de onderstaande knop en plak de URL uit je browser.",
-    "LOGIN_FOOTER": "Tip: Vink 'Ingelogd blijven' aan om te voorkomen dat je wordt uitgelogd.",
+    "LOGIN_FOOTER": "💡 Vink 'Ingelogd blijven' en 'Onthoud deze browser voor 30 dagen' aan om te voorkomen dat je wordt uitgelogd.",
     "LOGIN_BUTTON": "Ik ben ingelogd - URL plakken",
     "AUTH_ERROR_RETRY": "Opnieuw proberen",
     "ACCOUNT_DELETED": "Je account is verwijderd uit de database!",

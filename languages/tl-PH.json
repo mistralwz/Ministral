@@ -110,7 +110,7 @@
     "LOGGED_IN": "Naka-log in bilang si **{u}**!",
     "LOGIN_TITLE": "🔐 Mag-login sa iyong Riot Account",
     "LOGIN_DESCRIPTION": "**Hakbang 1:** I-click ang link sa ibaba para mag-login:\n\n🔗 **[I-click dito para mag-login]({url})**\n\n**Hakbang 2:** Pagkatapos mag-login, magpapakita ang iyong browser ng error page - **normal lang ito!**\n\n**Hakbang 3:** I-click ang button sa ibaba at i-paste ang URL mula sa iyong browser.",
-    "LOGIN_FOOTER": "Tip: I-check ang 'Manatiling naka-sign in' upang maiwasan ang pag-sign out.",
+    "LOGIN_FOOTER": "💡 I-check ang 'Manatiling naka-sign in' at 'Tandaan ang browser na ito nang 30 araw' upang maiwasan ang pag-sign out.",
     "LOGIN_BUTTON": "Naka-login na ako - i-paste ang URL",
     "AUTH_ERROR_RETRY": "Retry",
     "ACCOUNT_DELETED": "Tinanggal ang account mo sa database!",

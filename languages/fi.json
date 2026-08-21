@@ -110,7 +110,7 @@
     "LOGGED_IN": "Kirjauduttu sisään käyttäjänä **{u}**!",
     "LOGIN_TITLE": "🔐 Kirjaudu Riot-tilillesi",
     "LOGIN_DESCRIPTION": "**Vaihe 1:** Napsauta alla olevaa linkkiä kirjautuaksesi:\n\n🔗 **[Napsauta tästä kirjautuaksesi]({url})**\n\n**Vaihe 2:** Kirjautumisen jälkeen selaimesi näyttää virhesivun – **tämä on normaalia!**\n\n**Vaihe 3:** Napsauta alla olevaa painiketta ja liitä URL-osoite selaimestasi.",
-    "LOGIN_FOOTER": "Vinkki: Valitse 'Pysy kirjautuneena' välttääksesi uloskirjautumisen.",
+    "LOGIN_FOOTER": "💡 Valitse 'Pysy kirjautuneena' ja 'Muista tämä selain 30 päivää' välttääksesi uloskirjautumisen.",
     "LOGIN_BUTTON": "Olen kirjautunut - Liitä URL",
     "AUTH_ERROR_RETRY": "Yritä uudelleen",
     "ACCOUNT_DELETED": "Tilisi on poistettu tietokannasta!",

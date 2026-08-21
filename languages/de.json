@@ -110,7 +110,7 @@
     "LOGGED_IN": "Erfolgreich angemeldet für **{u}**!",
     "LOGIN_TITLE": "🔐 Bei deinem Riot-Konto anmelden",
     "LOGIN_DESCRIPTION": "**Schritt 1:** Klicke auf den Link unten, um dich anzumelden:\n\n🔗 **[Hier klicken zum Anmelden]({url})**\n\n**Schritt 2:** Nach der Anmeldung zeigt dein Browser eine Fehlerseite an - **das ist normal!**\n\n**Schritt 3:** Klicke auf die Schaltfläche unten und füge die URL aus deinem Browser ein.",
-    "LOGIN_FOOTER": "Tipp: Aktiviere 'Angemeldet bleiben', um nicht abgemeldet zu werden.",
+    "LOGIN_FOOTER": "💡 Aktiviere 'Angemeldet bleiben' und 'Diesen Browser für 30 Tage merken', um nicht abgemeldet zu werden.",
     "LOGIN_BUTTON": "Ich habe mich angemeldet - URL einfügen",
     "AUTH_ERROR_RETRY": "Wiederholen",
     "ACCOUNT_DELETED": "Dein Account wurde aus der Datenbank entfernt!",

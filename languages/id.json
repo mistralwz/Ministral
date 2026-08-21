@@ -110,7 +110,7 @@
     "LOGGED_IN": "Berhasil logged in sebagai **{u}**!",
     "LOGIN_TITLE": "🔐 Login ke akun Riot kamu",
     "LOGIN_DESCRIPTION": "**Langkah 1:** Klik link di bawah untuk login:\n\n🔗 **[Klik di sini untuk login]({url})**\n\n**Langkah 2:** Setelah login, browser kamu akan menunjukkan halaman error - **ini normal!**\n\n**Langkah 3:** Klik tombol di bawah dan paste URL dari browser kamu.",
-    "LOGIN_FOOTER": "Tips: Centang 'Tetap masuk' untuk menghindari keluar otomatis.",
+    "LOGIN_FOOTER": "💡 Centang 'Tetap masuk' dan 'Ingat browser ini selama 30 hari' untuk menghindari keluar otomatis.",
     "LOGIN_BUTTON": "Saya sudah login - paste URL",
     "AUTH_ERROR_RETRY": "Ulangi",
     "ACCOUNT_DELETED": "Akun mu telah dihapus dari database!",

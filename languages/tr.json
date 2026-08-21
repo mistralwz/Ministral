@@ -110,7 +110,7 @@
     "LOGGED_IN": "**{u}** hesabına başarıyla giriş yaptınız!",
     "LOGIN_TITLE": "🔐 Riot hesabınıza giriş yapın",
     "LOGIN_DESCRIPTION": "**Adım 1:** Giriş yapmak için aşağıdaki bağlantıya tıklayın:\n\n🔗 **[Giriş yapmak için buraya tıklayın]({url})**\n\n**Adım 2:** Giriş yaptıktan sonra tarayıcınız bir hata sayfası gösterecek - **bu normaldir!**\n\n**Adım 3:** Aşağıdaki düğmeye tıklayın ve tarayıcınızdan URL'yi yapıştırın.",
-    "LOGIN_FOOTER": "İpucu: Oturumunuzun kapanmaması için 'Oturumumu açık tut' seçeneğini işaretleyin.",
+    "LOGIN_FOOTER": "💡 Oturumunuzun kapanmaması için 'Oturumumu açık tut' ve 'Bu tarayıcıyı 30 gün hatırla' seçeneklerini işaretleyin.",
     "LOGIN_BUTTON": "Giriş yaptım - URL'yi yapıştır",
     "AUTH_ERROR_RETRY": "Tekrar dene",
     "ACCOUNT_DELETED": "Hesabınız veritabanından silindi!",

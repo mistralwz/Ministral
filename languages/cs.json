@@ -110,7 +110,7 @@
     "LOGGED_IN": "Úspěšně přihlášen jako **{u}**!",
     "LOGIN_TITLE": "🔐 Přihlas se ke svému účtu Riot",
     "LOGIN_DESCRIPTION": "**Krok 1:** Klikni na odkaz níže pro přihlášení:\n\n🔗 **[Klikni sem pro přihlášení]({url})**\n\n**Krok 2:** Po přihlášení tvůj prohlížeč zobrazí chybovou stránku - **to je normální!**\n\n**Krok 3:** Klikni na tlačítko níže a vlož URL ze svého prohlížeče.",
-    "LOGIN_FOOTER": "Tip: Zaškrtni \"Zůstat přihlášen\", abys zabránil odhlášení.",
+    "LOGIN_FOOTER": "💡 Zaškrtni \"Zůstat přihlášen\" a \"Pamatovat si tento prohlížeč po dobu 30 dnů\", abys zabránil odhlášení.",
     "LOGIN_BUTTON": "Jsem přihlášen - Vložit URL",
     "AUTH_ERROR_RETRY": "Zkusit znovu",
     "ACCOUNT_DELETED": "Tvůj účet byl smazán z databáze!",

@@ -110,7 +110,7 @@
     "LOGGED_IN": "Accesso effettuato con successo come **{u}**!",
     "LOGIN_TITLE": "🔐 Accedi al tuo Account Riot",
     "LOGIN_DESCRIPTION": "**Passo 1:** Clicca sul link qui sotto per accedere:\n\n🔗 **[Clicca qui per accedere]({url})**\n\n**Passo 2:** Dopo aver effettuato l'accesso, il browser mostrerà una pagina di errore - **questo è normale!**\n\n**Passo 3:** Clicca sul pulsante qui sotto e incolla l'URL dal browser.",
-    "LOGIN_FOOTER": "Suggerimento: Spunta 'Resta collegato' per evitare di essere disconnesso.",
+    "LOGIN_FOOTER": "💡 Seleziona 'Resta connesso' e 'Ricorda questo browser per 30 giorni' per evitare la disconnessione.",
     "LOGIN_BUTTON": "Ho effettuato l'accesso - incolla l'URL",
     "AUTH_ERROR_RETRY": "Riprova",
     "ACCOUNT_DELETED": "Il tuo account è stato eliminato dal database!",

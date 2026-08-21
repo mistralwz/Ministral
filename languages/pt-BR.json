@@ -110,7 +110,7 @@
     "LOGGED_IN": "Logado como **{u}**!",
     "LOGIN_TITLE": "🔐 Faça login na sua conta Riot",
     "LOGIN_DESCRIPTION": "**Passo 1:** Clique no link abaixo para fazer login:\n\n🔗 **[Clique aqui para fazer login]({url})**\n\n**Passo 2:** Após o login, seu navegador mostrará uma página de erro - **isso é normal!**\n\n**Passo 3:** Clique no botão abaixo e cole a URL do seu navegador.",
-    "LOGIN_FOOTER": "Dica: Marque 'Permanecer conectado' para evitar ser desconectado.",
+    "LOGIN_FOOTER": "💡 Marque 'Permanecer conectado' e 'Lembrar deste navegador por 30 dias' para evitar ser desconectado.",
     "LOGIN_BUTTON": "Já fiz login - colar URL",
     "AUTH_ERROR_RETRY": "Retentar",
     "ACCOUNT_DELETED": "Sua conta foi removida do banco de dados!",

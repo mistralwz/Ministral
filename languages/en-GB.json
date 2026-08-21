@@ -110,7 +110,7 @@
     "LOGGED_IN": "Successfully logged in as **{u}**!",
     "LOGIN_TITLE": "🔐 Login to your Riot Account",
     "LOGIN_DESCRIPTION": "**Step 1:** Click the link below to log in:\n\n🔗 **[Click here to login]({url})**\n\n**Step 2:** After logging in, your browser will show an error page - **this is normal!**\n\n**Step 3:** Click the button below and paste the URL from your browser.",
-    "LOGIN_FOOTER": "Tip: Check 'Stay signed in' to avoid being signed out.",
+    "LOGIN_FOOTER": "💡 Check 'Stay signed in' and 'Remember this browser for 30 days' to avoid being signed out.",
     "LOGIN_BUTTON": "I've logged in - paste URL",
     "AUTH_ERROR_RETRY": "Retry",
     "ACCOUNT_DELETED": "Your account has been deleted from the database!",

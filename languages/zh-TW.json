@@ -110,7 +110,7 @@
     "LOGGED_IN": "成功以 **{u}** 登錄！",
     "LOGIN_TITLE": "🔐 登錄到您的 Riot 帳號",
     "LOGIN_DESCRIPTION": "**步驟 1:** 點擊下面的鏈結登錄：\n\n🔗 **[點擊此處登錄]({url})**\n\n**步驟 2:** 登錄後，您的瀏覽器將顯示錯誤頁面 - **這是正常的！**\n\n**步驟 3:** 點擊下面的按鈕並貼上瀏覽器中的 URL。",
-    "LOGIN_FOOTER": "提示：勾選\"保持登入\"以避免被登出。",
+    "LOGIN_FOOTER": "💡 勾選「保持登入」和「記住此瀏覽器 30 天」以避免被登出。",
     "LOGIN_BUTTON": "我已登錄 - 貼上 URL",
     "AUTH_ERROR_RETRY": "重試",
     "ACCOUNT_DELETED": "您的帳號已從資料庫中刪除！",

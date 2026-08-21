@@ -110,7 +110,7 @@
     "LOGGED_IN": "Connecté avec succès en tant que **{u}**!",
     "LOGIN_TITLE": "🔐 Connexion à ton compte Riot",
     "LOGIN_DESCRIPTION": "**Étape 1:** Clique sur le lien ci-dessous pour te connecter:\n\n🔗 **[Clique ici pour te connecter]({url})**\n\n**Étape 2:** Après la connexion, ton navigateur affichera une page d'erreur - **c'est normal!**\n\n**Étape 3:** Clique sur le bouton ci-dessous et colle l'URL de ton navigateur.",
-    "LOGIN_FOOTER": "Astuce: Coche 'Rester connecté' pour éviter d'être déconnecté.",
+    "LOGIN_FOOTER": "💡 Cochez « Rester connecté » et « Se souvenir de ce navigateur pendant 30 jours » pour éviter d'être déconnecté.",
     "LOGIN_BUTTON": "Je me suis connecté - coller l'URL",
     "AUTH_ERROR_RETRY": "Réessayer",
     "ACCOUNT_DELETED": "Ton compte à été supprimé du bot!",

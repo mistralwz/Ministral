@@ -110,7 +110,7 @@
     "LOGGED_IN": "Bạn đã đăng nhập thành công với tài khoản **{u}**!",
     "LOGIN_TITLE": "🔐 Đăng nhập vào tài khoản Riot của bạn",
     "LOGIN_DESCRIPTION": "**Bước 1:** Nhấp vào liên kết bên dưới để đăng nhập:\n\n🔗 **[Nhấp vào đây để đăng nhập]({url})**\n\n**Bước 2:** Sau khi đăng nhập, trình duyệt của bạn sẽ hiển thị một trang lỗi - **điều này là bình thường!**\n\n**Bước 3:** Nhấp vào nút bên dưới và dán URL từ trình duyệt của bạn.",
-    "LOGIN_FOOTER": "Mẹo: Chọn 'Duy trì đăng nhập' để tránh bị đăng xuất.",
+    "LOGIN_FOOTER": "💡 Chọn 'Duy trì đăng nhập' và 'Ghi nhớ trình duyệt này trong 30 ngày' để tránh bị đăng xuất.",
     "LOGIN_BUTTON": "Tôi đã đăng nhập - dán URL",
     "AUTH_ERROR_RETRY": "Thử lại",
     "ACCOUNT_DELETED": "Đã đăng xuất & xóa tài khoản của bạn khỏi bot",

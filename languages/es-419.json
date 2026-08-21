@@ -110,7 +110,7 @@
     "LOGGED_IN": "¡Iniciaste sesión con éxito como **{u}**!",
     "LOGIN_TITLE": "🔐 Inicia sesión en tu cuenta de Riot",
     "LOGIN_DESCRIPTION": "**Paso 1:** Haz clic en el siguiente enlace para iniciar sesión:\n\n🔗 **[Haz clic aquí para iniciar sesión]({url})**\n\n**Paso 2:** Después de iniciar sesión, tu navegador mostrará una página de error - **¡esto es normal!**\n\n**Paso 3:** Haz clic en el botón de abajo y pega la URL desde tu navegador.",
-    "LOGIN_FOOTER": "Consejo: Marca 'Mantener sesión iniciada' para evitar que se cierre tu sesión.",
+    "LOGIN_FOOTER": "💡 Marca 'Mantener sesión iniciada' y 'Recordar este navegador durante 30 días' para evitar que se cierre tu sesión.",
     "LOGIN_BUTTON": "He iniciado sesión - pegar URL",
     "AUTH_ERROR_RETRY": "Reintentar",
     "ACCOUNT_DELETED": "¡Tu cuenta ha sido eliminada de la base de datos!",

@@ -110,7 +110,7 @@
     "LOGGED_IN": "Uspješno prijavljen kao **{u}**!",
     "LOGIN_TITLE": "🔐 Prijavi se sa svojim Riot Računom",
     "LOGIN_DESCRIPTION": "**Korak 1:** Klikni poveznicu na dnu kako bi se prijavio/la:\n\n🔗 **[Klikni ovdje kako bi se prijavio/la]({url})**\n\n**Korak 2:** Nakon prijave, preglednik će očitati pogrešku na stranici - **to je normalno!**\n\n**Korak 3:** Klikni gumb na dnu i kopiraj stranicu iz adresne trake.",
-    "LOGIN_FOOTER": "Savjet: Odaberi prvu kućicu 'Stay signed in' kako bi prijavu zadržao/la aktivnom.",
+    "LOGIN_FOOTER": "💡 Označite 'Ostani prijavljen' i 'Zapamti ovaj preglednik na 30 dana' kako biste izbjegli odjavljivanje.",
     "LOGIN_BUTTON": "Prijavljen/a sam - Zakači poveznicu",
     "AUTH_ERROR_RETRY": "Pokušaj ponovno",
     "ACCOUNT_DELETED": "Tvoj račun uspješno je obrisan iz baze podataka!",

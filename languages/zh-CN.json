@@ -110,7 +110,7 @@
     "LOGGED_IN": "成功作为 **{u}** 登录!",
     "LOGIN_TITLE": "🔐 登录到您的 Riot 账户",
     "LOGIN_DESCRIPTION": "**步骤 1:** 点击下面的链接登录:\n\n🔗 **[点击此处登录]({url})**\n\n**步骤 2:** 登录后，您的浏览器将显示错误页面 - **这是正常的！**\n\n**步骤 3:** 点击下面的按钮并粘贴浏览器中的 URL。",
-    "LOGIN_FOOTER": "提示：勾选\"保持登录\"以避免被登出。",
+    "LOGIN_FOOTER": "💡 勾选“保持登录”和“记住此浏览器 30 天”以避免被登出。",
     "LOGIN_BUTTON": "我已登录 - 粘贴 URL",
     "AUTH_ERROR_RETRY": "重试",
     "ACCOUNT_DELETED": "你的账号已经从数据库删除!",
