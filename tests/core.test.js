@@ -530,10 +530,11 @@ test("livegame embed: renders team games in a single embed with ally and enemy t
 
     const gameEmbed = renderedTeam.embeds[0];
     assert.ok(gameEmbed.author);
-    assert.equal(gameEmbed.color, 0x1E88E5); // Blue (Defense)
+    assert.equal(gameEmbed.color, 0x2CD182); // Average rank color (Ascendant)
     assert.equal(gameEmbed.image, undefined);
-    assert.ok(gameEmbed.description.includes("Ally"));
-    assert.ok(gameEmbed.description.includes("Enemy"));
+    assert.ok(gameEmbed.description.includes("Avg. Rank:"));
+    assert.ok(gameEmbed.description.includes("Ally#123"));
+    assert.ok(gameEmbed.description.includes("Enemy#456"));
     assert.ok(gameEmbed.description.includes("50**rr") || gameEmbed.description.includes("50"));
     assert.ok(gameEmbed.description.includes("75**rr") || gameEmbed.description.includes("75"));
     assert.ok(gameEmbed.footer?.text.includes("In-Game"));
@@ -555,6 +556,7 @@ test("livegame embed: renders team games in a single embed with ally and enemy t
     assert.equal(renderedSingle.embeds.length, 1);
     assert.equal(renderedSingle.embeds[0].image, undefined);
     assert.ok(renderedSingle.embeds[0].description.includes("Ally"));
+    assert.ok(renderedSingle.embeds[0].description.includes("Ally#123"));
     assert.ok(renderedSingle.embeds[0].footer?.text.includes("In-Game"));
 });
 

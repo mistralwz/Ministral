@@ -19,8 +19,9 @@ import { s, discToValLang, DEFAULT_VALORANT_LANG } from "../misc/languages.js";
 import { getSetting } from "../misc/settings.js";
 import config from "../misc/config.js";
 import { getUser } from "../valorant/auth.js";
-import { resolveAgent, getOwnedAgents, resolveQueueName, resolveQueueIcon, resolveServerName } from "../valorant/livegame.js";
+import { resolveAgent, getOwnedAgents, resolveQueueName, resolveQueueIcon, resolveServerName, resolveTier } from "../valorant/livegame.js";
 import { agentEmoji, rankEmoji, queueEmoji, emojiToString } from "./emoji.js";
+import { getRankColor } from "./embed.js";
 
 const roleSelections = new Map();
 export const setRoleSelection = (userId, role) => roleSelections.set(userId, role);
@@ -159,6 +160,14 @@ export const formatPlayerRow = async (player, channel, showCompStats = false, va
         displayName = (player.riotId || "Unknown").split('#')[0];
     }
 
+    const guildId = channel?.guildId || channel?.guild?.id || "@me";
+    const channelId = channel?.id || "0";
+    const channelUrl = `https://discord.com/channels/${guildId}/${channelId}/#`;
+    const safeRiotId = player.riotId ? player.riotId.replace(/"/g, "'") : "";
+    const nameToken = (!player.incognito && safeRiotId)
+        ? `[\`${displayName}\`](${channelUrl} "${safeRiotId}")`
+        : `\`${displayName}\``;
+
     let agentEmojiStr = "";
     if (enAgentName && player.agentIcon) {
         agentEmojiStr = emojiToString(await agentEmoji(enAgentName, player.agentIcon)) ?? (player.incognito ? "" : `\`${localizedAgentName}\``);
@@ -190,7 +199,7 @@ export const formatPlayerRow = async (player, channel, showCompStats = false, va
             : `${currentRankEmojiStr} **${player.currentRR}**rr`.trim())
         : (currentRankEmojiStr ? `${currentRankEmojiStr} \`Unranked\`` : "`Unranked`");
 
-    const line1 = `${agentPrefix}${leaderBadge}\`${displayName}\` ${rankBadgePart} ${peakBadgePart}`.trim();
+    const line1 = `${agentPrefix}${leaderBadge}${nameToken} ${rankBadgePart} ${peakBadgePart}`.trim();
 
     // Value items: ADR, K/D/A Ratio, Headshot %, Win% (fallback to 0 when no stats available)
     const adr = player.adr ?? 0;
@@ -222,6 +231,44 @@ export const formatPlayerRow = async (player, channel, showCompStats = false, va
 };
 
 /**
+ * Calculate average rank, average peak rank, and matching embed color across players.
+ */
+export const calculateLobbyRank = async (players) => {
+    if (!players || players.length === 0) return { avgRankQuote: "", color: null };
+
+    const rankedPlayers = players.filter(p => p.currentTier > 0);
+    const peakPlayers = players.filter(p => p.peakTier > 0);
+
+    let avgRankStr = "";
+    let lobbyColor = null;
+
+    if (rankedPlayers.length > 0) {
+        const avgCurrentTier = Math.round(rankedPlayers.reduce((sum, p) => sum + p.currentTier, 0) / rankedPlayers.length);
+        const avgCurrentRR = Math.round(rankedPlayers.reduce((sum, p) => sum + (p.currentRR || 0), 0) / rankedPlayers.length);
+        const avgTierInfo = await resolveTier(avgCurrentTier);
+        const avgRankEmoji = emojiToString(await rankEmoji(avgCurrentTier, avgTierInfo.icon)) ?? "";
+        avgRankStr = `${avgRankEmoji ? `${avgRankEmoji} ` : ""}**${avgTierInfo.name}** (${avgCurrentRR} RR)`.trim();
+        lobbyColor = getRankColor(avgTierInfo.name);
+    }
+
+    let avgPeakStr = "";
+    if (peakPlayers.length > 0) {
+        const avgPeakTier = Math.round(peakPlayers.reduce((sum, p) => sum + p.peakTier, 0) / peakPlayers.length);
+        const avgPeakTierInfo = await resolveTier(avgPeakTier);
+        const avgPeakRankEmoji = emojiToString(await rankEmoji(avgPeakTier, avgPeakTierInfo.icon)) ?? "";
+        avgPeakStr = `${avgPeakRankEmoji ? `${avgPeakRankEmoji} ` : ""}**${avgPeakTierInfo.name}**`.trim();
+        if (!lobbyColor) lobbyColor = getRankColor(avgPeakTierInfo.name);
+    }
+
+    const parts = [];
+    if (avgRankStr) parts.push(`**Avg. Rank:** ${avgRankStr}`);
+    if (avgPeakStr) parts.push(`**Peak Rank:** ${avgPeakStr}`);
+
+    const avgRankQuote = parts.length > 0 ? `> ${parts.join(" ┊ ")}` : "";
+    return { avgRankQuote, color: lobbyColor };
+};
+
+/**
  * Format a list of players into a unified markdown block for embed descriptions.
  */
 export const formatPlayersBlock = async (players, channel, showCompStats, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
@@ -250,7 +297,7 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
     const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
     const showCompStats = data.queueId === "competitive" || data.queueId === "skirmish" || data.queueId === "skirmish 2v2";
-    const allyColor = resolveTeamColor(allyPlayers, COLOR_ALLY, isPreGame);
+    const defaultColor = resolveTeamColor(allyPlayers, COLOR_ALLY, isPreGame);
 
     const formattedServer = formatServerName(data.serverName);
     const mapAndServer = formattedServer
@@ -258,8 +305,10 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
         : data.mapName;
 
     const isTeamGame = !data.isSingleTeam && enemyPlayers && enemyPlayers.length > 0;
+    const allPlayers = isTeamGame ? [...allyPlayers, ...enemyPlayers] : allyPlayers;
 
-    const [allyBlock, enemyBlock] = await Promise.all([
+    const [{ avgRankQuote, color: rankColor }, allyBlock, enemyBlock] = await Promise.all([
+        calculateLobbyRank(allPlayers),
         formatPlayersBlock(allyPlayers, channel, showCompStats, valLang, userId),
         isTeamGame
             ? formatPlayersBlock(enemyPlayers, channel, showCompStats, valLang, userId)
@@ -268,6 +317,7 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
 
     const descParts = [];
     if (config.notice) descParts.push(config.notice);
+    if (avgRankQuote) descParts.push(avgRankQuote);
     if (allyBlock) descParts.push(allyBlock);
     if (enemyBlock) descParts.push(enemyBlock);
 
@@ -277,7 +327,7 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
             icon_url: data.queueIcon ?? undefined,
         },
         description: descParts.length > 0 ? descParts.join("\n\n") : undefined,
-        color: allyColor,
+        color: rankColor || defaultColor,
         footer: { text: stateLabel },
         timestamp: new Date().toISOString(),
     };
@@ -372,8 +422,11 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             }
         }
 
+        const { avgRankQuote, color: rankColor } = hasParty ? await calculateLobbyRank(allyPlayers) : { avgRankQuote: "", color: null };
+
         const headerLines = [];
         if (config.notice) headerLines.push(config.notice);
+        if (avgRankQuote) headerLines.push(avgRankQuote);
         if (statusText) headerLines.push(statusText);
         if (serverFormatted) headerLines.push(`-# 🌐 **Servers:** ${serverFormatted}`);
         if (liveGameData.inviteCode) {
@@ -392,7 +445,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             author,
             title,
             description,
-            color,
+            color: (hasParty && rankColor) || color,
         };
 
         let components = [liveGameRefreshRow(userId, liveGameData.inviteCode, hasParty)];
