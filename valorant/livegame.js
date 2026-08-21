@@ -200,9 +200,9 @@ const loadMapImages = async () => {
         mapImagesCache = {};
         mapNamesCache = {};
         for (const m of json.data) {
-            const icon = m.displayIcon ?? m.listViewIcon ?? m.splash ?? null;
+            const icon = m.listViewIcon ?? m.splash ?? null;
             if (m.mapUrl) {
-                // displayIcon or listViewIcon is the compact image used in the embed
+                // listViewIcon is the compact image used in the embed
                 mapImagesCache[m.mapUrl] = icon;
                 if (m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
             }
