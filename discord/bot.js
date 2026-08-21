@@ -1230,6 +1230,8 @@ client.on("interactionCreate", async (interaction) => {
                         flags: [MessageFlags.Ephemeral],
                     });
 
+                    await defer(interaction);
+
                     const id = interaction.user.id;
                     const authSuccess = await authUser(id);
                     if (!authSuccess.success) return await interaction.followUp(authFailureMessage(interaction, authSuccess, s(interaction).error.AUTH_ERROR_GENERIC));
@@ -1247,7 +1249,7 @@ client.on("interactionCreate", async (interaction) => {
                     user.lastFetchedData = Date.now();
                     saveUser(user);
 
-                    await interaction.reply({
+                    await interaction.followUp({
                         embeds: [basicEmbed(s(interaction).info.ACCOUNT_UPDATED.f({ u: user.username }, interaction))],
                     });
                     break;
