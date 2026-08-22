@@ -333,11 +333,11 @@ test("valorant cache: getPrice tier fallbacks for guns and melees", async () => 
     assert.equal(await getPrice("dummy-uuid-3", premGun), 1775);
     assert.equal(await getPrice("dummy-uuid-4", premMelee), 3550);
 
-    // Exclusive tier
+    // Exclusive tier (Store vs Battlepass)
     const exclGun = { rarity: "e046854e-406c-37f4-6607-19a9ba8426fc", weapon: WeaponTypeUuid.Sheriff };
-    const exclMelee = { rarity: "e046854e-406c-37f4-6607-19a9ba8426fc", weapon: WeaponTypeUuid.Knife };
+    const exclStoreMelee = { rarity: "e046854e-406c-37f4-6607-19a9ba8426fc", weapon: WeaponTypeUuid.Knife };
     assert.equal(await getPrice("dummy-uuid-5", exclGun), 2175);
-    assert.equal(await getPrice("dummy-uuid-6", exclMelee), 4350);
+    assert.equal(await getPrice("dummy-uuid-6", exclStoreMelee), 4350);
 
     // Deluxe / Select tiers without store entries are treated as Battlepass / contract skins (0 VP / null)
     const dlxGun = { rarity: "0cebb8be-46d7-c12a-d306-e9907bfc5a25", weapon: WeaponTypeUuid.Spectre };

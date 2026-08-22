@@ -20,6 +20,9 @@ let prices = { timestamp: null };
 // Inverted index: uuid → price, built from bundle items for O(1) fallback in getPrice()
 let bundleItemPrices = {};
 
+// Index of all battlepass reward UUIDs (levels, cards, sprays, gun buddies)
+let battlepassRewards = new Set();
+
 // In-memory O(1) index: level/chroma/skin uuid → skin object (never persisted directly to JSON)
 const skinLookupMap = new Map();
 
@@ -754,6 +757,25 @@ export const fetchBattlepassInfo = async (gameVersion) => {
     // get all battlepass contracts
     const all_bp_contracts = contracts_json.data.filter(contract => contract.content.relationType === "Season");
 
+    // Index all battlepass reward UUIDs
+    battlepassRewards = new Set();
+    for (const contract of all_bp_contracts) {
+        if (contract.content?.chapters) {
+            for (const chapter of contract.content.chapters) {
+                if (chapter.levels) {
+                    for (const level of chapter.levels) {
+                        if (level.reward?.uuid) battlepassRewards.add(level.reward.uuid);
+                    }
+                }
+                if (chapter.freeRewards) {
+                    for (const freeReward of chapter.freeRewards) {
+                        if (freeReward.reward?.uuid) battlepassRewards.add(freeReward.reward.uuid);
+                    }
+                }
+            }
+        }
+    }
+
     // find the last act that has a battlepass
     let currentSeason = null;
     let currentBattlepass = null;
@@ -823,10 +845,19 @@ export const getPrice = async (uuid, skin = null) => {
     if (!bundles) await fetchData([bundles]);
     if (bundleItemPrices[uuid]) return bundleItemPrices[uuid];
 
-    // Only fallback for store-only edition tiers (Ultra, Exclusive, Premium).
-    // Battlepass and Agent contract skins frequently use Select/Deluxe tiers and cost 0 VP.
     if (skin && skin.rarity) {
         const isMelee = skin.weapon === "2f59173c-4bed-b6c3-2191-dea9b58be9c7";
+
+        // Battlepass melees carry Exclusive/Deluxe tiers but represent the 1000 VP battlepass cost
+        const isBpMelee = isMelee && (
+            battlepassRewards.has(uuid) ||
+            (skin.skinUuid && battlepassRewards.has(skin.skinUuid)) ||
+            (skin.levels && skin.levels.some(lvl => battlepassRewards.has(lvl.uuid)))
+        );
+        if (isBpMelee) return 1000;
+
+        // Only fallback for store-only edition tiers (Ultra, Exclusive, Premium).
+        // Battlepass and Agent contract skins frequently use Select/Deluxe tiers and cost 0 VP.
         switch (skin.rarity) {
             case "411e4a55-4e59-7757-41f0-86a53f101bb5": return isMelee ? 4950 : 2475; // Ultra (Store-only)
             case "e046854e-406c-37f4-6607-19a9ba8426fc": return isMelee ? 4350 : 2175; // Exclusive (Store-only)
