@@ -758,23 +758,12 @@ export const fetchBattlepassInfo = async (gameVersion) => {
     const all_bp_contracts = contracts_json.data.filter(contract => contract.content.relationType === "Season");
 
     // Index all battlepass reward UUIDs
-    battlepassRewards = new Set();
-    for (const contract of all_bp_contracts) {
-        if (contract.content?.chapters) {
-            for (const chapter of contract.content.chapters) {
-                if (chapter.levels) {
-                    for (const level of chapter.levels) {
-                        if (level.reward?.uuid) battlepassRewards.add(level.reward.uuid);
-                    }
-                }
-                if (chapter.freeRewards) {
-                    for (const freeReward of chapter.freeRewards) {
-                        if (freeReward.reward?.uuid) battlepassRewards.add(freeReward.reward.uuid);
-                    }
-                }
-            }
-        }
-    }
+    battlepassRewards = new Set(
+        all_bp_contracts.flatMap(c => c.content?.chapters?.flatMap(ch => [
+            ...(ch.levels || []),
+            ...(ch.freeRewards || [])
+        ]).map(r => r.reward?.uuid) || []).filter(Boolean)
+    );
 
     // find the last act that has a battlepass
     let currentSeason = null;
@@ -851,8 +840,8 @@ export const getPrice = async (uuid, skin = null) => {
         // Battlepass melees carry Exclusive/Deluxe tiers but represent the 1000 VP battlepass cost
         const isBpMelee = isMelee && (
             battlepassRewards.has(uuid) ||
-            (skin.skinUuid && battlepassRewards.has(skin.skinUuid)) ||
-            (skin.levels && skin.levels.some(lvl => battlepassRewards.has(lvl.uuid)))
+            battlepassRewards.has(skin.skinUuid) ||
+            skin.levels?.some(lvl => battlepassRewards.has(lvl.uuid))
         );
         if (isBpMelee) return 1000;
 
