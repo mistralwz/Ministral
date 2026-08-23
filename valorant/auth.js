@@ -10,10 +10,6 @@ import config from "../misc/config.js";
 import { addUser, getAccountWithPuuid, getUserJson, readUserJson, saveUser } from "./accountSwitcher.js";
 import { getAllUserIds, getUserIdsWithAlertsOrDailyShop } from "../misc/userDatabase.js";
 
-export const beginUserCacheScope = () => {};
-export const endUserCacheScope = () => {};
-export const invalidateUserCache = () => {};
-
 export class User {
     constructor({ id, puuid, auth, alerts = [], username, region, authFailures, lastFetchedData, lastNoticeSeen, lastSawEasterEgg }) {
         this.id = id;
@@ -170,8 +166,9 @@ export const refreshToken = async (id, account = null) => {
     let user = getUser(id, account);
     if (!user) return { success: false };
 
-    // If another shard/process already refreshed this token in SQLite, reuse it immediately
-    if (user.auth?.rso) {
+    // If another shard/process already refreshed this token in SQLite, reuse it immediately.
+    // ent must be present too: authUser falls through to here precisely when ent is missing.
+    if (user.auth?.rso && user.auth?.ent) {
         const rsoExpiry = tokenExpiry(user.auth.rso);
         const bufferMs = (config.tokenRefreshBufferMinutes || 5) * 60 * 1000;
         if (rsoExpiry - Date.now() > bufferMs) {
@@ -252,7 +249,6 @@ export const refreshToken = async (id, account = null) => {
 export const deleteUserAuth = (user) => {
     user.auth = {};
     saveUser(user);
-    invalidateUserCache(user.id);
 };
 
 let cachedUserAgent = null;
