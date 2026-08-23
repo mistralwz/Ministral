@@ -86,7 +86,10 @@ export const loadConfig = (filename = "config.json", saveAfterLoad = true) => {
         verboseLogging: false,
     };
 
-    Object.assign(config, defaultConfig, loadedConfig);
+    const knownConfig = Object.fromEntries(
+        Object.entries(loadedConfig).filter(([key]) => key in defaultConfig)
+    );
+    Object.assign(config, defaultConfig, knownConfig);
 
     if (saveAfterLoad) {
         try {
