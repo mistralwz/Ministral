@@ -47,7 +47,7 @@ import {
     settingIsVisible
 } from "../misc/settings.js";
 
-import { User, getPuuid } from "../valorant/auth.js";
+import { User, getPuuid, refreshToken } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
@@ -810,3 +810,29 @@ test("collection: renderCollection returns error object when user is unregistere
 
 
 
+
+test("auth: refreshToken short-circuits only when both rso and ent are fresh", async () => {
+    initUserDatabase("data/test_users.db");
+
+    // JWT-shaped token expiring in 1 hour — well past tokenRefreshBufferMinutes
+    const freshRso = "x." + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url") + ".y";
+    const mkUser = (auth) => ({
+        id: "refresh-test-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [{ puuid: "refresh-test-puuid", userId: "refresh-test-user", username: "Refresh#001", region: "eu", auth, alerts: [] }]
+    });
+
+    // Fresh rso + ent: another shard already refreshed, reuse without touching the network
+    saveUserToDb(mkUser({ rso: freshRso, ent: "ent-token" }));
+    assert.deepEqual(await refreshToken("refresh-test-user"), { success: true });
+
+    // Fresh rso but ent missing: must NOT short-circuit, or every request ships an undefined
+    // entitlements header forever. No refresh_token here, so it fails out without network.
+    saveUserToDb(mkUser({ rso: freshRso }));
+    const result = await refreshToken("refresh-test-user");
+    assert.equal(result.success, false);
+    assert.equal(result.authFailure, true);
+
+    deleteUserFromDb("refresh-test-user");
+});

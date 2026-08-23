@@ -2,7 +2,7 @@ import {
     removeDupeAlerts,
     wait
 } from "../misc/util.js";
-import { authUser, deleteUserAuth, getUser, getUserList, getAlertUserList, beginUserCacheScope, endUserCacheScope, invalidateUserCache } from "../valorant/auth.js";
+import { authUser, deleteUserAuth, getUser, getUserList, getAlertUserList } from "../valorant/auth.js";
 import { getOffers } from "../valorant/shop.js";
 import { getSkin } from "../valorant/cache.js";
 import {
@@ -91,7 +91,6 @@ export const addAlert = (id, alert) => {
     }
     user.alerts = removeDupeAlerts(user.alerts);
     saveUser(user);
-    invalidateUserCache(id);
 };
 
 export const alertsForUser = (id, account = null) => {
@@ -188,7 +187,6 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
         if (userAlerts.length !== rawUserAlerts.length) {
             valorantUser.alerts = userAlerts;
             saveUser(valorantUser, i);
-            invalidateUserCache(id);
         }
 
         let offers;
@@ -217,7 +215,6 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
                     }
 
                     deleteUserAuth(valorantUser);
-                    invalidateUserCache(id);
                     break;
                 }
                 else {
@@ -283,14 +280,11 @@ export const checkAlerts = async () => {
             try {
                 await Promise.all(userList.map(id => limit(async () => {
                     try {
-                        beginUserCacheScope();
                         // Each concurrent task starts fresh — no inter-user delay needed
                         await processUserAlerts(id);
                     } catch (e) {
                         console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
                         console.error(e);
-                    } finally {
-                        endUserCacheScope();
                     }
                 })));
             } finally {
@@ -308,13 +302,10 @@ export const checkAlerts = async () => {
                     for (let j = batchStart; j < batchEnd; j++) {
                         const id = userList[j];
                         try {
-                            beginUserCacheScope();
                             shouldWait = await processUserAlerts(id, shouldWait);
                         } catch (e) {
                             console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
                             console.error(e);
-                        } finally {
-                            endUserCacheScope();
                         }
                     }
                 } finally {
