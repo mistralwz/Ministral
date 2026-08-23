@@ -10,15 +10,9 @@ import config from "../misc/config.js";
 import { addUser, getAccountWithPuuid, getUserJson, readUserJson, saveUser } from "./accountSwitcher.js";
 import { getAllUserIds, getUserIdsWithAlertsOrDailyShop } from "../misc/userDatabase.js";
 
-let userCache = null;
-
-export const beginUserCacheScope = () => {
-    userCache = new Map();
-};
-
-export const endUserCacheScope = () => {
-    userCache = null;
-};
+export const beginUserCacheScope = () => {};
+export const endUserCacheScope = () => {};
+export const invalidateUserCache = () => {};
 
 export class User {
     constructor({ id, puuid, auth, alerts = [], username, region, authFailures, lastFetchedData, lastNoticeSeen, lastSawEasterEgg }) {
@@ -47,19 +41,10 @@ export const getUser = (id, account = null) => {
         return userData && new User(userData);
     }
 
-    const cacheKey = `${id}:${account ?? ''}`;
-    if (userCache) {
-        const cached = userCache.get(cacheKey);
-        if (cached !== undefined) return cached;
-    }
-
     try {
         const userData = getUserJson(id, account);
-        const result = userData && new User(userData);
-        if (userCache) userCache.set(cacheKey, result);
-        return result;
+        return userData && new User(userData);
     } catch (e) {
-        if (userCache) userCache.set(cacheKey, null);
         return null;
     }
 };
@@ -67,13 +52,6 @@ export const getUser = (id, account = null) => {
 export const getPuuid = (id, account = null) => {
     const user = getUser(id, account);
     return user ? user.puuid : null;
-};
-
-export const invalidateUserCache = (id) => {
-    if (!userCache) return;
-    for (const key of userCache.keys()) {
-        if (key.startsWith(`${id}:`)) userCache.delete(key);
-    }
 };
 
 export const getUserList = () => {
@@ -189,10 +167,19 @@ export const getRegion = async (user) => {
 const activeRefreshes = new Map();
 
 export const refreshToken = async (id, account = null) => {
-    if (config.logUrls) console.log(`Refreshing token for ${id}...`);
-
     let user = getUser(id, account);
     if (!user) return { success: false };
+
+    // If another shard/process already refreshed this token in SQLite, reuse it immediately
+    if (user.auth?.rso) {
+        const rsoExpiry = tokenExpiry(user.auth.rso);
+        const bufferMs = (config.tokenRefreshBufferMinutes || 5) * 60 * 1000;
+        if (rsoExpiry - Date.now() > bufferMs) {
+            return { success: true };
+        }
+    }
+
+    if (config.logUrls) console.log(`Refreshing token for ${id}...`);
 
     const lockKey = `${user.id}:${user.puuid || account || ''}`;
     if (activeRefreshes.has(lockKey)) {

@@ -238,7 +238,7 @@ const tokenCache = new Map();
 const MAX_TOKEN_CACHE_SIZE = 256;
 
 export const decodeToken = (token) => {
-    if (!token) return null;
+    if (!token || typeof token !== "string" || !token.includes('.')) return null;
     const cached = tokenCache.get(token);
     if (cached) {
         tokenCache.delete(token);
@@ -247,8 +247,9 @@ export const decodeToken = (token) => {
     }
 
     try {
-        const encodedPayload = token.split('.')[1];
-        const decoded = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+        const parts = token.split('.');
+        if (parts.length < 2 || !parts[1]) return null;
+        const decoded = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
 
         if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
             tokenCache.delete(tokenCache.keys().next().value);
@@ -257,7 +258,6 @@ export const decodeToken = (token) => {
 
         return decoded;
     } catch (e) {
-        console.error("Failed to decode JWT token:", e);
         return null;
     }
 };
