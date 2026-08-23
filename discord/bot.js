@@ -2226,14 +2226,20 @@ client.on("interactionCreate", async (interaction) => {
 
                 await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-                const success = await joinPartyByCode(interaction.user.id, null, inviteCode);
-                if (success) {
+                const result = await joinPartyByCode(interaction.user.id, null, inviteCode);
+                if (result.success) {
                     await interaction.editReply({
                         embeds: [basicEmbed(s(interaction).livegame?.JOIN_PARTY_SUCCESS || "✅ Successfully joined the party!")]
                     });
+                } else if (result.reason === "auth_failed" || result.reason === "no_user") {
+                    await interaction.editReply(authFailureMessage(interaction, result.auth || {}, s(interaction).error?.AUTH_ERROR_GENERIC || "Authentication failed. Please log in again using `/login`.", true));
                 } else {
+                    let debugInfo = "";
+                    if (result.statusCode) {
+                        debugInfo = `\n\n-# ⚠️ **Debug Info:** \`HTTP ${result.statusCode}${result.errorCode ? ` | ${result.errorCode}` : ""}${result.errorMessage ? ` | ${result.errorMessage}` : ""}\``;
+                    }
                     await interaction.editReply({
-                        embeds: [basicEmbed(s(interaction).livegame?.JOIN_PARTY_FAIL || "❌ Failed to join the party. Ensure your VALORANT client is open, logged in, and in the same region.")]
+                        embeds: [basicEmbed((s(interaction).livegame?.JOIN_PARTY_FAIL || "❌ Failed to join the party. Ensure your VALORANT client is open, logged in, and in the same region.") + debugInfo)]
                     });
                 }
             } else if (interaction.customId.startsWith("livegame/refresh/")) {

@@ -896,18 +896,32 @@ export const removePartyCode = async (id, account, partyId) => {
 
 export const joinPartyByCode = async (id, account, inviteCode) => {
     const auth = await authUser(id, account);
-    if (!auth.success) return false;
+    if (!auth.success) return { success: false, reason: "auth_failed", auth };
     const user = getUser(id, account);
-    if (!user) return false;
+    if (!user) return { success: false, reason: "no_user" };
+
+    const cleanCode = String(inviteCode || "").trim();
     const base = glzUrl(user);
-    const headers = { ...authHeaders(user), "Content-Type": "application/json" };
-    const resp = await fetch(`${base}/parties/v1/players/joinbycode/${inviteCode}`, {
+    const headers = authHeaders(user);
+    const url = `${base}/parties/v1/players/joinbycode/${encodeURIComponent(cleanCode)}`;
+
+    console.log(`[livegame] joinPartyByCode calling ${url} for user ${user.puuid}`);
+    const resp = await fetch(url, {
         method: "POST",
-        headers,
-        body: "{}"
+        headers
     });
-    console.log(`[livegame] joinPartyByCode for ${inviteCode} on ${base} returned:`, resp.statusCode);
-    return resp.statusCode === 200;
+
+    const bodyJson = safeJson(resp.body);
+    console.log(`[livegame] joinPartyByCode for ${cleanCode} on ${base} returned: status=${resp.statusCode}, body=`, resp.body);
+
+    const isSuccess = resp.statusCode === 200 || resp.statusCode === 204;
+    return {
+        success: isSuccess,
+        statusCode: resp.statusCode,
+        errorCode: bodyJson?.errorCode || bodyJson?.errorCodeName || null,
+        errorMessage: bodyJson?.message || null,
+        data: bodyJson
+    };
 };
 
 // ──────────────────────────────────────────────
