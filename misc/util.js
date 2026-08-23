@@ -91,11 +91,6 @@ export const fetch = (url, options = {}) => {
     });
 };
 
-export const fetchJson = async (url, options = {}) => {
-    const res = await fetch(url, options);
-    return JSON.parse(res.body);
-};
-
 export const WeaponTypeUuid = {
     Odin: "63e6c2b6-4a8e-869c-3d4c-e38355226584",
     Ares: "55d8a0f4-4274-ca67-fe2c-06ab45efdf58",
@@ -253,8 +248,7 @@ export const decodeToken = (token) => {
 
     try {
         const encodedPayload = token.split('.')[1];
-        const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
-        const decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+        const decoded = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
 
         if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
             tokenCache.delete(tokenCache.keys().next().value);

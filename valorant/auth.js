@@ -276,7 +276,7 @@ export const getUserAgent = async () => {
     if (!versionData) {
         versionData = await fetchRiotVersionData();
     }
-    const version = versionData ? versionData.riotClientVersion : "release-10.00-shipping-0-0000000";
+    const version = versionData ? (versionData.riotClientBuild || versionData.riotClientVersion) : "release-10.00-shipping-0-0000000";
     cachedUserAgent = `RiotClient/${version} rso-auth (Windows;10;;Professional, x64)`;
     return cachedUserAgent;
 };

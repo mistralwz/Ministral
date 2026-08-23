@@ -6,14 +6,9 @@ const oldLog = console.log;
 const oldError = console.error;
 
 let discordClient = null;
-let logPublisher = null;
 
 export const setLoggerClient = (client) => {
     discordClient = client;
-};
-
-export const setLogPublisher = (publisher) => {
-    logPublisher = publisher;
 };
 
 const shardString = () => {

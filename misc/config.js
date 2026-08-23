@@ -40,54 +40,53 @@ export const loadConfig = (filename = "config.json", saveAfterLoad = true) => {
         console.error("If you don't want to see this notification again, set HDevTokenAlert to false in config.json");
     }
 
-    // to see what these keys do, check here:
-    // https://github.com/giorgi-o/SkinPeek/wiki/SkinPeek-Admin-Guide#the-option-list
+    const defaultConfig = {
+        token: "token goes here",
+        HDevToken: "",
+        HDevTokenAlert: true,
+        fetchSkinPrices: true,
+        fetchSkinRarities: true,
+        localiseText: true,
+        localiseSkinNames: true,
+        linkItemImage: true,
+        refreshSkins: "10 0 0 * * *",
+        checkGameVersion: "*/15 * * * *",
+        refreshPrices: "*/30 * * * *",
+        updateUserAgent: "*/15 * * * *",
+        delayBetweenAlerts: 5 * 1000,
+        alertConcurrency: 1,
+        alertsPerPage: 10,
+        careerCacheExpiration: 10 * 60 * 1000,
+        emojiCacheExpiration: 10 * 1000,
+        loadoutCacheExpiration: 10 * 60 * 1000,
+        livegamePollingInterval: 8000,
+        deferInteractions: false,
+        useShopCache: true,
+        authFailureStrikes: 2,
+        maxAccountsPerUser: 5,
+        autoRefreshTokens: true,
+        tokenRefreshBufferMinutes: 5,
+        rateLimitBackoff: 60,
+        rateLimitCap: 10 * 60,
+        shards: "auto",
+        trackStoreStats: true,
+        statsExpirationDays: 14,
+        statsPerPage: 8,
+        shardReadyTimeout: 60 * 1000,
+        autoDeployCommands: true,
+        ownerId: "",
+        ownerName: "",
+        status: "Up and running!",
+        notice: "",
+        onlyShowNoticeOnce: true,
+        maintenanceMode: false,
+        logToChannel: "",
+        logFrequency: "*/10 * * * * *",
+        logUrls: false,
+        verboseLogging: false,
+    };
 
-    applyConfig(loadedConfig, "token", "token goes here");
-    applyConfig(loadedConfig, "HDevToken", "");
-    applyConfig(loadedConfig, "HDevTokenAlert", true);
-    //TODO applyConfig(loadedConfig, "useUnofficialValorantApi", true);
-    applyConfig(loadedConfig, "fetchSkinPrices", true);
-    applyConfig(loadedConfig, "fetchSkinRarities", true);
-    applyConfig(loadedConfig, "localiseText", true);
-    applyConfig(loadedConfig, "localiseSkinNames", true);
-    applyConfig(loadedConfig, "linkItemImage", true);
-
-    applyConfig(loadedConfig, "refreshSkins", "10 0 0 * * *");
-    applyConfig(loadedConfig, "checkGameVersion", "*/15 * * * *");
-    applyConfig(loadedConfig, "refreshPrices", "*/30 * * * *");
-    applyConfig(loadedConfig, "updateUserAgent", "*/15 * * * *");
-    applyConfig(loadedConfig, "delayBetweenAlerts", 5 * 1000);
-    applyConfig(loadedConfig, "alertConcurrency", 1); // 1 = sequential (safe default); >1 enables parallel alert checks via p-limit
-    applyConfig(loadedConfig, "alertsPerPage", 10);
-    applyConfig(loadedConfig, "careerCacheExpiration", 10 * 60 * 1000);
-    applyConfig(loadedConfig, "emojiCacheExpiration", 10 * 1000);
-    applyConfig(loadedConfig, "loadoutCacheExpiration", 10 * 60 * 1000);
-    applyConfig(loadedConfig, "livegamePollingInterval", 8000);
-    applyConfig(loadedConfig, "deferInteractions", false);
-    applyConfig(loadedConfig, "useShopCache", true);
-    applyConfig(loadedConfig, "authFailureStrikes", 2);
-    applyConfig(loadedConfig, "maxAccountsPerUser", 5);
-    applyConfig(loadedConfig, "autoRefreshTokens", true);
-    applyConfig(loadedConfig, "tokenRefreshBufferMinutes", 5);
-    applyConfig(loadedConfig, "rateLimitBackoff", 60);
-    applyConfig(loadedConfig, "rateLimitCap", 10 * 60);
-    applyConfig(loadedConfig, "shards", "auto");
-    applyConfig(loadedConfig, "trackStoreStats", true);
-    applyConfig(loadedConfig, "statsExpirationDays", 14);
-    applyConfig(loadedConfig, "statsPerPage", 8);
-    applyConfig(loadedConfig, "shardReadyTimeout", 60 * 1000);
-    applyConfig(loadedConfig, "autoDeployCommands", true);
-    applyConfig(loadedConfig, "ownerId", "");
-    applyConfig(loadedConfig, "ownerName", "");
-    applyConfig(loadedConfig, "status", "Up and running!");
-    applyConfig(loadedConfig, "notice", "");
-    applyConfig(loadedConfig, "onlyShowNoticeOnce", true);
-    applyConfig(loadedConfig, "maintenanceMode", false);
-    applyConfig(loadedConfig, "logToChannel", "");
-    applyConfig(loadedConfig, "logFrequency", "*/10 * * * * *");
-    applyConfig(loadedConfig, "logUrls", false);
-    applyConfig(loadedConfig, "verboseLogging", false);
+    Object.assign(config, defaultConfig, loadedConfig);
 
     if (saveAfterLoad) {
         try {
@@ -120,9 +119,4 @@ export const saveConfig = (filename = "config.json", configToSave) => {
         }
         throw e; // Re-throw to let caller know save failed
     }
-}
-
-const applyConfig = (loadedConfig, name, defaultValue) => {
-    if (loadedConfig[name] === undefined) config[name] = defaultValue;
-    else config[name] = loadedConfig[name];
-}
+};

@@ -65,11 +65,6 @@ export const discToValLang = {
     'ar-AE': 'ar-AE'
 };
 
-export const valToDiscLang = {};
-Object.keys(discToValLang).forEach(discLang => {
-    valToDiscLang[discToValLang[discLang]] = discLang;
-});
-
 export const discLanguageNames = {
     'de': '🇩🇪 Deutsch',
     'en-GB': '🇬🇧 English (UK)',
@@ -116,19 +111,12 @@ export const discLanguageNames = {
 export const DEFAULT_LANG = 'en-GB';
 export const DEFAULT_VALORANT_LANG = 'en-US';
 
-export const formatString = (s) => s;
-
-const asLocalized = (value) => {
-    if (typeof value === "string") return formatString(value);
-    return value;
-};
-
 const buildCategoryProxy = (categoryStrings = {}, fallbackCategory = null) => {
     const target = (categoryStrings && typeof categoryStrings === "object") ? categoryStrings : {};
     return new Proxy(target, {
         get(targetObj, prop) {
-            if (prop in targetObj) return asLocalized(targetObj[prop]);
-            if (fallbackCategory && prop in fallbackCategory) return asLocalized(fallbackCategory[prop]);
+            if (prop in targetObj) return targetObj[prop];
+            if (fallbackCategory && prop in fallbackCategory) return fallbackCategory[prop];
             return undefined;
         }
     });
@@ -239,7 +227,7 @@ export const l = (languageObject, input, hideName = false) => {
         if (input in languages || input in discToValLang) {
             discLang = input;
         } else if (input in languageObject) {
-            return formatString(languageObject[input]);
+            return languageObject[input];
         } else {
             userId = input;
         }
