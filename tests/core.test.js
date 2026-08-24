@@ -47,7 +47,7 @@ import {
     settingIsVisible
 } from "../misc/settings.js";
 
-import { User, getPuuid, refreshToken } from "../valorant/auth.js";
+import { User, getPuuid, refreshToken, activeRefreshCount } from "../valorant/auth.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
@@ -1028,4 +1028,43 @@ test("livegame: repollLiveGame bails out before doing any work when it can't hel
 
     // Unregistered user: null, and the caller's fetchLiveGame surfaces the auth error.
     assert.equal(await repollLiveGame("definitely-not-registered", null, "pregame", "match-1"), null);
+});
+
+test("auth: a failed refresh releases its lock instead of caching the failure", async () => {
+    initUserDatabase("data/test_users.db");
+
+    const freshRso = "x." + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url") + ".y";
+    saveUserToDb({
+        id: "lock-test-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [{
+            puuid: "lock-test-puuid", userId: "lock-test-user", username: "Lock#001",
+            region: "eu", auth: { rso: freshRso }, alerts: []   // no ent, no refresh_token
+        }]
+    });
+
+    // This path has no `await` in it, so it used to complete — and run its
+    // `finally` release — before the line that registered the lock, leaving a
+    // settled {authFailure: true} cached under the key forever. Every later
+    // refresh for this user was then served that stale failure, so logging in
+    // again didn't help until the process restarted.
+    const result = await refreshToken("lock-test-user");
+    assert.equal(result.authFailure, true);
+    assert.equal(activeRefreshCount(), 0, "refresh lock leaked after a synchronous failure");
+
+    // And the normal path must release it too.
+    saveUserToDb({
+        id: "lock-test-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [{
+            puuid: "lock-test-puuid", userId: "lock-test-user", username: "Lock#001",
+            region: "eu", auth: { rso: freshRso, ent: "ent-token" }, alerts: []
+        }]
+    });
+    assert.deepEqual(await refreshToken("lock-test-user"), { success: true });
+    assert.equal(activeRefreshCount(), 0);
+
+    deleteUserFromDb("lock-test-user");
 });

@@ -162,6 +162,9 @@ export const getRegion = async (user) => {
 
 const activeRefreshes = new Map();
 
+/** Test hook: in-flight refresh count. Must be 0 whenever none is running. */
+export const activeRefreshCount = () => activeRefreshes.size;
+
 export const refreshToken = async (id, account = null) => {
     let user = getUser(id, account);
     if (!user) return { success: false };
@@ -237,13 +240,24 @@ export const refreshToken = async (id, account = null) => {
             // Only delete auth if user does not have a refresh_token
             deleteUserAuth(user);
             return { success: false, authFailure: true };
-        } finally {
-            activeRefreshes.delete(lockKey);
+        } catch (e) {
+            console.error(`[refreshToken] Unexpected error for ${user.username}:`, e);
+            return { success: false, networkError: true };
         }
     })();
 
+    // The lock is released here, after the promise is registered — not in a
+    // `finally` inside the IIFE. The no-refresh_token path above has no
+    // `await` in it, so it ran to completion (and released the lock) *before*
+    // the line that registered it, leaving a settled failure cached under this
+    // key forever: the user could log in again and every later refresh would
+    // still be served that stale {authFailure: true} until the bot restarted.
     activeRefreshes.set(lockKey, refreshPromise);
-    return await refreshPromise;
+    try {
+        return await refreshPromise;
+    } finally {
+        activeRefreshes.delete(lockKey);
+    }
 };
 
 export const deleteUserAuth = (user) => {
