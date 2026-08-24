@@ -481,6 +481,21 @@ const safeJson = (str) => {
     try { return JSON.parse(str); } catch { return null; }
 };
 
+/**
+ * GLZ "am I in X?" probe: GET /{path}/v1/players/{puuid} → the id it reports,
+ * or null when the user isn't in that state.
+ *
+ * Split out of the three getters so fetchLiveGame can run all three probes in
+ * a single round trip and then pay for the detail fetch of only whichever one
+ * hit. The states are mutually exclusive, so pulling full party detail while
+ * the user was mid-match was always a wasted request.
+ */
+const probeState = async (user, path, idField) => {
+    const resp = await fetch(`${glzUrl(user)}/${path}/v1/players/${user.puuid}`, { headers: authHeaders(user) });
+    if (resp.statusCode !== 200) return null;
+    return safeJson(resp.body)?.[idField] ?? null;
+};
+
 // ──────────────────────────────────────────────
 // Party / Matchmaking fetch
 // ──────────────────────────────────────────────
@@ -491,7 +506,7 @@ const safeJson = (str) => {
  * or       { success, state: "not_queuing" }
  * or       { success: false, ... } on auth failure.
  */
-export const getPartyData = async (id, account = null) => {
+export const getPartyData = async (id, account = null, knownPartyId = undefined) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
@@ -500,18 +515,11 @@ export const getPartyData = async (id, account = null) => {
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
-    // Check if the user is in a party
-    const playerResp = await fetch(
-        `${base}/parties/v1/players/${user.puuid}`,
-        { headers }
-    );
-
-    if (playerResp.statusCode !== 200) {
-        return { success: true, state: "not_queuing" };
-    }
-
-    const playerJson = safeJson(playerResp.body);
-    const partyId = playerJson?.CurrentPartyID;
+    // knownPartyId: undefined = probe for it, null = caller already knows there
+    // is no party, string = caller already probed and we skip straight to detail.
+    const partyId = knownPartyId === undefined
+        ? await probeState(user, "parties", "CurrentPartyID")
+        : knownPartyId;
     if (!partyId) return { success: true, state: "not_queuing" };
 
     // Fetch party data
@@ -731,7 +739,7 @@ export const getOwnedAgents = async (user) => {
  * or       { success, state: "not_in_pregame" }
  * or       { success: false, ... } on auth failure.
  */
-export const getPreGameData = async (id, account = null) => {
+export const getPreGameData = async (id, account = null, knownMatchId = undefined) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
@@ -740,18 +748,11 @@ export const getPreGameData = async (id, account = null) => {
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
-    // Check if the user is in pre-game
-    const playerResp = await fetch(
-        `${base}/pregame/v1/players/${user.puuid}`,
-        { headers }
-    );
-
-    if (playerResp.statusCode !== 200) {
-        return { success: true, state: "not_in_pregame" };
-    }
-
-    const playerJson = safeJson(playerResp.body);
-    const matchId = playerJson?.MatchID;
+    // Passing a known match id skips the probe — that's what makes the poller's
+    // "is agent select still running?" check a single request.
+    const matchId = knownMatchId === undefined
+        ? await probeState(user, "pregame", "MatchID")
+        : knownMatchId;
     if (!matchId) return { success: true, state: "not_in_pregame" };
 
     // Fetch match data
@@ -828,7 +829,7 @@ export const getPreGameData = async (id, account = null) => {
  * or       { success, state: "not_in_game" }
  * or       { success: false, ... } on auth failure.
  */
-export const getInGameData = async (id, account = null) => {
+export const getInGameData = async (id, account = null, knownMatchId = undefined) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
@@ -837,18 +838,9 @@ export const getInGameData = async (id, account = null) => {
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
-    // Check if the user is in a live game
-    const playerResp = await fetch(
-        `${base}/core-game/v1/players/${user.puuid}`,
-        { headers }
-    );
-
-    if (playerResp.statusCode !== 200) {
-        return { success: true, state: "not_in_game" };
-    }
-
-    const playerJson = safeJson(playerResp.body);
-    const matchId = playerJson?.MatchID;
+    const matchId = knownMatchId === undefined
+        ? await probeState(user, "core-game", "MatchID")
+        : knownMatchId;
     if (!matchId) return { success: true, state: "not_in_game" };
 
     // Fetch match data
@@ -1260,6 +1252,32 @@ const enrichPlayers = async (id, account, rawPlayers) => {
  *   { success: true, state: "ingame",   mapName, players: [{...enriched}],
  *                                       allyPlayers, enemyPlayers }
  */
+/** Enrich + decorate a raw getInGameData result into a render-ready payload. */
+const buildInGame = async (id, account, inGame) => {
+    const enriched = await enrichPlayers(id, account, inGame.players);
+    return {
+        ...inGame,
+        players: enriched,
+        allyPlayers: enriched.filter(p => p.isAlly),
+        enemyPlayers: enriched.filter(p => !p.isAlly),
+        isSingleTeam: SINGLE_TEAM_QUEUES.has(inGame.queueId?.toLowerCase()),
+        queueIcon: resolveQueueIcon(inGame.queueId),
+    };
+};
+
+/** Enrich + decorate a raw getPreGameData result into a render-ready payload. */
+const buildPreGame = async (id, account, preGame) => {
+    const enriched = await enrichPlayers(id, account, preGame.players);
+    return {
+        ...preGame,
+        players: enriched,
+        allyPlayers: enriched,
+        enemyPlayers: [],
+        isSingleTeam: SINGLE_TEAM_QUEUES.has(preGame.queueId?.toLowerCase()),
+        queueIcon: resolveQueueIcon(preGame.queueId),
+    };
+};
+
 export const fetchLiveGame = async (id, account = null) => {
     // 1. Ensure static caches are ready before the parallel API calls
     await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapNames(), loadSeasons(), loadGamemodes()]);
@@ -1267,32 +1285,32 @@ export const fetchLiveGame = async (id, account = null) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
-    // 2. Parallelize state checks
-    const [inGame, preGame, party] = await Promise.all([
-        getInGameData(id, account),
-        getPreGameData(id, account),
-        getPartyData(id, account)
+    const user = getUser(id, account);
+    if (!user) return { success: false, state: null };
+
+    // 2. One round trip for all three "am I in X?" probes, then only the state
+    //    that actually hit pays for its detail fetch. They're mutually
+    //    exclusive, so pulling party detail mid-match was always wasted.
+    const [coreMatchId, preMatchId, partyId] = await Promise.all([
+        probeState(user, "core-game", "MatchID"),
+        probeState(user, "pregame", "MatchID"),
+        probeState(user, "parties", "CurrentPartyID"),
     ]);
 
-    if (!inGame.success) return inGame;
-    if (!preGame.success) return preGame;
+    if (coreMatchId) {
+        const inGame = await getInGameData(id, account, coreMatchId);
+        if (!inGame.success) return inGame;
+        if (inGame.state === "ingame") return await buildInGame(id, account, inGame);
+    }
+
+    if (preMatchId) {
+        const preGame = await getPreGameData(id, account, preMatchId);
+        if (!preGame.success) return preGame;
+        if (preGame.state === "pregame") return await buildPreGame(id, account, preGame);
+    }
+
+    const party = await getPartyData(id, account, partyId);
     if (!party.success) return party;
-
-    if (inGame.state === "ingame") {
-        const enriched = await enrichPlayers(id, account, inGame.players);
-        const allyPlayers = enriched.filter(p => p.isAlly);
-        const enemyPlayers = enriched.filter(p => !p.isAlly);
-        const isSingleTeam = SINGLE_TEAM_QUEUES.has(inGame.queueId?.toLowerCase());
-        const queueIcon = resolveQueueIcon(inGame.queueId);
-        return { ...inGame, players: enriched, allyPlayers, enemyPlayers, isSingleTeam, queueIcon };
-    }
-
-    if (preGame.state === "pregame") {
-        const enriched = await enrichPlayers(id, account, preGame.players);
-        const isSingleTeam = SINGLE_TEAM_QUEUES.has(preGame.queueId?.toLowerCase());
-        const queueIcon = resolveQueueIcon(preGame.queueId);
-        return { ...preGame, players: enriched, allyPlayers: enriched, enemyPlayers: [], isSingleTeam, queueIcon };
-    }
 
     if (party.state === "queuing" || party.state === "not_queuing") {
         let enriched = [];
@@ -1300,7 +1318,6 @@ export const fetchLiveGame = async (id, account = null) => {
             enriched = await enrichPlayers(id, account, party.members);
         }
 
-        const user = getUser(id, account);
         if (party.state === "queuing") {
             return {
                 success: true,
