@@ -553,7 +553,6 @@ export const getPartyData = async (id, account = null) => {
         state: "queuing",
         matchId: partyId,
         queueId,
-        queueName: resolveQueueName(queueId),
         eligibleQueues,
         members,
         inviteCode,
@@ -728,7 +727,7 @@ export const getOwnedAgents = async (user) => {
 
 /**
  * Fetch pre-game data for a user.
- * Returns { success, state: "pregame", matchId, mapId, mapName, queueId, queueName, players }
+ * Returns { success, state: "pregame", matchId, mapId, mapName, queueId, players }
  * or       { success, state: "not_in_pregame" }
  * or       { success: false, ... } on auth failure.
  */
@@ -814,7 +813,6 @@ export const getPreGameData = async (id, account = null) => {
         mapName: resolveMapName(mapId),
         serverName,
         queueId,
-        queueName: resolveQueueName(queueId),
         players: rawPlayers,
         userPuuid: user.puuid,
     };
@@ -826,7 +824,7 @@ export const getPreGameData = async (id, account = null) => {
 
 /**
  * Fetch in-game data for a user.
- * Returns { success, state: "ingame", matchId, mapId, mapName, queueId, queueName, players, userTeamId }
+ * Returns { success, state: "ingame", matchId, mapId, mapName, queueId, players, userTeamId }
  * or       { success, state: "not_in_game" }
  * or       { success: false, ... } on auth failure.
  */
@@ -895,7 +893,6 @@ export const getInGameData = async (id, account = null) => {
         mapName: resolveMapName(mapId),
         serverName,
         queueId,
-        queueName: resolveQueueName(queueId),
         players: rawPlayers,
         userTeamId,
         userPuuid: user.puuid,
@@ -1259,8 +1256,8 @@ const enrichPlayers = async (id, account, rawPlayers) => {
  * Returns:
  *   { success: false, ...authError }
  *   { success: true, state: "not_in_game" }
- *   { success: true, state: "pregame",  mapName, queueName, players: [{...enriched}] }
- *   { success: true, state: "ingame",   mapName, queueName, players: [{...enriched}],
+ *   { success: true, state: "pregame",  mapName, players: [{...enriched}] }
+ *   { success: true, state: "ingame",   mapName, players: [{...enriched}],
  *                                       allyPlayers, enemyPlayers }
  */
 export const fetchLiveGame = async (id, account = null) => {
@@ -1310,7 +1307,6 @@ export const fetchLiveGame = async (id, account = null) => {
                 state: "queuing",
                 matchId: party.matchId,
                 queueId: party.queueId,
-                queueName: party.queueName,
                 allyPlayers: enriched,
                 eligibleQueues: party.eligibleQueues,
                 userPuuid: user.puuid,

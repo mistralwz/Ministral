@@ -999,3 +999,21 @@ test("livegame: player row omits stat items it has no data for", async () => {
     }, null);
     assert.ok(full.includes("**152** ADR・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻`"), full);
 });
+
+test("livegame embed: game embeds localize the queue name and state label", async () => {
+    const data = {
+        state: "ingame",
+        queueId: "competitive",
+        queueName: "SHOULD-NOT-APPEAR",   // the pre-baked English field is gone
+        mapName: "Ascent",
+        serverName: "Frankfurt",
+        allyPlayers: [],
+        enemyPlayers: []
+    };
+
+    const embed = (await renderLiveGame(data, "test-user-id")).embeds[0];
+    assert.ok(!embed.author.name.includes("SHOULD-NOT-APPEAR"), embed.author.name);
+    assert.ok(embed.author.name.startsWith(s("en-GB").queues.COMPETITIVE), embed.author.name);
+    assert.ok(embed.author.name.includes("🇩🇪 Frankfurt"), embed.author.name);
+    assert.equal(embed.footer.text, s("en-GB").livegame.STATE_INGAME);
+});

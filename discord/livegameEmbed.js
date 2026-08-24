@@ -36,11 +36,29 @@ const COLOR_WARNING = 0xF59E0B;   // warning — maintenance
 const COLOR_ERROR = 0xED4245;     // red     — rate limited
 
 // ─── State labels ────────────────────────────────────────────────────────────
-const STATE_LABEL = {
-    pregame: "🟡 Agent Select",
-    ingame: "🔴 In-Game",
-    not_in_game: "⬜ Not in a match",
-    queuing: "🕒 Queuing",
+const STATE_KEY = {
+    pregame: "STATE_PREGAME",
+    ingame: "STATE_INGAME",
+    not_in_game: "STATE_NOT_IN_GAME",
+    queuing: "STATE_QUEUING",
+};
+
+const stateLabel = (state, userId) =>
+    s(userId).livegame?.[STATE_KEY[state]] ?? "Live Game";
+
+/**
+ * Queue display name for a user's locale.
+ *
+ * Prefers the hand-translated `queues` dictionary, then valorant-api's own
+ * localized gamemode names (loadGamemodes fetches those with language=all).
+ * The game embeds used to read the pre-baked `queueName` from fetchLiveGame,
+ * which resolveQueueName had built with no language argument — so they were
+ * always English regardless of the viewer's locale.
+ */
+const localizedQueueName = (queueId, valLang, userId) => {
+    const key = queueId?.toUpperCase() || "CUSTOM";
+    const dict = s(userId).queues;
+    return (dict && key in dict ? dict[key] : undefined) || resolveQueueName(queueId, valLang);
 };
 
 // ─── Server Flags Mapping ───────────────────────────────────────────────────
@@ -300,7 +318,6 @@ const resolveTeamColor = (players, fallbackColor, isPreGame = false) => {
  * Both ally and enemy players are formatted in the description with one line gap between teams.
  */
 const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId = null, valLang = DEFAULT_VALORANT_LANG) => {
-    const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
     const defaultColor = resolveTeamColor(allyPlayers, COLOR_ALLY, isPreGame);
 
@@ -328,12 +345,12 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
 
     const gameEmbed = {
         author: {
-            name: `${data.queueName}・${mapAndServer}`,
+            name: `${localizedQueueName(data.queueId, valLang, userId)}・${mapAndServer}`,
             icon_url: data.queueIcon ?? undefined,
         },
         description: fitDescription(descParts),
         color: rankColor || defaultColor,
-        footer: { text: stateLabel },
+        footer: { text: stateLabel(data.state, userId) },
         timestamp: new Date().toISOString(),
     };
 
@@ -402,9 +419,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         const hasParty = allyPlayers && allyPlayers.length > 0;
 
         let title, statusText, color, author = undefined;
-        const qUpper = liveGameData.queueId?.toUpperCase() || "CUSTOM";
-        const dictQ = (s(userId).queues && qUpper in s(userId).queues) ? s(userId).queues[qUpper] : undefined;
-        const localizedQueueNameQueueing = dictQ || resolveQueueName(liveGameData.queueId, valLang);
+        const localizedQueueNameQueueing = localizedQueueName(liveGameData.queueId, valLang, userId);
         const serverFormatted = formatPreferredServers(liveGameData.preferredGamePods, s(userId).livegame?.AUTO_SERVERS || "Auto");
 
         if (state === "queuing") {
@@ -433,7 +448,12 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         if (config.notice) headerLines.push(config.notice);
         if (avgRankQuote) headerLines.push(avgRankQuote);
         if (statusText) headerLines.push(statusText);
-        if (serverFormatted) headerLines.push(`-# 🌐 **Servers:** ${serverFormatted}`);
+        if (serverFormatted) {
+            const serversLabel = s(userId).livegame?.PREFERRED_SERVERS;
+            headerLines.push(serversLabel
+                ? `-# 🌐 ${serversLabel.f({ servers: serverFormatted })}`
+                : `-# 🌐 **Servers:** ${serverFormatted}`);
+        }
         if (liveGameData.inviteCode) {
             headerLines.push(`-# 🔑 **${s(userId).livegame?.PARTY_CODE || "Party Code"}** \`${liveGameData.inviteCode}\``);
         }
@@ -501,12 +521,9 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                     const queueOptions = await Promise.all(allQueues
                         .map(async q => {
                             const icon = resolveQueueIcon(q);
-                            const qUpper = q.toUpperCase();
-                            const dictQ = (s(userId).queues && qUpper in s(userId).queues) ? s(userId).queues[qUpper] : undefined;
-                            const localizedQueueName = dictQ || resolveQueueName(q, valLang);
                             const emojiData = await queueEmoji(q, icon);
                             return {
-                                label: localizedQueueName,
+                                label: localizedQueueName(q, valLang, userId),
                                 value: q,
                                 default: q === liveGameData.queueId,
                                 emoji: emojiData ? { id: emojiData.id, name: emojiData.name, animated: emojiData.animated } : undefined
@@ -517,7 +534,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                         const queueSelectRow = new ActionRowBuilder().addComponents(
                             new StringSelectMenuBuilder()
                                 .setCustomId(`livegame/select_queue/${liveGameData.matchId}/${userId}`)
-                                .setPlaceholder("Select a Mode")
+                                .setPlaceholder(s(userId).livegame?.SELECT_QUEUE_PLACEHOLDER || "Select a Mode")
                                 .addOptions(queueOptions.slice(0, 25))
                         );
                         components.unshift(queueSelectRow);
@@ -600,7 +617,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 menuRows.push(new ActionRowBuilder().addComponents(
                     new StringSelectMenuBuilder()
                         .setCustomId(`livegame/select_role/${liveGameData.matchId}/${userId}`)
-                        .setPlaceholder(s(userId).livegame?.SELECT_AGENT_PLACEHOLDER || "Select a Role")
+                        .setPlaceholder(s(userId).livegame?.SELECT_ROLE_PLACEHOLDER || "Select a Role")
                         .addOptions(roleOptions.slice(0, 25))
                 ));
             }
@@ -612,7 +629,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                     menuRows.push(new ActionRowBuilder().addComponents(
                         new StringSelectMenuBuilder()
                             .setCustomId(`livegame/select_agent/${liveGameData.matchId}/${userId}`)
-                            .setPlaceholder(`Select an Agent (${uniqueRoles.get(selectedRole).roleLocalized})`)
+                            .setPlaceholder(`${s(userId).livegame?.SELECT_AGENT_PLACEHOLDER || "Select an Agent"} (${uniqueRoles.get(selectedRole).roleLocalized})`)
                             .addOptions(agentOptions.slice(0, 25))
                     ));
                 }
