@@ -117,6 +117,29 @@ const liveGamePollers = new Map();
 const POLLER_MAX_TIME_MS = 300_000;       // 5 mins total
 
 /**
+ * Ownership guard for livegame components.
+ *
+ * Every livegame button/select embeds its owner's id as the last customId
+ * segment (`livegame/<action>/<matchId>/<ownerId>`), so the check never
+ * depends on Message#interaction — that field is deprecated in discord.js
+ * v14 and the old `if (msg?.interaction?.user?.id && ...)` guard silently
+ * passed whenever it was absent, letting anyone drive someone else's embed.
+ *
+ * Fails closed: a stale button from before this change has no ownerId and
+ * is rejected rather than allowed.
+ *
+ * @returns {Promise<boolean>} true when the click was rejected — caller returns.
+ */
+const rejectNotYourLiveGame = async (interaction, ownerId) => {
+    if (ownerId && ownerId === interaction.user.id) return false;
+    await interaction.reply({
+        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
+        flags: [MessageFlags.Ephemeral]
+    });
+    return true;
+};
+
+/**
  * Cancel any running pre-game poller for this user.
  */
 const cancelLiveGamePoller = (userId) => {
@@ -1644,18 +1667,13 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_queue": {
-                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                        return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                            flags: [MessageFlags.Ephemeral]
-                        });
-                    }
+                    const [, , matchId, ownerId] = interaction.customId.split('/');
+                    if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                     await interaction.deferUpdate();
                     interaction.deferred = true;
 
                     const queueId = interaction.values[0];
-                    const matchId = interaction.customId.split('/')[2];
                     console.log(`[bot] Intercepted livegame/select_queue trigger for match ${matchId} targeting ${queueId}`);
                     if (!queueId) return;
 
@@ -1684,12 +1702,8 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_role": {
-                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                        return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                            flags: [MessageFlags.Ephemeral]
-                        });
-                    }
+                    const [, , , ownerId] = interaction.customId.split('/');
+                    if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                     await interaction.deferUpdate();
                     interaction.deferred = true;
@@ -1710,18 +1724,13 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_agent": {
-                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                        return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                            flags: [MessageFlags.Ephemeral]
-                        });
-                    }
+                    const [, , matchId, ownerId] = interaction.customId.split('/');
+                    if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                     await interaction.deferUpdate();
                     interaction.deferred = true;
 
                     const agentId = interaction.values[0];
-                    const matchId = interaction.customId.split('/')[2];
 
                     if (!agentId) return;
 
@@ -2180,14 +2189,8 @@ client.on("interactionCreate", async (interaction) => {
                 modal.addComponents(q1);
                 await interaction.showModal(modal);
             } else if (interaction.customId.startsWith("livegame/make_code/") || interaction.customId.startsWith("livegame/remove_code/")) {
-                const [, action, matchId] = interaction.customId.split('/');
-
-                if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                    return await interaction.reply({
-                        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                        flags: [MessageFlags.Ephemeral]
-                    });
-                }
+                const [, action, matchId, ownerId] = interaction.customId.split('/');
+                if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                 await interaction.deferUpdate();
                 interaction.deferred = true;
@@ -2279,14 +2282,8 @@ client.on("interactionCreate", async (interaction) => {
                     startLiveGamePoller(interaction.user.id, interaction);
                 }
             } else if (interaction.customId.startsWith("livegame/start_queue/") || interaction.customId.startsWith("livegame/cancel_queue/")) {
-                const [, action, matchId] = interaction.customId.split('/');
-
-                if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                    return await interaction.reply({
-                        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                        flags: [MessageFlags.Ephemeral]
-                    });
-                }
+                const [, action, matchId, ownerId] = interaction.customId.split('/');
+                if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                 await interaction.deferUpdate();
                 interaction.deferred = true;

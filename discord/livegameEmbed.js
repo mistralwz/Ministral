@@ -449,12 +449,12 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 let queueButton;
                 if (state === "queuing") {
                     queueButton = new ButtonBuilder()
-                        .setCustomId(`livegame/cancel_queue/${liveGameData.matchId}`)
+                        .setCustomId(`livegame/cancel_queue/${liveGameData.matchId}/${userId}`)
                         .setLabel(s(userId).livegame.CANCEL_QUEUE)
                         .setStyle(ButtonStyle.Danger);
                 } else {
                     queueButton = new ButtonBuilder()
-                        .setCustomId(`livegame/start_queue/${liveGameData.matchId}`)
+                        .setCustomId(`livegame/start_queue/${liveGameData.matchId}/${userId}`)
                         .setLabel(s(userId).livegame.START_QUEUE)
                         .setStyle(ButtonStyle.Success);
                 }
@@ -463,13 +463,13 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
 
                 if (liveGameData.inviteCode) {
                     const removeCodeButton = new ButtonBuilder()
-                        .setCustomId(`livegame/remove_code/${liveGameData.matchId}`)
+                        .setCustomId(`livegame/remove_code/${liveGameData.matchId}/${userId}`)
                         .setLabel(s(userId).livegame.REMOVE_PARTY_CODE)
                         .setStyle(ButtonStyle.Danger);
                     buttonRow.addComponents(removeCodeButton);
                 } else {
                     const codeButton = new ButtonBuilder()
-                        .setCustomId(`livegame/make_code/${liveGameData.matchId}`)
+                        .setCustomId(`livegame/make_code/${liveGameData.matchId}/${userId}`)
                         .setLabel(s(userId).livegame.GENERATE_PARTY_CODE)
                         .setStyle(ButtonStyle.Secondary);
                     buttonRow.addComponents(codeButton);
@@ -503,7 +503,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                     if (queueOptions.length > 0) {
                         const queueSelectRow = new ActionRowBuilder().addComponents(
                             new StringSelectMenuBuilder()
-                                .setCustomId(`livegame/select_queue/${liveGameData.matchId}`)
+                                .setCustomId(`livegame/select_queue/${liveGameData.matchId}/${userId}`)
                                 .setPlaceholder("Select a Mode")
                                 .addOptions(queueOptions.slice(0, 25))
                         );
@@ -586,7 +586,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             if (roleOptions.length > 0) {
                 menuRows.push(new ActionRowBuilder().addComponents(
                     new StringSelectMenuBuilder()
-                        .setCustomId(`livegame/select_role/${liveGameData.matchId}`)
+                        .setCustomId(`livegame/select_role/${liveGameData.matchId}/${userId}`)
                         .setPlaceholder(s(userId).livegame?.SELECT_AGENT_PLACEHOLDER || "Select a Role")
                         .addOptions(roleOptions.slice(0, 25))
                 ));
@@ -598,7 +598,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
                 if (agentOptions.length > 0) {
                     menuRows.push(new ActionRowBuilder().addComponents(
                         new StringSelectMenuBuilder()
-                            .setCustomId(`livegame/select_agent/${liveGameData.matchId}/0`)
+                            .setCustomId(`livegame/select_agent/${liveGameData.matchId}/${userId}`)
                             .setPlaceholder(`Select an Agent (${uniqueRoles.get(selectedRole).roleLocalized})`)
                             .addOptions(agentOptions.slice(0, 25))
                     ));
