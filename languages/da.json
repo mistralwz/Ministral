@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Du er allerede i denne gruppe.",
     "JOIN_PARTY_FAIL": "Kunne ikke deltage i gruppen. Sørg for, at din VALORANT-klient er åben, logget ind og i samme region.",
     "PARTY_CLOSED_DESC": "Denne gruppe er lukket.",
-    "AVG_RANK": "Gns. rang"
+    "AVG_RANK": "Gns. rang",
+    "SELECT_ROLE_PLACEHOLDER": "Vælg en rolle",
+    "SELECT_QUEUE_PLACEHOLDER": "Vælg en tilstand",
+    "STATE_PREGAME": "🟡 Agentvalg",
+    "STATE_INGAME": "🔴 I spillet",
+    "STATE_NOT_IN_GAME": "⬜ Ikke i en kamp",
+    "STATE_QUEUING": "🕒 I kø"
   },
   "queues": {
     "COMPETITIVE": "Konkurrence",

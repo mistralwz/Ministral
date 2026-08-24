@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Du bist bereits in dieser Gruppe.",
     "JOIN_PARTY_FAIL": "Fehler beim Beitreten der Gruppe. Stelle sicher, dass dein VALORANT-Client geöffnet, eingeloggt und in derselben Region ist.",
     "PARTY_CLOSED_DESC": "Diese Gruppe ist geschlossen.",
-    "AVG_RANK": "Durchschnittsrang"
+    "AVG_RANK": "Durchschnittsrang",
+    "SELECT_ROLE_PLACEHOLDER": "Wähle eine Rolle",
+    "SELECT_QUEUE_PLACEHOLDER": "Wähle einen Modus",
+    "STATE_PREGAME": "🟡 Agentenauswahl",
+    "STATE_INGAME": "🔴 Im Spiel",
+    "STATE_NOT_IN_GAME": "⬜ Nicht in einem Match",
+    "STATE_QUEUING": "🕒 In der Warteschlange"
   },
   "queues": {
     "COMPETITIVE": "Gewertet",

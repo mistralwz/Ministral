@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "You are already in this party.",
     "JOIN_PARTY_FAIL": "Failed to join the party. Ensure your VALORANT client is open, logged in, and in the same region.",
     "PARTY_CLOSED_DESC": "This party is closed.",
-    "AVG_RANK": "Avg. Rank"
+    "AVG_RANK": "Avg. Rank",
+    "SELECT_ROLE_PLACEHOLDER": "Select a Role",
+    "SELECT_QUEUE_PLACEHOLDER": "Select a Mode",
+    "STATE_PREGAME": "🟡 Agent Select",
+    "STATE_INGAME": "🔴 In-Game",
+    "STATE_NOT_IN_GAME": "⬜ Not in a match",
+    "STATE_QUEUING": "🕒 Queuing"
   },
   "queues": {
     "COMPETITIVE": "Competitive",

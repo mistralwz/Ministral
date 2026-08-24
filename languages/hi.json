@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "आप पहले से ही इस पार्टी में हैं।",
     "JOIN_PARTY_FAIL": "पार्टी में शामिल होने में विफल। सुनिश्चित करें कि आपका VALORANT खुला है, लॉग इन है और उसी क्षेत्र में है।",
     "PARTY_CLOSED_DESC": "यह पार्टी बंद है।",
-    "AVG_RANK": "औसत रैंक"
+    "AVG_RANK": "औसत रैंक",
+    "SELECT_ROLE_PLACEHOLDER": "रोल चुनें",
+    "SELECT_QUEUE_PLACEHOLDER": "मोड चुनें",
+    "STATE_PREGAME": "🟡 एजेंट चयन",
+    "STATE_INGAME": "🔴 खेल में",
+    "STATE_NOT_IN_GAME": "⬜ मैच में नहीं",
+    "STATE_QUEUING": "🕒 कतार में"
   },
   "queues": {
     "COMPETITIVE": "प्रतिस्पर्धी",

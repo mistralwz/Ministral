@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Već se nalaziš u ovoj grupi.",
     "JOIN_PARTY_FAIL": "Pridruživanje grupi nije uspjelo. Provjeri je li tvoj VALORANT klijent otvoren, prijavljen i u istoj regiji.",
     "PARTY_CLOSED_DESC": "Ova grupa je zatvorena.",
-    "AVG_RANK": "Prosj. rang"
+    "AVG_RANK": "Prosj. rang",
+    "SELECT_ROLE_PLACEHOLDER": "Odaberi ulogu",
+    "SELECT_QUEUE_PLACEHOLDER": "Odaberi način igre",
+    "STATE_PREGAME": "🟡 Odabir agenta",
+    "STATE_INGAME": "🔴 U igri",
+    "STATE_NOT_IN_GAME": "⬜ Izvan meča",
+    "STATE_QUEUING": "🕒 U redu čekanja"
   },
   "queues": {
     "COMPETITIVE": "Natjecateljski",

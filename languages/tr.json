@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Zaten bu gruptasın.",
     "JOIN_PARTY_FAIL": "Gruba katılma başarısız oldu. VALORANT istemcinizin açık, giriş yapılmış ve aynı bölgede olduğundan emin olun.",
     "PARTY_CLOSED_DESC": "Bu grup kapalı.",
-    "AVG_RANK": "Ort. Kademe"
+    "AVG_RANK": "Ort. Kademe",
+    "SELECT_ROLE_PLACEHOLDER": "Rol Seç",
+    "SELECT_QUEUE_PLACEHOLDER": "Mod Seç",
+    "STATE_PREGAME": "🟡 Ajan Seçimi",
+    "STATE_INGAME": "🔴 Oyunda",
+    "STATE_NOT_IN_GAME": "⬜ Karşılaşmada değil",
+    "STATE_QUEUING": "🕒 Sırada"
   },
   "queues": {
     "COMPETITIVE": "Rekabetçi",

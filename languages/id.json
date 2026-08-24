@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Kamu sudah berada di party ini.",
     "JOIN_PARTY_FAIL": "Gagal bergabung dengan party. Pastikan client VALORANT kamu terbuka, sudah login, dan berada di region yang sama.",
     "PARTY_CLOSED_DESC": "Party ini ditutup.",
-    "AVG_RANK": "Rank Rata-rata"
+    "AVG_RANK": "Rank Rata-rata",
+    "SELECT_ROLE_PLACEHOLDER": "Pilih Peran",
+    "SELECT_QUEUE_PLACEHOLDER": "Pilih Mode",
+    "STATE_PREGAME": "🟡 Pemilihan Agent",
+    "STATE_INGAME": "🔴 Dalam Game",
+    "STATE_NOT_IN_GAME": "⬜ Tidak dalam match",
+    "STATE_QUEUING": "🕒 Dalam Antrean"
   },
   "queues": {
     "COMPETITIVE": "Kompetitif",

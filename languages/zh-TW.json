@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "你已經在此隊伍中。",
     "JOIN_PARTY_FAIL": "加入隊伍失敗。請確保你的特戰英豪用戶端已啟動、已登入且在同一地區。",
     "PARTY_CLOSED_DESC": "此隊伍已關閉。",
-    "AVG_RANK": "平均牌位"
+    "AVG_RANK": "平均牌位",
+    "SELECT_ROLE_PLACEHOLDER": "選擇定位",
+    "SELECT_QUEUE_PLACEHOLDER": "選擇模式",
+    "STATE_PREGAME": "🟡 特務選擇中",
+    "STATE_INGAME": "🔴 對戰中",
+    "STATE_NOT_IN_GAME": "⬜ 未在對戰中",
+    "STATE_QUEUING": "🕒 排隊中"
   },
   "queues": {
     "COMPETITIVE": "競技",

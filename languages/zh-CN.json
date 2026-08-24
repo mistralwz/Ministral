@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "你已经在此队伍中。",
     "JOIN_PARTY_FAIL": "加入队伍失败。请确保你的无畏契约客户端已启动、已登录且在同一区域。",
     "PARTY_CLOSED_DESC": "此队伍已关闭。",
-    "AVG_RANK": "平均段位"
+    "AVG_RANK": "平均段位",
+    "SELECT_ROLE_PLACEHOLDER": "选择定位",
+    "SELECT_QUEUE_PLACEHOLDER": "选择模式",
+    "STATE_PREGAME": "🟡 英雄选择中",
+    "STATE_INGAME": "🔴 对局中",
+    "STATE_NOT_IN_GAME": "⬜ 未在对局中",
+    "STATE_QUEUING": "🕒 匹配中"
   },
   "queues": {
     "COMPETITIVE": "竞技",

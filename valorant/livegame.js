@@ -105,11 +105,14 @@ export const clearLiveGameCache = () => {
     competitiveTiersCache = null;
     gamemodesCache = null;
     gamemodeIconsCache = null;
-    mapImagesCache = null;
     mapNamesCache = null;
     seasonsCache = null;
     currentSeasonId = null;
+    nextSeasonCheck = 0;
     playerMmrCache.clear();
+    playerRecentMatchesCache.clear();
+    playerCombatStatsCache.clear();
+    playerNameCache.clear();
 };
 
 const loadGamemodes = async () => {
@@ -186,47 +189,24 @@ export const resolveMapName = (mapId) =>
     ?? (mapId?.split("/").pop() ?? "Unknown Map");
 
 // ──────────────────────────────────────────────
-// Map data cache — image + display name per mapUrl
+// Map data cache — display name per mapUrl
 // ──────────────────────────────────────────────
 
-let mapImagesCache = null;
-let mapNamesCache = null;  // populated alongside images
+let mapNamesCache = null;
 
-const loadMapImages = async () => {
-    if (mapImagesCache) return;
+const loadMapNames = async () => {
+    if (mapNamesCache) return;
     try {
         const req = await fetch("https://valorant-api.com/v1/maps");
         const json = JSON.parse(req.body);
-        mapImagesCache = {};
         mapNamesCache = {};
         for (const m of json.data) {
-            const icon = m.listViewIcon ?? m.splash ?? null;
-            if (m.mapUrl) {
-                // listViewIcon is the compact image used in the embed
-                mapImagesCache[m.mapUrl] = icon;
-                if (m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
-            }
-            if (m.displayName) {
-                mapImagesCache[m.displayName] = icon;
-                mapImagesCache[m.displayName.toLowerCase()] = icon;
-            }
+            if (m.mapUrl && m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
         }
     } catch (e) {
-        console.error("[livegame] Failed to load map images:", e);
-        mapImagesCache = {};
+        console.error("[livegame] Failed to load map names:", e);
         mapNamesCache = {};
     }
-};
-
-export const resolveMapImage = async (mapIdOrName) => {
-    if (!mapIdOrName) return null;
-    await loadMapImages();
-    if (mapImagesCache[mapIdOrName]) return mapImagesCache[mapIdOrName];
-    if (mapImagesCache[mapIdOrName.toLowerCase()]) return mapImagesCache[mapIdOrName.toLowerCase()];
-    if (mapIdOrName === "/Game/Maps/Arena/Arena") {
-        return mapImagesCache["/Game/Maps/Poveglia/Range"] ?? mapImagesCache["/Game/Maps/PovegliaV2/RangeV2"] ?? null;
-    }
-    return null;
 };
 
 // ──────────────────────────────────────────────
@@ -234,7 +214,8 @@ export const resolveMapImage = async (mapIdOrName) => {
 // ──────────────────────────────────────────────
 
 let seasonsCache = null;
-let currentSeasonId = null;  // UUID of the currently active act (populated by loadSeasons)
+let currentSeasonId = null;   // UUID of the currently active act (populated by loadSeasons)
+let nextSeasonCheck = 0;      // re-derive the active act once the current one ends
 
 /**
  * Derive a short act label from the season's assetPath.
@@ -251,8 +232,15 @@ const actLabelFromPath = (assetPath = "") => {
 };
 
 const loadSeasons = async () => {
-    if (seasonsCache) return seasonsCache;
-    seasonsCache = new Map();
+    // Acts roll over every ~2 months. Caching this for the process lifetime left
+    // currentSeasonId pointing at the *previous* act, and parseMMRData would then
+    // read everyone's old-act entry and report it as their current rank until the
+    // bot was restarted. Expire at the act's own endTime instead.
+    if (seasonsCache && Date.now() < nextSeasonCheck) return seasonsCache;
+
+    const seasons = new Map();
+    let activeId = null;
+    let activeEndsAt = 0;
     try {
         const req = await fetch("https://valorant-api.com/v1/seasons");
         if (req.statusCode === 200) {
@@ -261,13 +249,16 @@ const loadSeasons = async () => {
             for (const s of data) {
                 if (s.type === "EAresSeasonType::Act") {
                     const label = actLabelFromPath(s.assetPath);
-                    if (label) seasonsCache.set(s.uuid, label);
+                    if (label) seasons.set(s.uuid, label);
                     // Detect the currently active act so parseMMRData can
                     // distinguish "unranked this season" from "old season rank".
                     if (s.startTime && s.endTime) {
                         const start = new Date(s.startTime).getTime();
                         const end = new Date(s.endTime).getTime();
-                        if (now >= start && now <= end) currentSeasonId = s.uuid;
+                        if (now >= start && now <= end) {
+                            activeId = s.uuid;
+                            activeEndsAt = end;
+                        }
                     }
                 }
             }
@@ -275,342 +266,57 @@ const loadSeasons = async () => {
     } catch (e) {
         console.error("[livegame] loadSeasons failed:", e);
     }
+
+    // Keep the previous cache on a failed refresh rather than blanking it.
+    if (seasons.size > 0 || !seasonsCache) seasonsCache = seasons;
+    if (activeId) currentSeasonId = activeId;
+    // Re-check when the act ends, but never more than hourly — a failed fetch or
+    // a gap between acts must not turn this into a per-call request.
+    nextSeasonCheck = Math.max(activeEndsAt, Date.now() + 60 * 60 * 1000);
     return seasonsCache;
 };
 
-const GAME_PODS = {
-    "aresqa.aws-rclusterprod-use1-1.dev1-gp-ashburn-1": "Ashburn",
-    "aresqa.aws-use1-dev.main1-gp-ashburn-1": "Ashburn",
-    "aresriot.aws-mes1-prod.eu-gp-bahrain-1": "Bahrain",
-    "aresriot.aws-mes1-prod.ext1-gp-bahrain-1": "Bahrain",
-    "aresriot.aws-mes1-prod.ext2-gp-bahrain-1": "Bahrain",
-    "aresriot.aws-mes1-prod.tournament-gp-bahrain-1": "Bahrain",
-    "aresriot.aws-rclusterprod-mes1-1.eu-gp-bahrain-awsedge-1": "Bahrain",
-    "aresriot.aws-rclusterprod-mes1-1.ext1-gp-bahrain-awsedge-1": "Bahrain",
-    "aresriot.aws-rclusterprod-mes1-1.tournament-gp-bahrain-awsedge-1": "Bahrain",
-    "loltencent.qcloud.val-gp-beijing-1": "Beijing",
-    "aresriot.aws-bog1-prod.latam-gp-bogota-1": "Bogotá",
-    "aresriot.aws-bog1-prod.tournament-gp-bogota-1": "Bogotá",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-cmob-1": "CMOB 1",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-cmob-2": "CMOB 2",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-cmob-3": "CMOB 3",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-cmob-4": "CMOB 4",
-    "aresriot.aws-afs1-prod.eu-gp-capetown-1": "Cape Town",
-    "aresriot.aws-afs1-prod.ext1-gp-capetown-1": "Cape Town",
-    "aresriot.aws-afs1-prod.tournament-gp-capetown-1": "Cape Town",
-    "aresriot.aws-chi1-prod.ext1-gp-chicago-1": "Chicago",
-    "aresriot.aws-chi1-prod.ext2-gp-chicago-1": "Chicago",
-    "aresriot.aws-chi1-prod.latam-gp-chicago-1": "Chicago",
-    "aresriot.aws-ord1-prod.ext1-gp-chicago-1": "Chicago",
-    "aresriot.aws-ord1-prod.latam-gp-chicago-1": "Chicago",
-    "aresriot.mtl-riot-ord2-3.ext1-gp-chicago-1": "Chicago",
-    "aresriot.mtl-riot-ord2-3.latam-gp-chicago-1": "Chicago",
-    "loltencent.qcloud.val-gp-chongqing-1": "Chongqing",
-    "arestencent.qcloud-cq1.alpha1-gp-1": "Chongqing 1",
-    "arestencent.qcloud-cq1.alpha1-gp-3": "Chongqing 1",
-    "arestencent.qcloud-cq1.alpha1-gp-2": "Chongqing 2",
-    "arestencent.qcloud-cq1.alpha1-gp-4": "Chongqing 2",
-    "arestencent.qcloud-cq1.alpha1-gp-5": "Chongqing 5",
-    "arestencent.qcloud-cq1.alpha1-gp-6": "Chongqing 6",
-    "arestencent.qcloud-cq1.alpha1-gp-7": "Chongqing 7",
-    "arestencent.qcloud-cq1.alpha1-gp-8": "Chongqing 8",
-    "aresqa.aws-dfw1-dev.main1-gp-dallas-1": "Dallas",
-    "aresqa.aws-rclusterprod-dfw1-1.dev1-gp-dallas-1": "Dallas",
-    "aresriot.aws-dfw1-dev.main-gp-dallas-1": "Dallas",
-    "aresriot.aws-mec1-prod.eu-gp-dubai-1": "Dubai",
-    "aresriot.aws-mec1-prod.tournament-gp-dubai-1": "Dubai",
-    "arespreprod.aws-euc1-prod.stage-release-1-gp-frankfurt-1": "Frankfurt",
-    "arespreprod.aws-euc1-prod.stage2-gp-frankfurt-1": "Frankfurt",
-    "aresqa.aws-euc1-dev.main1-gp-frankfurt-1": "Frankfurt",
-    "aresqa.aws-euc1-dev.stage1-gp-frankfurt-1": "Frankfurt",
-    "aresqa.aws-rclusterprod-euc1-1.dev1-gp-frankfurt-1": "Frankfurt",
-    "aresqa.aws-rclusterprod-euc1-1.stage1-gp-frankfurt-1": "Frankfurt",
-    "aresriot.aws-euc1-prod.eu-gp-frankfurt-1": "Frankfurt",
-    "aresriot.aws-euc1-prod.ext1-gp-eu1": "Frankfurt",
-    "aresriot.aws-euc1-prod.ext1-gp-frankfurt-1": "Frankfurt",
-    "aresriot.aws-euc1-prod.ext2-gp-frankfurt-1": "Frankfurt",
-    "aresriot.aws-euc1-prod.tournament-gp-frankfurt-1": "Frankfurt",
-    "aresriot.aws-rclusterprod-euc1-1.ext1-gp-eu1": "Frankfurt",
-    "aresriot.aws-rclusterprod-euc1-1.tournament-gp-frankfurt-1": "Frankfurt",
-    "aresriot.aws-rclusterprod-euc1-1.eu-gp-frankfurt-1": "Frankfurt 1",
-    "aresriot.aws-rclusterprod-euc1-1.eu-gp-frankfurt-awsedge-1": "Frankfurt 2",
-    "aresqa.aws-atl1-dev.main1-gp-atlanta-1": "Georgia",
-    "loltencent.qcloud.val-gp-guangzhou-1": "Guangzhou",
-    "arestencent.qcloud-gz1.alpha1-gp-1": "Guangzhou 1",
-    "arestencent.qcloud-gz1.alpha1-gp-3": "Guangzhou 1",
-    "arestencent.qcloud-gz1.alpha1-gp-2": "Guangzhou 2",
-    "arestencent.qcloud-gz1.alpha1-gp-4": "Guangzhou 2",
-    "arestencent.qcloud-gz1.alpha1-gp-5": "Guangzhou 5",
-    "arestencent.qcloud-gz1.alpha1-gp-6": "Guangzhou 6",
-    "arestencent.qcloud-gz1.alpha1-gp-7": "Guangzhou 7",
-    "arestencent.qcloud-gz1.alpha1-gp-8": "Guangzhou 8",
-    "aresriot.aws-ape1-prod.ap-gp-hongkong-1": "Hong Kong",
-    "aresriot.aws-ape1-prod.ext1-gp-hongkong-1": "Hong Kong",
-    "aresriot.aws-ape1-prod.ext2-gp-hongkong-1": "Hong Kong",
-    "aresriot.aws-ape1-prod.tournament-gp-hongkong-1": "Hong Kong",
-    "aresriot.aws-rclusterprod-ape1-1.ext1-gp-hongkong-1": "Hong Kong",
-    "aresriot.aws-rclusterprod-ape1-1.tournament-gp-hongkong-1": "Hong Kong",
-    "aresriot.aws-rclusterprod-ape1-1.ap-gp-hongkong-1": "Hong Kong 1",
-    "aresriot.aws-rclusterprod-ape1-1.ap-gp-hongkong-awsedge-1": "Hong Kong 2",
-    "aresriot.aws-ist1-prod.eu-gp-istanbul-1": "Istanbul",
-    "aresriot.aws-ist1-prod.tournament-gp-istanbul-1": "Istanbul",
-    "aresriot.mtl-riot-ist1-2.eu-gp-istanbul-2": "Istanbul",
-    "aresriot.mtl-riot-ist1-2.tournament-gp-istanbul-1": "Istanbul",
-    "aresriot.mtl-riot-ist1-2.tournament-gp-istanbul-2": "Istanbul",
-    "aresriot.mtl-riot-ist1-2.eu-gp-istanbul-1": "Istanbul 2",
-    "arespreprod.aws-euw2-prod.cert-gp-london-1": "London",
-    "aresriot.aws-euw2-prod.eu-gp-london-1": "London",
-    "aresriot.aws-euw2-prod.tournament-gp-london-1": "London",
-    "aresriot.aws-rclusterprod-euw2-1.eu-gp-london-awsedge-1": "London",
-    "aresriot.aws-rclusterprod-euw2-1.tournament-gp-london-awsedge-1": "London",
-    "aresriot.aws-eus2-prod.eu-gp-madrid-1": "Madrid",
-    "aresriot.aws-eus2-prod.tournament-gp-madrid-1": "Madrid",
-    "aresriot.aws-rclusterprod-mad1-1.eu-gp-madrid-1": "Madrid",
-    "aresriot.aws-rclusterprod-mad1-1.tournament-gp-madrid-1": "Madrid",
-    "aresriot.aws-qro1-prod.ext1-gp-mexico-1": "Mexico City",
-    "aresriot.aws-qro1-prod.ext2-gp-mexico-1": "Mexico City",
-    "aresriot.aws-qro1-prod.latam-gp-mexico-1": "Mexico City",
-    "aresriot.aws-qro1-prod.tournament-gp-mexico-1": "Mexico City",
-    "aresriot.mtl-tmx-mex1-1.ext1-gp-mexicocity-1": "Mexico City",
-    "aresriot.mtl-tmx-mex1-1.latam-gp-mexicocity-1": "Mexico City",
-    "aresriot.mtl-tmx-mex1-1.tournament-gp-mexicocity-1": "Mexico City",
-    "aresriot.aws-mia1-prod.latam-gp-miami-1": "Miami",
-    "aresriot.aws-mia1-prod.tournament-gp-miami-1": "Miami",
-    "aresriot.aws-mia2-prod.latam-gp-miami-2": "Miami",
-    "aresriot.mia1.latam-gp-miami-1": "Miami",
-    "aresriot.mia1.tournament-gp-miami-1": "Miami",
-    "aresriot.aws-aps1-prod.ap-gp-mumbai-1": "Mumbai",
-    "aresriot.aws-aps1-prod.tournament-gp-mumbai-1": "Mumbai",
-    "aresriot.aws-rclusterprod-aps1-1.ap-gp-mumbai-awsedge-1": "Mumbai",
-    "aresriot.aws-rclusterprod-aps1-1.tournament-gp-mumbai-awsedge-1": "Mumbai",
-    "aresqa.aws-rclusterprod-usw1-1.dev1-gp-1": "N. California",
-    "aresqa.aws-usw1-dev.main1-gp-norcal-1": "N. California",
-    "arestencentqa.qcloud-nj1.stage1-gp-1": "Nanjing",
-    "arestencent.qcloud-nj1.alpha1-gp-1": "Nanjing 1",
-    "arestencent.qcloud-nj1.alpha1-gp-2": "Nanjing 2",
-    "arestencent.qcloud-nj1.alpha1-gp-4": "Nanjing 2",
-    "arestencent.qcloud-nj1.alpha1-gp-5": "Nanjing 5",
-    "arestencent.qcloud-nj1.alpha1-gp-6": "Nanjing 6",
-    "arestencent.qcloud-nj1.alpha1-gp-7": "Nanjing 7",
-    "arestencent.qcloud-nj1.alpha1-gp-8": "Nanjing 8",
-    "arestencentqa.qcloud-nj1.loadtest1-gp-2": "Nanjing Loadtest 2",
-    "arestencent.qcloud-nj1.alpha1-gp-3": "Nanjing Multi ISP",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-1": "Offline 1",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-1": "Offline 1",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-10": "Offline 10",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-11": "Offline 11",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-12": "Offline 12",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-13": "Offline 13",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-14": "Offline 14",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-15": "Offline 15",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-16": "Offline 16",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-17": "Offline 17",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-18": "Offline 18",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-19": "Offline 19",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-2": "Offline 2",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-2": "Offline 2",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-20": "Offline 20",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-21": "Offline 21",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-22": "Offline 22",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-23": "Offline 23",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-24": "Offline 24",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-25": "Offline 25",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-26": "Offline 26",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-27": "Offline 27",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-28": "Offline 28",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-29": "Offline 29",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-3": "Offline 3",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-3": "Offline 3",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-30": "Offline 30",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-4": "Offline 4",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-4": "Offline 4",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-5": "Offline 5",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-5": "Offline 5",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-6": "Offline 6",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-6": "Offline 6",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-7": "Offline 7",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-7": "Offline 7",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-offline-8": "Offline 8",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-8": "Offline 8",
-    "aresriot.aws-usw2-prod.tournament-gp-offline-9": "Offline 9",
-    "aresriot.aws-euw3-prod.eu-gp-paris-1": "Paris",
-    "aresriot.aws-euw3-prod.tournament-gp-paris-1": "Paris",
-    "aresriot.aws-rclusterprod-euw3-1.tournament-gp-paris-1": "Paris",
-    "aresriot.aws-rclusterprod-euw3-1.eu-gp-paris-1": "Paris 1",
-    "aresriot.aws-rclusterprod-euw3-1.eu-gp-paris-awsedge-1": "Paris 2",
-    "globaltencent.tcc-tcloudtest-sjc1-1.val-gp-1": "SJC",
-    "aresriot.aws-scl1-prod.ext1-gp-santiago-1": "Santiago",
-    "aresriot.aws-scl1-prod.ext2-gp-santiago-1": "Santiago",
-    "aresriot.aws-scl1-prod.latam-gp-santiago-1": "Santiago",
-    "aresriot.aws-scl1-prod.tournament-gp-santiago-1": "Santiago",
-    "aresriot.mtl-ctl-scl2-2.ext1-gp-santiago-1": "Santiago",
-    "aresriot.mtl-ctl-scl2-2.latam-gp-santiago-1": "Santiago",
-    "aresriot.mtl-ctl-scl2-2.tournament-gp-santiago-1": "Santiago",
-    "aresriot.aws-rclusterprod-sae1-1.ext1-gp-saopaulo-1": "Sao Paulo",
-    "aresriot.aws-rclusterprod-sae1-1.tournament-gp-saopaulo-1": "Sao Paulo",
-    "aresriot.aws-sae1-prod.br-gp-saopaulo-1": "Sao Paulo",
-    "aresriot.aws-sae1-prod.ext1-gp-saopaulo-1": "Sao Paulo",
-    "aresriot.aws-sae1-prod.ext2-gp-saopaulo-1": "Sao Paulo",
-    "aresriot.aws-sae1-prod.tournament-gp-saopaulo-1": "Sao Paulo",
-    "aresriot.aws-rclusterprod-sae1-1.br-gp-saopaulo-1": "Sao Paulo 1",
-    "aresriot.aws-rclusterprod-sae1-1.br-gp-saopaulo-awsedge-1": "Sao Paulo 2",
-    "arespreprod.aws-apne2-prod.cert-gp-seoul-1": "Seoul",
-    "aresriot.aws-apne2-prod.ext1-gp-seoul-1": "Seoul",
-    "aresriot.aws-apne2-prod.ext2-gp-seoul-1": "Seoul",
-    "aresriot.aws-apne2-prod.kr-gp-seoul-1": "Seoul",
-    "aresriot.aws-apne2-prod.tournament-gp-seoul-1": "Seoul",
-    "aresriot.aws-rclusterprod-apne2-1.ext1-gp-seoul-1": "Seoul",
-    "aresriot.aws-rclusterprod-apne2-1.tournament-gp-seoul-1": "Seoul",
-    "aresriot.aws-rclusterprod-apne2-1.kr-gp-seoul-1": "Seoul 1",
-    "loltencent.qcloud.val-gp-shanghai-1": "Shanghai",
-    "aresqa.aws-apse1-dev.main1-gp-singapore-1": "Singapore",
-    "aresriot.aws-apse1-prod.ap-gp-singapore-1": "Singapore",
-    "aresriot.aws-apse1-prod.ext1-gp-singapore-1": "Singapore",
-    "aresriot.aws-apse1-prod.ext2-gp-singapore-1": "Singapore",
-    "aresriot.aws-apse1-prod.tournament-gp-singapore-1": "Singapore",
-    "aresriot.aws-rclusterprod-apse1-1.ext1-gp-singapore-1": "Singapore",
-    "aresriot.aws-rclusterprod-apse1-1.tournament-gp-singapore-1": "Singapore",
-    "aresriot.aws-rclusterprod-apse1-1.ap-gp-singapore-1": "Singapore 1",
-    "aresriot.aws-rclusterprod-apse1-1.ap-gp-singapore-awsedge-1": "Singapore 2",
-    "aresriot.aws-eun1-prod.eu-gp-stockholm-1": "Stockholm",
-    "aresriot.aws-eun1-prod.tournament-gp-stockholm-1": "Stockholm",
-    "aresriot.aws-rclusterprod-eun1-1.tournament-gp-stockholm-1": "Stockholm",
-    "aresriot.aws-rclusterprod-eun1-1.eu-gp-stockholm-1": "Stockholm 1",
-    "aresriot.aws-rclusterprod-eun1-1.eu-gp-stockholm-awsedge-1": "Stockholm 2",
-    "arespreprod.aws-apse2-prod.cert-gp-sydney-1": "Sydney",
-    "arespreprod.aws-apse2-prod.stage-release-1-gp-sydney-1": "Sydney",
-    "arespreprod.aws-apse2-prod.stage2-gp-sydney-1": "Sydney",
-    "aresqa.aws-apse2-dev.main1-gp-sydney-1": "Sydney",
-    "aresqa.aws-apse2-dev.stage1-gp-sydney-1": "Sydney",
-    "aresriot.aws-apse2-prod.ap-gp-sydney-1": "Sydney",
-    "aresriot.aws-apse2-prod.ext1-gp-sydney-1": "Sydney",
-    "aresriot.aws-apse2-prod.ext2-gp-sydney-1": "Sydney",
-    "aresriot.aws-apse2-prod.tournament-gp-sydney-1": "Sydney",
-    "aresriot.aws-rclusterprod-apse2-1.ext1-gp-sydney-1": "Sydney",
-    "aresriot.aws-rclusterprod-apse2-1.tournament-gp-sydney-1": "Sydney",
-    "aresriot.aws-rclusterprod-apse2-1.ap-gp-sydney-1": "Sydney 1",
-    "aresriot.aws-rclusterprod-apse2-1.ap-gp-sydney-awsedge-1": "Sydney 2",
-    "arestencentqa.qcloud-tj1.stage1-gp-1": "Tianjin",
-    "arestencent.qcloud-tj1.alpha1-gp-1": "Tianjin 1",
-    "arestencent.qcloud-tj1.alpha1-gp-3": "Tianjin 1",
-    "arestencent.qcloud-tj1.alpha1-gp-2": "Tianjin 2",
-    "arestencent.qcloud-tj1.alpha1-gp-4": "Tianjin 2",
-    "arestencent.qcloud-tj1.alpha1-gp-5": "Tianjin 5",
-    "arestencent.qcloud-tj1.alpha1-gp-6": "Tianjin 6",
-    "arestencent.qcloud-tj1.alpha1-gp-7": "Tianjin 7",
-    "arestencent.qcloud-tj1.alpha1-gp-8": "Tianjin 8",
-    "aresriot.aws-apne1-prod.ap-gp-tokyo-1": "Tokyo",
-    "aresriot.aws-apne1-prod.eu-gp-tokyo-1": "Tokyo",
-    "aresriot.aws-apne1-prod.ext1-gp-kr1": "Tokyo",
-    "aresriot.aws-apne1-prod.ext1-gp-tokyo-1": "Tokyo",
-    "aresriot.aws-apne1-prod.pbe-gp-tokyo-1": "Tokyo",
-    "aresriot.aws-apne1-prod.tournament-gp-tokyo-1": "Tokyo",
-    "aresriot.aws-mnl1-prod.ap-gp-manila-1": "Manila",
-    "aresriot.aws-rclusterprod-apne1-1.eu-gp-tokyo-1": "Tokyo",
-    "aresriot.aws-rclusterprod-apne1-1.ext1-gp-kr1": "Tokyo",
-    "aresriot.aws-rclusterprod-apne1-1.tournament-gp-tokyo-1": "Tokyo",
-    "aresriot.aws-rclusterprod-apne1-1.ap-gp-tokyo-1": "Tokyo 1",
-    "aresriot.aws-rclusterprod-apne1-1.ap-gp-tokyo-awsedge-1": "Tokyo 2",
-    "aresqa.aws-usw2-dev.main1-gp-tournament-2": "Tournament",
-    "aresriot.aws-rclusterprod-atl1-1.na-gp-atlanta-1": "US East (Atlanta 1)",
-    "aresriot.aws-atl1-prod.na-gp-atlanta-1": "US Central (Georgia)",
-    "aresriot.aws-atl1-prod.tournament-gp-atlanta-1": "US Central (Georgia)",
-    "aresriot.aws-atl2-prod.na-gp-atlanta-2": "US Central (Georgia)",
-    "aresriot.aws-rclusterprod-atl1-1.tournament-gp-atlanta-1":
-        "US Central (Georgia)",
-    "aresriot.aws-chi1-prod.na-gp-chicago-1": "US Central (Illinois)",
-    "aresriot.aws-chi1-prod.tournament-gp-chicago-1": "US Central (Illinois)",
-    "aresriot.aws-chi2-prod.na-gp-chicago-2": "US Central (Illinois)",
-    "aresriot.aws-ord1-prod.na-gp-chicago-1": "US Central (Illinois)",
-    "aresriot.aws-ord1-prod.tournament-gp-chicago-1": "US Central (Illinois)",
-    "aresriot.mtl-riot-ord2-3.na-gp-chicago-1": "US Central (Illinois)",
-    "aresriot.mtl-riot-ord2-3.tournament-gp-chicago-1": "US Central (Illinois)",
-    "aresriot.aws-dfw1-prod.na-gp-dallas-1": "US Central (Texas)",
-    "aresriot.aws-dfw1-prod.tournament-gp-dallas-1": "US Central (Texas)",
-    "aresriot.aws-dfw2-prod.na-gp-dallas-2": "US Central (Texas)",
-    "aresriot.aws-rclusterprod-dfw1-1.na-gp-dallas-1": "US Central (Texas)",
-    "aresriot.aws-rclusterprod-dfw1-1.tournament-gp-dallas-1":
-        "US Central (Texas)",
-    "aresriot.aws-rclusterprod-use1-1.na-gp-ashburn-1": "US East (N. Virginia 1)",
-    "aresriot.aws-rclusterprod-use1-1.na-gp-ashburn-awsedge-1":
-        "US East (N. Virginia 2)",
-    "aresriot.aws-rclusterprod-use1-1.ext1-gp-ashburn-1": "US East (N. Virginia)",
-    "aresriot.aws-rclusterprod-use1-1.pbe-gp-ashburn-1": "US East (N. Virginia)",
-    "aresriot.aws-rclusterprod-use1-1.tournament-gp-ashburn-1":
-        "US East (N. Virginia)",
-    "aresriot.aws-use1-prod.ext1-gp-ashburn-1": "US East (N. Virginia)",
-    "aresriot.aws-use1-prod.ext2-gp-ashburn-1": "US East (N. Virginia)",
-    "aresriot.aws-use1-prod.na-gp-ashburn-1": "US East (N. Virginia)",
-    "aresriot.aws-use1-prod.pbe-gp-ashburn-1": "US East (N. Virginia)",
-    "aresriot.aws-use1-prod.tournament-gp-ashburn-1": "US East (N. Virginia)",
-    "aresqa.aws-usw2-dev.sandbox1-gp-1": "US West",
-    "aresriot.aws-rclusterprod-usw1-1.na-gp-norcal-1":
-        "US West (N. California 1)",
-    "aresriot.aws-rclusterprod-usw1-1.na-gp-norcal-awsedge-1":
-        "US West (N. California 2)",
-    "arespreprod.aws-usw1-prod.cert-gp-norcal-1": "US West (N. California)",
-    "aresriot.aws-rclusterprod-usw1-1.ext1-gp-na2": "US West (N. California)",
-    "aresriot.aws-rclusterprod-usw1-1.pbe-gp-norcal-1": "US West (N. California)",
-    "aresriot.aws-rclusterprod-usw1-1.tournament-gp-norcal-1":
-        "US West (N. California)",
-    "aresriot.aws-usw1-prod.ext1-gp-na2": "US West (N. California)",
-    "aresriot.aws-usw1-prod.ext1-gp-norcal-1": "US West (N. California)",
-    "aresriot.aws-usw1-prod.ext2-gp-na1": "US West (N. California)",
-    "aresriot.aws-usw1-prod.na-gp-norcal-1": "US West (N. California)",
-    "aresriot.aws-usw1-prod.pbe-gp-norcal-1": "US West (N. California)",
-    "aresriot.aws-usw1-prod.tournament-gp-norcal-1": "US West (N. California)",
-    "aresriot.aws-rclusterprod-usw2-1.na-gp-oregon-1": "US West (Oregon 1)",
-    "aresriot.aws-rclusterprod-usw2-1.na-gp-oregon-awsedge-1":
-        "US West (Oregon 2)",
-    "arespreprod.aws-usw2-prod.stage-release-1-gp-oregon-1": "US West (Oregon)",
-    "arespreprod.aws-usw2-prod.stage2-gp-oregon-1": "US West (Oregon)",
-    "aresriot.aws-rclusterprod-usw2-1.pbe-gp-oregon-1": "US West (Oregon)",
-    "aresriot.aws-rclusterprod-usw2-1.tournament-gp-oregon-1": "US West (Oregon)",
-    "aresriot.aws-usw2-prod.na-gp-oregon-1": "US West (Oregon)",
-    "aresriot.aws-usw2-prod.pbe-gp-oregon-1": "US West (Oregon)",
-    "aresriot.aws-usw2-prod.tournament-gp-oregon-1": "US West (Oregon)",
-    "aresqa.aws-usw2-dev.main1-gp-1": "US West 1",
-    "aresqa.aws-usw2-dev.stage1-gp-1": "US West 1",
-    "globaltencent.tcc-sjc-dev.stage-val-gp-1": "US West 1",
-    "globaltencent.tcc-sjc-dev.tcloudtest-stage-release-1-gp-1": "US West 1",
-    "globaltencent.tcc-sjc-dev.val-gp-1": "US West 1",
-    "aresqa.aws-usw2-dev.main1-gp-4": "US West 2",
-    "globaltencent.tcc-sjc-dev.stage-val-gp-2": "US West 2",
-    "globaltencent.tcc-sjc-dev.tcloudtest-stage-release-1-gp-2": "US West 2",
-    "globaltencent.tcc-sjc-dev.val-gp-2": "US West 2",
-    "aresriot.aws-rclusterprod-waw1-1.eu-gp-warsaw-1": "Warsaw",
-    "aresriot.aws-rclusterprod-waw1-1.tournament-gp-warsaw-1": "Warsaw",
-    "aresriot.aws-waw1-prod.eu-gp-warsaw-1": "Warsaw",
-    "aresriot.aws-waw1-prod.tournament-gp-warsaw-1": "Warsaw",
-    "tj.qcloud.vala-gp-3": "offline1",
-    "tj.qcloud.valtest-gp-3": "offline1",
-    "tj.qcloud.vala-gp-4": "offline2",
-    "tj.qcloud.valtest-gp-4": "offline2",
-    "tj.qcloud.vala-gp-1": "online1",
-    "tj.qcloud.valtest-gp-1": "online1",
-    "tj.qcloud.vala-gp-2": "online2",
-    "tj.qcloud.valtest-gp-2": "online2",
-    "na-1": "Virginia",
-    "na-2": "California",
-    "na-3": "Texas",
-    "na-4": "Illinois",
-    "eu-1": "Frankfurt",
-    "eu-2": "Paris",
-    "eu-3": "Stockholm",
-    "eu-4": "Istanbul",
-    "ap-1": "Singapore",
-    "ap-2": "Tokyo",
-    "ap-3": "Sydney",
-    "ap-4": "Mumbai",
-    "kr-1": "Seoul",
-    "br-1": "Sao Paulo",
-    "latam-1": "Santiago",
-    "latam-2": "Mexico City",
+/**
+ * Game pod ids are structured, e.g.
+ *   aresriot.aws-euc1-prod.eu-gp-frankfurt-1
+ *   aresriot.aws-rclusterprod-use1-1.na-gp-ashburn-awsedge-1
+ * so the datacentre city is just the `-gp-<city>` segment. Pulling it out with
+ * a regex handles new pods automatically, which a hardcoded table never did.
+ *
+ * Only cities whose display name isn't Capitalize(city) need an entry here.
+ */
+const POD_CITIES = {
+    ashburn: "N. Virginia",
+    norcal: "N. California",
+    atlanta: "Georgia",
+    dallas: "Texas",
+    chicago: "Illinois",
+    saopaulo: "Sao Paulo",
+    hongkong: "Hong Kong",
+    capetown: "Cape Town",
+    mexicocity: "Mexico City",
+    mexico: "Mexico City",
+    bogota: "Bogotá",
+};
+
+/** Party MatchmakingData.PreferredGamePods uses short region ids instead. */
+const REGION_PODS = {
+    "na-1": "Virginia", "na-2": "California", "na-3": "Texas", "na-4": "Illinois",
+    "eu-1": "Frankfurt", "eu-2": "Paris", "eu-3": "Stockholm", "eu-4": "Istanbul",
+    "ap-1": "Singapore", "ap-2": "Tokyo", "ap-3": "Sydney", "ap-4": "Mumbai",
+    "kr-1": "Seoul", "br-1": "Sao Paulo", "latam-1": "Santiago", "latam-2": "Mexico City",
 };
 
 export const resolveServerName = (gamePodId) => {
-    const cleanId = (gamePodId || "").replace(/^p-/, "").toLowerCase();
-    return GAME_PODS[cleanId] ?? GAME_PODS[gamePodId] ?? gamePodId;
+    if (!gamePodId) return gamePodId;
+    const id = gamePodId.replace(/^p-/, "").toLowerCase();
+    if (REGION_PODS[id]) return REGION_PODS[id];
+
+    // {3,} so region-suffix pods (`ext1-gp-eu1`) don't render as "Eu";
+    // they fall through to the raw id, same as the old table's fallback.
+    const city = id.match(/-gp-([a-z]{3,})/)?.[1];
+    if (!city) return gamePodId;
+    return POD_CITIES[city] ?? city[0].toUpperCase() + city.slice(1);
 };
 
 // ──────────────────────────────────────────────
@@ -712,7 +418,7 @@ const SINGLE_TEAM_QUEUES = new Set(["deathmatch"]);
  * the raw pd/mmr/v1/players response JSON.
  */
 export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
-    const empty = { currentTier: 0, currentRR: 0, peakTier: 0, wins: 0, games: 0, winRate: null, _rawLatestMatchId: null, _rawLatestMatchStartTime: null };
+    const empty = { currentTier: 0, currentRR: 0, peakTier: 0, wins: 0, games: 0, winRate: null };
     if (!mmrJson) return empty;
 
     // Current rank — best source is the latest competitive update
@@ -769,15 +475,26 @@ export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
     const winRate = games > 0 ? Math.round((wins / games) * 100) : null;
     const losses = games - wins;
 
-    return {
-        currentTier, currentRR, peakTier, peakSeasonId, wins, losses, games, winRate,
-        _rawLatestMatchId: latest?.MatchID ?? null,
-        _rawLatestMatchStartTime: latest?.MatchStartTime ?? null
-    };
+    return { currentTier, currentRR, peakTier, peakSeasonId, wins, losses, games, winRate };
 };
 
 const safeJson = (str) => {
     try { return JSON.parse(str); } catch { return null; }
+};
+
+/**
+ * GLZ "am I in X?" probe: GET /{path}/v1/players/{puuid} → the id it reports,
+ * or null when the user isn't in that state.
+ *
+ * Split out of the three getters so fetchLiveGame can run all three probes in
+ * a single round trip and then pay for the detail fetch of only whichever one
+ * hit. The states are mutually exclusive, so pulling full party detail while
+ * the user was mid-match was always a wasted request.
+ */
+const probeState = async (user, path, idField) => {
+    const resp = await fetch(`${glzUrl(user)}/${path}/v1/players/${user.puuid}`, { headers: authHeaders(user) });
+    if (resp.statusCode !== 200) return null;
+    return safeJson(resp.body)?.[idField] ?? null;
 };
 
 // ──────────────────────────────────────────────
@@ -790,7 +507,7 @@ const safeJson = (str) => {
  * or       { success, state: "not_queuing" }
  * or       { success: false, ... } on auth failure.
  */
-export const getPartyData = async (id, account = null) => {
+export const getPartyData = async (id, account = null, knownPartyId = undefined) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
@@ -799,18 +516,11 @@ export const getPartyData = async (id, account = null) => {
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
-    // Check if the user is in a party
-    const playerResp = await fetch(
-        `${base}/parties/v1/players/${user.puuid}`,
-        { headers }
-    );
-
-    if (playerResp.statusCode !== 200) {
-        return { success: true, state: "not_queuing" };
-    }
-
-    const playerJson = safeJson(playerResp.body);
-    const partyId = playerJson?.CurrentPartyID;
+    // knownPartyId: undefined = probe for it, null = caller already knows there
+    // is no party, string = caller already probed and we skip straight to detail.
+    const partyId = knownPartyId === undefined
+        ? await probeState(user, "parties", "CurrentPartyID")
+        : knownPartyId;
     if (!partyId) return { success: true, state: "not_queuing" };
 
     // Fetch party data
@@ -852,7 +562,6 @@ export const getPartyData = async (id, account = null) => {
         state: "queuing",
         matchId: partyId,
         queueId,
-        queueName: resolveQueueName(queueId),
         eligibleQueues,
         members,
         inviteCode,
@@ -1027,11 +736,11 @@ export const getOwnedAgents = async (user) => {
 
 /**
  * Fetch pre-game data for a user.
- * Returns { success, state: "pregame", matchId, mapId, mapName, queueId, queueName, players }
+ * Returns { success, state: "pregame", matchId, mapId, mapName, queueId, players }
  * or       { success, state: "not_in_pregame" }
  * or       { success: false, ... } on auth failure.
  */
-export const getPreGameData = async (id, account = null) => {
+export const getPreGameData = async (id, account = null, knownMatchId = undefined) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
@@ -1040,18 +749,11 @@ export const getPreGameData = async (id, account = null) => {
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
-    // Check if the user is in pre-game
-    const playerResp = await fetch(
-        `${base}/pregame/v1/players/${user.puuid}`,
-        { headers }
-    );
-
-    if (playerResp.statusCode !== 200) {
-        return { success: true, state: "not_in_pregame" };
-    }
-
-    const playerJson = safeJson(playerResp.body);
-    const matchId = playerJson?.MatchID;
+    // Passing a known match id skips the probe — that's what makes the poller's
+    // "is agent select still running?" check a single request.
+    const matchId = knownMatchId === undefined
+        ? await probeState(user, "pregame", "MatchID")
+        : knownMatchId;
     if (!matchId) return { success: true, state: "not_in_pregame" };
 
     // Fetch match data
@@ -1113,7 +815,6 @@ export const getPreGameData = async (id, account = null) => {
         mapName: resolveMapName(mapId),
         serverName,
         queueId,
-        queueName: resolveQueueName(queueId),
         players: rawPlayers,
         userPuuid: user.puuid,
     };
@@ -1125,11 +826,11 @@ export const getPreGameData = async (id, account = null) => {
 
 /**
  * Fetch in-game data for a user.
- * Returns { success, state: "ingame", matchId, mapId, mapName, queueId, queueName, players, userTeamId }
+ * Returns { success, state: "ingame", matchId, mapId, mapName, queueId, players, userTeamId }
  * or       { success, state: "not_in_game" }
  * or       { success: false, ... } on auth failure.
  */
-export const getInGameData = async (id, account = null) => {
+export const getInGameData = async (id, account = null, knownMatchId = undefined) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
@@ -1138,18 +839,9 @@ export const getInGameData = async (id, account = null) => {
     const base = glzUrl(user);
     const headers = authHeaders(user);
 
-    // Check if the user is in a live game
-    const playerResp = await fetch(
-        `${base}/core-game/v1/players/${user.puuid}`,
-        { headers }
-    );
-
-    if (playerResp.statusCode !== 200) {
-        return { success: true, state: "not_in_game" };
-    }
-
-    const playerJson = safeJson(playerResp.body);
-    const matchId = playerJson?.MatchID;
+    const matchId = knownMatchId === undefined
+        ? await probeState(user, "core-game", "MatchID")
+        : knownMatchId;
     if (!matchId) return { success: true, state: "not_in_game" };
 
     // Fetch match data
@@ -1194,7 +886,6 @@ export const getInGameData = async (id, account = null) => {
         mapName: resolveMapName(mapId),
         serverName,
         queueId,
-        queueName: resolveQueueName(queueId),
         players: rawPlayers,
         userTeamId,
         userPuuid: user.puuid,
@@ -1206,68 +897,102 @@ export const getInGameData = async (id, account = null) => {
 // ──────────────────────────────────────────────
 const playerMmrCache = new Map();
 const playerRecentMatchesCache = new Map();
-const MMR_CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
+// Read-through TTL. Ranks don't move mid-match, so this covers a whole
+// /livegame session (incl. the 8s poller) without a single refetch.
+const MMR_CACHE_TTL = 1000 * 60 * 15; // 15 minutes
+
+/**
+ * Read-through per-PUUID cache: serve fresh cache hits, fetch only the misses.
+ * A failed fetch serves a stale entry if there is one and is retried next call
+ * (deliberately not negative-cached — a transient 5xx shouldn't pin a player
+ * to "Unranked" for the whole TTL).
+ *
+ * @param {Map}      cache    puuid → { data, ts }
+ * @param {number}   ttl      freshness window in ms
+ * @param {string[]} puuids
+ * @param {Function} fetchOne (puuid) => Promise<data|null>  — null means "failed"
+ * @param {Function} empty    () => data  fallback when there's nothing cached
+ */
+export const cachedByPuuid = async (cache, ttl, puuids, fetchOne, empty) => {
+    const now = Date.now();
+    const out = new Map();
+    const toFetch = [];
+
+    for (const puuid of puuids) {
+        const hit = cache.get(puuid);
+        if (hit && now - hit.ts < ttl) out.set(puuid, hit.data);
+        else toFetch.push(puuid);
+    }
+
+    const results = await Promise.allSettled(toFetch.map(fetchOne));
+    toFetch.forEach((puuid, i) => {
+        const r = results[i];
+        if (r.status === "fulfilled" && r.value != null) {
+            cache.set(puuid, { data: r.value, ts: now });
+            out.set(puuid, r.value);
+        } else {
+            out.set(puuid, cache.get(puuid)?.data ?? empty());
+        }
+    });
+    return out;
+};
 
 /**
  * Batch-fetch MMR for a list of PUUIDs using the caller's auth.
  * Returns Map<puuid, parsedMMR>.
  */
-const fetchPlayerMMRs = async (user, puuids) => {
+const fetchPlayerMMRs = (user, puuids) => {
     const headers = authHeaders(user);
     const pd = pdUrl(user);
-    const now = Date.now();
 
-    const results = await Promise.allSettled(
-        puuids.map(puuid =>
-            fetch(`${pd}/mmr/v1/players/${puuid}`, { headers })
-                .then(r => r.statusCode === 200 ? safeJson(r.body) : null)
-        )
-    );
-
-    const out = new Map();
-    for (let i = 0; i < puuids.length; i++) {
-        const puuid = puuids[i];
-        const raw = results[i].status === "fulfilled" ? results[i].value : null;
-        let parsed = raw ? parseMMRData(raw, currentSeasonId) : null;
-
-        if (parsed) {
-            playerMmrCache.set(puuid, { data: parsed, ts: now });
-        } else {
-            const cached = playerMmrCache.get(puuid);
-            if (cached && (now - cached.ts < MMR_CACHE_TTL)) {
-                parsed = cached.data;
-            } else {
-                parsed = parseMMRData(null, currentSeasonId);
-                playerMmrCache.set(puuid, { data: parsed, ts: now });
-            }
-        }
-
-        out.set(puuid, parsed);
-    }
-    return out;
+    return cachedByPuuid(playerMmrCache, MMR_CACHE_TTL, puuids,
+        puuid => fetch(`${pd}/mmr/v1/players/${puuid}`, { headers })
+            .then(r => {
+                const raw = r.statusCode === 200 ? safeJson(r.body) : null;
+                return raw ? parseMMRData(raw, currentSeasonId) : null;
+            }),
+        () => parseMMRData(null, currentSeasonId));
 };
 
 /**
  * Batch-fetch Riot IDs (GameName#TagLine) for a list of PUUIDs.
  * Returns Map<puuid, "GameName#Tag"> (or null for incognito/missing).
  */
+const playerNameCache = new Map();
+const NAME_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours — Riot IDs change rarely
+
 const fetchPlayerNames = async (user, puuids) => {
+    // This is one batched PUT rather than a request per player, so it can't use
+    // cachedByPuuid — but the same idea applies: only ask for the misses, and
+    // skip the request entirely when there are none. That's what takes a
+    // steady-state poll of an unchanged lobby down to zero name lookups.
+    const now = Date.now();
+    const out = new Map();
+    const toFetch = [];
+    for (const puuid of puuids) {
+        const hit = playerNameCache.get(puuid);
+        if (hit && now - hit.ts < NAME_CACHE_TTL) out.set(puuid, hit.data);
+        else toFetch.push(puuid);
+    }
+    if (toFetch.length === 0) return out;
+
     const headers = { ...authHeaders(user), "Content-Type": "application/json" };
     const pd = pdUrl(user);
 
-    const out = new Map();
     try {
         const resp = await fetch(`${pd}/name-service/v2/players`, {
             method: "PUT",
             headers,
-            body: JSON.stringify(puuids),
+            body: JSON.stringify(toFetch),
         });
         if (resp.statusCode === 200) {
             const json = safeJson(resp.body);
             if (Array.isArray(json)) {
                 for (const entry of json) {
                     if (entry.GameName) {
-                        out.set(entry.Subject, `${entry.GameName}#${entry.TagLine}`);
+                        const name = `${entry.GameName}#${entry.TagLine}`;
+                        playerNameCache.set(entry.Subject, { data: name, ts: now });
+                        out.set(entry.Subject, name);
                     }
                 }
             }
@@ -1282,48 +1007,23 @@ const fetchPlayerNames = async (user, puuids) => {
  * Fetch last 3 competitive match results for a list of PUUIDs.
  * Returns Map<puuid, Array<"win" | "loss" | "tie">>
  */
-const fetchPlayerRecentMatches = async (user, puuids) => {
+const fetchPlayerRecentMatches = (user, puuids) => {
     const pd = pdUrl(user);
     const headers = authHeaders(user);
-    const now = Date.now();
 
-    const results = await Promise.allSettled(
-        puuids.map(puuid =>
-            fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=3&queue=competitive`, { headers })
-                .then(r => r.statusCode === 200 ? safeJson(r.body) : null)
-        )
-    );
-
-    const out = new Map();
-    for (let i = 0; i < puuids.length; i++) {
-        const puuid = puuids[i];
-        const raw = results[i].status === "fulfilled" ? results[i].value : null;
-        let history = null;
-
-        if (raw?.Matches) {
-            history = [];
-            for (const m of raw.Matches.slice(0, 3)) {
-                if (m.RankedRatingEarned > 0 || (m.TierAfterUpdate > m.TierBeforeUpdate)) {
-                    history.push("win");
-                } else if (m.RankedRatingEarned < 0 || (m.TierAfterUpdate < m.TierBeforeUpdate)) {
-                    history.push("loss");
-                } else if (m.RankedRatingEarned === 0) {
-                    history.push("tie");
-                }
-            }
-            playerRecentMatchesCache.set(puuid, { data: history, ts: now });
-        } else {
-            const cached = playerRecentMatchesCache.get(puuid);
-            if (cached && now - cached.ts < MMR_CACHE_TTL) {
-                history = cached.data;
-            } else {
-                history = [];
-                playerRecentMatchesCache.set(puuid, { data: history, ts: now });
-            }
-        }
-        out.set(puuid, history);
-    }
-    return out;
+    return cachedByPuuid(playerRecentMatchesCache, MMR_CACHE_TTL, puuids,
+        puuid => fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=3&queue=competitive`, { headers })
+            .then(r => {
+                const raw = r.statusCode === 200 ? safeJson(r.body) : null;
+                if (!raw?.Matches) return null;
+                return raw.Matches.slice(0, 3).map(m => {
+                    if (m.RankedRatingEarned > 0 || m.TierAfterUpdate > m.TierBeforeUpdate) return "win";
+                    if (m.RankedRatingEarned < 0 || m.TierAfterUpdate < m.TierBeforeUpdate) return "loss";
+                    if (m.RankedRatingEarned === 0) return "tie";
+                    return null;
+                }).filter(Boolean);
+            }),
+        () => []);
 };
 
 const playerCombatStatsCache = new Map();
@@ -1334,27 +1034,14 @@ const COMBAT_STATS_CACHE_TTL = 1000 * 60 * 30; // 30 mins
  * Uses HenrikDev API when configured, falls back to Riot match details / MMR.
  * Returns Map<puuid, { adr, kd, hs }>.
  */
-const fetchPlayerCombatStats = async (user, puuids) => {
-    const now = Date.now();
-    const out = new Map();
-    const toFetch = [];
+const NO_COMBAT_STATS = () => ({ adr: 0, kd: "0", hs: 0 });
 
-    for (const puuid of puuids) {
-        const cached = playerCombatStatsCache.get(puuid);
-        if (cached && now - cached.ts < COMBAT_STATS_CACHE_TTL) {
-            out.set(puuid, cached.data);
-        } else {
-            toFetch.push(puuid);
-        }
-    }
-
-    if (toFetch.length === 0) return out;
-
+const fetchPlayerCombatStats = (user, puuids) => {
     const vapi = getVAPI();
     const region = userRegion(user);
 
-    await Promise.allSettled(
-        toFetch.map(async (puuid) => {
+    return cachedByPuuid(playerCombatStatsCache, COMBAT_STATS_CACHE_TTL, puuids,
+        async (puuid) => {
             let stats = null;
 
             // Strategy 1: HenrikDev API (if available)
@@ -1471,15 +1158,11 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                 }
             }
 
-            if (!stats) {
-                stats = { adr: 0, kd: "0", hs: 0 };
-            }
-            playerCombatStatsCache.set(puuid, { data: stats, ts: now });
-            out.set(puuid, stats);
-        })
-    );
-
-    return out;
+            // "no competitive history" is a real answer, not a failure — return it
+            // so it gets cached, otherwise every poll re-runs the 6-request fallback.
+            return stats ?? NO_COMBAT_STATS();
+        },
+        NO_COMBAT_STATS);
 };
 
 // ──────────────────────────────────────────────
@@ -1490,7 +1173,7 @@ const fetchPlayerCombatStats = async (user, puuids) => {
  * Enrich raw player objects with name, rank, agent, and level info.
  * modifies players in-place AND returns them.
  */
-const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
+const enrichPlayers = async (id, account, rawPlayers) => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
 
@@ -1584,60 +1267,137 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
  * Returns:
  *   { success: false, ...authError }
  *   { success: true, state: "not_in_game" }
- *   { success: true, state: "pregame",  mapName, queueName, players: [{...enriched}] }
- *   { success: true, state: "ingame",   mapName, queueName, players: [{...enriched}],
+ *   { success: true, state: "pregame",  mapName, players: [{...enriched}] }
+ *   { success: true, state: "ingame",   mapName, players: [{...enriched}],
  *                                       allyPlayers, enemyPlayers }
  */
+/** Enrich + decorate a raw getInGameData result into a render-ready payload. */
+const buildInGame = async (id, account, inGame) => {
+    const enriched = await enrichPlayers(id, account, inGame.players);
+    return {
+        ...inGame,
+        players: enriched,
+        allyPlayers: enriched.filter(p => p.isAlly),
+        enemyPlayers: enriched.filter(p => !p.isAlly),
+        isSingleTeam: SINGLE_TEAM_QUEUES.has(inGame.queueId?.toLowerCase()),
+        queueIcon: resolveQueueIcon(inGame.queueId),
+    };
+};
+
+/** Enrich + decorate a raw getPreGameData result into a render-ready payload. */
+const buildPreGame = async (id, account, preGame) => {
+    const enriched = await enrichPlayers(id, account, preGame.players);
+    return {
+        ...preGame,
+        players: enriched,
+        allyPlayers: enriched,
+        enemyPlayers: [],
+        isSingleTeam: SINGLE_TEAM_QUEUES.has(preGame.queueId?.toLowerCase()),
+        queueIcon: resolveQueueIcon(preGame.queueId),
+    };
+};
+
+/** Returned by repollLiveGame when what's already on screen is still accurate. */
+export const LIVEGAME_UNCHANGED = Symbol("livegame:unchanged");
+
+/**
+ * Cheap re-poll for a user the bot already believes is in `state`.
+ *
+ * The poller knows what it drew last time, so it doesn't need fetchLiveGame's
+ * three probes and detail fetch — it only has to answer "is this still true?"
+ * against the match or party it is already showing.
+ *
+ *   pregame → the refreshed, enriched match, so agent hovers and locks stay
+ *             live and the stolen-agent check still has data to compare
+ *   queuing → LIVEGAME_UNCHANGED while the party is still MATCHMAKING. Nothing
+ *             on that embed moves until a match is found or the queue is
+ *             cancelled, so there is nothing to redraw and we skip the edit.
+ *
+ * Returns null when the state has moved on; the caller then runs the full
+ * fetchLiveGame to find out what it moved to.
+ */
+export const repollLiveGame = async (id, account, state, matchId) => {
+    if (!matchId) return null;
+    if (state !== "pregame" && state !== "queuing") return null;
+
+    const auth = await authUser(id, account);
+    if (!auth.success) return null;
+    const user = getUser(id, account);
+    if (!user) return null;
+
+    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapNames(), loadSeasons(), loadGamemodes()]);
+
+    if (state === "pregame") {
+        // Probe core-game alongside the pregame read rather than inferring the
+        // transition from a 404. Catching "the match started" is the poller's
+        // entire job, so it shouldn't rest on how Riot expires pregame data.
+        const [coreMatchId, preGame] = await Promise.all([
+            probeState(user, "core-game", "MatchID"),
+            getPreGameData(id, account, matchId),
+        ]);
+        if (coreMatchId) return null;                                   // in game now
+        if (!preGame.success || preGame.state !== "pregame") return null; // dodged / ended
+        return await buildPreGame(id, account, preGame);
+    }
+
+    if (state === "queuing") {
+        // One request: the party id is the matchId we're already displaying.
+        // Covers both transitions — a match being found and the queue being
+        // cancelled from the game client both drop State out of MATCHMAKING.
+        const resp = await fetch(`${glzUrl(user)}/parties/v1/parties/${matchId}`, { headers: authHeaders(user) });
+        const stillQueuing = resp.statusCode === 200 && safeJson(resp.body)?.State === "MATCHMAKING";
+        return stillQueuing ? LIVEGAME_UNCHANGED : null;
+    }
+
+    return null;
+};
+
 export const fetchLiveGame = async (id, account = null) => {
     // 1. Ensure static caches are ready before the parallel API calls
-    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapImages(), loadSeasons(), loadGamemodes()]);
+    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapNames(), loadSeasons(), loadGamemodes()]);
 
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 
-    // 2. Parallelize state checks
-    const [inGame, preGame, party] = await Promise.all([
-        getInGameData(id, account),
-        getPreGameData(id, account),
-        getPartyData(id, account)
+    const user = getUser(id, account);
+    if (!user) return { success: false, state: null };
+
+    // 2. One round trip for all three "am I in X?" probes, then only the state
+    //    that actually hit pays for its detail fetch. They're mutually
+    //    exclusive, so pulling party detail mid-match was always wasted.
+    const [coreMatchId, preMatchId, partyId] = await Promise.all([
+        probeState(user, "core-game", "MatchID"),
+        probeState(user, "pregame", "MatchID"),
+        probeState(user, "parties", "CurrentPartyID"),
     ]);
 
-    if (!inGame.success) return inGame;
-    if (!preGame.success) return preGame;
+    if (coreMatchId) {
+        const inGame = await getInGameData(id, account, coreMatchId);
+        if (!inGame.success) return inGame;
+        if (inGame.state === "ingame") return await buildInGame(id, account, inGame);
+    }
+
+    if (preMatchId) {
+        const preGame = await getPreGameData(id, account, preMatchId);
+        if (!preGame.success) return preGame;
+        if (preGame.state === "pregame") return await buildPreGame(id, account, preGame);
+    }
+
+    const party = await getPartyData(id, account, partyId);
     if (!party.success) return party;
-
-    if (inGame.state === "ingame") {
-        const enriched = await enrichPlayers(id, account, inGame.players, inGame.queueId);
-        const allyPlayers = enriched.filter(p => p.isAlly);
-        const enemyPlayers = enriched.filter(p => !p.isAlly);
-        const mapImage = await resolveMapImage(inGame.mapId);
-        const isSingleTeam = SINGLE_TEAM_QUEUES.has(inGame.queueId?.toLowerCase());
-        const queueIcon = resolveQueueIcon(inGame.queueId);
-        return { ...inGame, players: enriched, allyPlayers, enemyPlayers, mapImage, isSingleTeam, queueIcon };
-    }
-
-    if (preGame.state === "pregame") {
-        const enriched = await enrichPlayers(id, account, preGame.players, preGame.queueId);
-        const mapImage = await resolveMapImage(preGame.mapId);
-        const isSingleTeam = SINGLE_TEAM_QUEUES.has(preGame.queueId?.toLowerCase());
-        const queueIcon = resolveQueueIcon(preGame.queueId);
-        return { ...preGame, players: enriched, allyPlayers: enriched, enemyPlayers: [], mapImage, isSingleTeam, queueIcon };
-    }
 
     if (party.state === "queuing" || party.state === "not_queuing") {
         let enriched = [];
         if (party.members && party.members.length > 0) {
-            enriched = await enrichPlayers(id, account, party.members, party.queueId);
+            enriched = await enrichPlayers(id, account, party.members);
         }
 
-        const user = getUser(id, account);
         if (party.state === "queuing") {
             return {
                 success: true,
                 state: "queuing",
                 matchId: party.matchId,
                 queueId: party.queueId,
-                queueName: party.queueName,
                 allyPlayers: enriched,
                 eligibleQueues: party.eligibleQueues,
                 userPuuid: user.puuid,

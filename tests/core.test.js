@@ -53,6 +53,8 @@ import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
+import { cachedByPuuid, resolveServerName, parseMMRData, repollLiveGame } from "../valorant/livegame.js";
+import { formatServerName, formatPreferredServers, fitDescription, formatPlayerRow } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -835,4 +837,195 @@ test("auth: refreshToken short-circuits only when both rso and ent are fresh", a
     assert.equal(result.authFailure, true);
 
     deleteUserFromDb("refresh-test-user");
+});
+
+test("livegame: cachedByPuuid serves fresh hits, fetches only misses, retries failures", async () => {
+    const cache = new Map();
+    const empty = () => "EMPTY";
+    let calls = [];
+    const fetchOne = async (puuid) => {
+        calls.push(puuid);
+        return puuid === "fails" ? null : `data-${puuid}`;
+    };
+
+    // Cold: everything is a miss and gets fetched.
+    let out = await cachedByPuuid(cache, 60_000, ["a", "b"], fetchOne, empty);
+    assert.deepEqual(calls.sort(), ["a", "b"]);
+    assert.equal(out.get("a"), "data-a");
+
+    // Warm: nothing is refetched — this is the whole point of the cache.
+    calls = [];
+    out = await cachedByPuuid(cache, 60_000, ["a", "b"], fetchOne, empty);
+    assert.deepEqual(calls, []);
+    assert.equal(out.get("b"), "data-b");
+
+    // Expired TTL: refetched.
+    calls = [];
+    await cachedByPuuid(cache, -1, ["a"], fetchOne, empty);
+    assert.deepEqual(calls, ["a"]);
+
+    // Failure with nothing cached falls back to empty and is NOT negative-cached,
+    // so the next call retries instead of pinning the bad value for the whole TTL.
+    calls = [];
+    out = await cachedByPuuid(cache, 60_000, ["fails"], fetchOne, empty);
+    assert.equal(out.get("fails"), "EMPTY");
+    out = await cachedByPuuid(cache, 60_000, ["fails"], fetchOne, empty);
+    assert.deepEqual(calls, ["fails", "fails"]);
+
+    // Failure with a stale entry serves the stale value rather than empty.
+    cache.set("stale", { data: "old", ts: 0 });
+    out = await cachedByPuuid(cache, 60_000, ["stale"], async () => null, empty);
+    assert.equal(out.get("stale"), "old");
+});
+
+test("livegame: resolveServerName parses real game pod ids", () => {
+    // Prod pods — display names match what the old hardcoded table rendered.
+    assert.equal(resolveServerName("aresriot.aws-euc1-prod.eu-gp-frankfurt-1"), "Frankfurt");
+    assert.equal(resolveServerName("aresriot.aws-use1-prod.na-gp-ashburn-1"), "N. Virginia");
+    assert.equal(resolveServerName("aresriot.aws-rclusterprod-use1-1.na-gp-ashburn-awsedge-1"), "N. Virginia");
+    assert.equal(resolveServerName("aresriot.aws-usw1-prod.na-gp-norcal-1"), "N. California");
+    assert.equal(resolveServerName("aresriot.aws-atl1-prod.na-gp-atlanta-1"), "Georgia");
+    assert.equal(resolveServerName("aresriot.aws-dfw1-prod.na-gp-dallas-1"), "Texas");
+    assert.equal(resolveServerName("aresriot.aws-chi1-prod.na-gp-chicago-1"), "Illinois");
+    assert.equal(resolveServerName("aresriot.aws-sae1-prod.br-gp-saopaulo-1"), "Sao Paulo");
+    assert.equal(resolveServerName("aresriot.aws-ape1-prod.ap-gp-hongkong-1"), "Hong Kong");
+    assert.equal(resolveServerName("aresriot.aws-bog1-prod.latam-gp-bogota-1"), "Bogotá");
+    assert.equal(resolveServerName("aresriot.aws-mnl1-prod.ap-gp-manila-1"), "Manila");
+    assert.equal(resolveServerName("loltencent.qcloud.val-gp-beijing-1"), "Beijing");
+
+    // A pod the old table never listed still resolves — the point of the regex.
+    assert.equal(resolveServerName("aresriot.aws-xyz9-prod.eu-gp-helsinki-1"), "Helsinki");
+
+    // PreferredGamePods short ids.
+    assert.equal(resolveServerName("na-3"), "Texas");
+    assert.equal(resolveServerName("latam-2"), "Mexico City");
+    assert.equal(resolveServerName("p-eu-1"), "Frankfurt");
+
+    // Unparseable ids fall through to the raw value rather than inventing one.
+    assert.equal(resolveServerName("arestencent.qcloud-cq1.alpha1-gp-1"), "arestencent.qcloud-cq1.alpha1-gp-1");
+    assert.equal(resolveServerName(""), "");
+    assert.equal(resolveServerName(null), null);
+});
+
+test("livegame: formatServerName and formatPreferredServers attach flags", () => {
+    assert.equal(formatServerName(resolveServerName("aresriot.aws-use1-prod.na-gp-ashburn-1")), "🇺🇸 N. Virginia");
+    assert.equal(formatServerName("Frankfurt"), "🇩🇪 Frankfurt");
+    assert.equal(formatServerName(""), "");
+
+    // Single pod, grouped pods, and the >3-across-countries compact form.
+    assert.equal(formatPreferredServers(["aresriot.aws-euc1-prod.eu-gp-frankfurt-1"]), "🇩🇪 Frankfurt");
+    assert.equal(formatPreferredServers([], "Auto"), "`Auto`");
+    assert.equal(
+        formatPreferredServers(["aresriot.aws-dfw1-prod.na-gp-dallas-1", "aresriot.aws-chi1-prod.na-gp-chicago-1"]),
+        "🇺🇸 Texas, Illinois"
+    );
+});
+
+test("livegame: parseMMRData reports the current act, not the last one played", () => {
+    const CURRENT = "act-current", OLD = "act-old";
+    const seasonal = {
+        [OLD]: { CompetitiveTier: 20, RankedRating: 60, NumberOfGames: 40, NumberOfWinsWithPlacements: 25 }
+    };
+    const mmr = {
+        LatestCompetitiveUpdate: { SeasonID: OLD, TierAfterUpdate: 20, RankedRatingAfterUpdate: 60 },
+        QueueSkills: { competitive: { SeasonalInfoBySeasonID: seasonal } }
+    };
+
+    // Hasn't played the current act -> Unranked, not last act's tier.
+    const fresh = parseMMRData(mmr, CURRENT);
+    assert.equal(fresh.currentTier, 0);
+    assert.equal(fresh.currentRR, 0);
+    assert.equal(fresh.peakTier, 20);          // peak still remembers it
+    assert.equal(fresh.peakSeasonId, OLD);
+
+    // A stale currentSeasonId is exactly the act-rollover bug: the same payload
+    // reports the old act's rank as current. Expiring the seasons cache at the
+    // act's endTime is what stops this happening.
+    assert.equal(parseMMRData(mmr, OLD).currentTier, 20);
+
+    // Played the current act -> that act's numbers win.
+    seasonal[CURRENT] = { CompetitiveTier: 12, RankedRating: 30, NumberOfGames: 10, NumberOfWinsWithPlacements: 6 };
+    const played = parseMMRData(mmr, CURRENT);
+    assert.equal(played.currentTier, 12);
+    assert.equal(played.currentRR, 30);
+    assert.equal(played.games, 10);
+    assert.equal(played.wins, 6);
+    assert.equal(played.winRate, 60);
+});
+
+test("livegame: fitDescription degrades instead of blowing the 4096 limit", () => {
+    assert.equal(fitDescription([]), undefined);
+    assert.equal(fitDescription(["a", "", null, "b"]), "a\n\nb");
+
+    // Under the limit: untouched, stat lines kept.
+    const small = ["header", "`Player` rank\n-# **150** ADR"];
+    assert.equal(fitDescription(small), "header\n\n`Player` rank\n-# **150** ADR");
+
+    // Over the limit: `-#` subtext lines are dropped first, and that alone
+    // brings a realistic full lobby back under.
+    const rows = Array.from({ length: 10 }, (_, i) =>
+        `${"x".repeat(300)} player${i}\n-# ${"y".repeat(120)}`
+    );
+    const degraded = fitDescription(rows);
+    assert.ok(degraded.length <= 4096);
+    assert.ok(!degraded.includes("-# "));
+    assert.ok(degraded.includes("player9"));   // no players lost
+
+    // Still too big even without subtext: hard truncate, never exceed.
+    const huge = fitDescription([`${"z".repeat(9000)}`]);
+    assert.equal(huge.length, 4096);
+    assert.ok(huge.endsWith("…"));
+});
+
+test("livegame: player row omits stat items it has no data for", async () => {
+    const base = { riotId: "Player#1", currentTier: 0, peakTier: 0, recentMatches: [] };
+
+    // Combat stats fall back to zeroes when there's no competitive history.
+    // That should render no subtext line at all, not "0 ADR・0 K/D・0% HS".
+    const bare = await formatPlayerRow({ ...base, adr: 0, kd: "0", hs: 0, winRate: null, games: 0 }, null);
+    assert.ok(!bare.includes("-#"), bare);
+    assert.ok(!bare.includes("ADR"));
+
+    // Partial data: only the items that actually have a value.
+    const partial = await formatPlayerRow({ ...base, adr: 150, kd: "0", hs: 0, winRate: null, games: 0 }, null);
+    assert.ok(partial.includes("**150** ADR"));
+    assert.ok(!partial.includes("K/D"));
+    assert.ok(!partial.includes("HS"));
+    assert.ok(!partial.includes("Win"));
+
+    // Full data: every item, win rate carrying the game count, streak appended.
+    const full = await formatPlayerRow({
+        ...base, adr: 152, kd: "1.18", hs: 28, winRate: 54, games: 230, recentMatches: ["win", "loss"]
+    }, null);
+    assert.ok(full.includes("**152** ADR・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻`"), full);
+});
+
+test("livegame embed: game embeds localize the queue name and state label", async () => {
+    const data = {
+        state: "ingame",
+        queueId: "competitive",
+        queueName: "SHOULD-NOT-APPEAR",   // the pre-baked English field is gone
+        mapName: "Ascent",
+        serverName: "Frankfurt",
+        allyPlayers: [],
+        enemyPlayers: []
+    };
+
+    const embed = (await renderLiveGame(data, "test-user-id")).embeds[0];
+    assert.ok(!embed.author.name.includes("SHOULD-NOT-APPEAR"), embed.author.name);
+    assert.ok(embed.author.name.startsWith(s("en-GB").queues.COMPETITIVE), embed.author.name);
+    assert.ok(embed.author.name.includes("🇩🇪 Frankfurt"), embed.author.name);
+    assert.equal(embed.footer.text, s("en-GB").livegame.STATE_INGAME);
+});
+
+test("livegame: repollLiveGame bails out before doing any work when it can't help", async () => {
+    // Nothing to poll against.
+    assert.equal(await repollLiveGame("whoever", null, "pregame", null), null);
+
+    // States the cheap path doesn't cover fall through to a full fetchLiveGame.
+    assert.equal(await repollLiveGame("whoever", null, "ingame", "match-1"), null);
+    assert.equal(await repollLiveGame("whoever", null, "not_in_game", "party-1"), null);
+
+    // Unregistered user: null, and the caller's fetchLiveGame surfaces the auth error.
+    assert.equal(await repollLiveGame("definitely-not-registered", null, "pregame", "match-1"), null);
 });

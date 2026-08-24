@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Jūs jau esate šioje grupėje.",
     "JOIN_PARTY_FAIL": "Nepavyko prisijungti prie grupės. Įsitikinkite, kad VALORANT klientas atidarytas, esate prisijungę ir tame pačiame regione.",
     "PARTY_CLOSED_DESC": "Ši grupė uždaryta.",
-    "AVG_RANK": "Vid. rangas"
+    "AVG_RANK": "Vid. rangas",
+    "SELECT_ROLE_PLACEHOLDER": "Pasirinkite rolę",
+    "SELECT_QUEUE_PLACEHOLDER": "Pasirinkite režimą",
+    "STATE_PREGAME": "🟡 Agento pasirinkimas",
+    "STATE_INGAME": "🔴 Žaidime",
+    "STATE_NOT_IN_GAME": "⬜ Ne mače",
+    "STATE_QUEUING": "🕒 Eilėje"
   },
   "queues": {
     "COMPETITIVE": "Reitinginės rungtynės",

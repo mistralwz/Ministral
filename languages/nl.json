@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Je zit al in deze groep.",
     "JOIN_PARTY_FAIL": "Kan niet deelnemen aan de groep. Zorg ervoor dat je VALORANT-client geopend, ingelogd en in dezelfde regio is.",
     "PARTY_CLOSED_DESC": "Deze groep is gesloten.",
-    "AVG_RANK": "Gem. rang"
+    "AVG_RANK": "Gem. rang",
+    "SELECT_ROLE_PLACEHOLDER": "Selecteer een rol",
+    "SELECT_QUEUE_PLACEHOLDER": "Selecteer een modus",
+    "STATE_PREGAME": "🟡 Agentselectie",
+    "STATE_INGAME": "🔴 In de game",
+    "STATE_NOT_IN_GAME": "⬜ Niet in een match",
+    "STATE_QUEUING": "🕒 In de wachtrij"
   },
   "queues": {
     "COMPETITIVE": "Competitief",

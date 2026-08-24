@@ -107,22 +107,47 @@ import fuzzysort from "fuzzysort";
 import { getSkins, getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import {
-    fetchLiveGame, selectAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode
+    fetchLiveGame, selectAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode,
+    repollLiveGame, LIVEGAME_UNCHANGED,
+    clearLiveGameCache
 } from "../valorant/livegame.js";
 import { renderLiveGame, renderLiveGameError, setRoleSelection } from "./livegameEmbed.js";
 
 // ─── Pre-game → in-game transition poller ─────────────────────────────────
-// Maps userId → { timer: Timeout, retries: number }
+// Maps userId → Timeout
 const liveGamePollers = new Map();
 const POLLER_MAX_TIME_MS = 300_000;       // 5 mins total
+
+/**
+ * Ownership guard for livegame components.
+ *
+ * Every livegame button/select embeds its owner's id as the last customId
+ * segment (`livegame/<action>/<matchId>/<ownerId>`), so the check never
+ * depends on Message#interaction — that field is deprecated in discord.js
+ * v14 and the old `if (msg?.interaction?.user?.id && ...)` guard silently
+ * passed whenever it was absent, letting anyone drive someone else's embed.
+ *
+ * Fails closed: a stale button from before this change has no ownerId and
+ * is rejected rather than allowed.
+ *
+ * @returns {Promise<boolean>} true when the click was rejected — caller returns.
+ */
+const rejectNotYourLiveGame = async (interaction, ownerId) => {
+    if (ownerId && ownerId === interaction.user.id) return false;
+    await interaction.reply({
+        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
+        flags: [MessageFlags.Ephemeral]
+    });
+    return true;
+};
 
 /**
  * Cancel any running pre-game poller for this user.
  */
 const cancelLiveGamePoller = (userId) => {
-    const existing = liveGamePollers.get(userId);
-    if (existing) {
-        clearTimeout(existing.timer);
+    const timer = liveGamePollers.get(userId);
+    if (timer) {
+        clearTimeout(timer);
         liveGamePollers.delete(userId);
     }
 };
@@ -131,9 +156,13 @@ const cancelLiveGamePoller = (userId) => {
  * Start (or restart) the pre-game poller.
  * Edits `reply` in-place once the match transitions to in-game.
  *
- * @param {string}     userId
+ * @param {string}      userId
  * @param {Interaction} interaction  Original deferred interaction (for editReply)
- * @param {number}     retriesLeft
+ * @param {number}      retriesLeft
+ * @param {object|null} previousData Last rendered live-game data. Callers should
+ *   always pass what they just fetched: it lets the next tick take the cheap
+ *   repoll path instead of a full fetchLiveGame, and it's the baseline the
+ *   stolen-agent check compares against.
  */
 const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER_MAX_TIME_MS / config.livegamePollingInterval), previousData = null) => {
     cancelLiveGamePoller(userId);
@@ -142,7 +171,22 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
     const timer = setTimeout(async () => {
         liveGamePollers.delete(userId);
         try {
-            const data = await fetchLiveGame(userId);
+            // Cheap path: ask only whether the state we already drew is still
+            // true (1-2 requests). A full fetchLiveGame is the fallback for
+            // when it isn't — i.e. only once something actually changed.
+            let data = null;
+            if (previousData?.state === "pregame" || previousData?.state === "queuing") {
+                const probe = await repollLiveGame(userId, null, previousData.state, previousData.matchId);
+                if (probe === LIVEGAME_UNCHANGED) {
+                    // Still searching. Nothing on the queuing embed moves until
+                    // a match is found, so skip the redraw entirely.
+                    startLiveGamePoller(userId, interaction, retriesLeft - 1, previousData);
+                    return;
+                }
+                data = probe;
+            }
+
+            if (!data) data = await fetchLiveGame(userId);
             if (!data.success || data.state === "not_in_game") return; // stop
 
             // ─── STOLEN AGENT PING LOGIC ──────────────────────────────────────
@@ -213,7 +257,7 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
         }
     }, config.livegamePollingInterval);
 
-    liveGamePollers.set(userId, { timer, retries: retriesLeft });
+    liveGamePollers.set(userId, timer);
 };
 import { spawn } from "child_process";
 import * as fs from "fs";
@@ -629,9 +673,7 @@ const globalCommands = commands.map(cmd => ({ ...cmd, integration_types: [0, 1],
 
 export const stopBot = async (replyFn) => {
     localLog("Stopping the bot...");
-    for (const [userId, poller] of liveGamePollers.entries()) {
-        clearTimeout(poller.timer);
-    }
+    for (const timer of liveGamePollers.values()) clearTimeout(timer);
     liveGamePollers.clear();
     if (replyFn) {
         try {
@@ -764,6 +806,7 @@ client.on("messageCreate", async (message) => {
                 await message.channel.send("Clearing shop cache (memory + Redis), deleting skins.json and resetting skin cache...");
                 fs.rmSync("data/skins.json");
                 clearCache();
+                clearLiveGameCache();
                 await fetchData();
 
                 await message.reply("Successfully cleared shop cache (memory + Redis) and skin cache!");
@@ -1510,7 +1553,7 @@ client.on("interactionCreate", async (interaction) => {
 
                         // If in agent select or queuing, start poller to auto-upgrade embed
                         if (liveGameData.state === "pregame" || liveGameData.state === "queuing") {
-                            startLiveGamePoller(interaction.user.id, interaction);
+                            startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
                         }
                     }
 
@@ -1644,18 +1687,13 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_queue": {
-                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                        return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                            flags: [MessageFlags.Ephemeral]
-                        });
-                    }
+                    const [, , matchId, ownerId] = interaction.customId.split('/');
+                    if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                     await interaction.deferUpdate();
                     interaction.deferred = true;
 
                     const queueId = interaction.values[0];
-                    const matchId = interaction.customId.split('/')[2];
                     console.log(`[bot] Intercepted livegame/select_queue trigger for match ${matchId} targeting ${queueId}`);
                     if (!queueId) return;
 
@@ -1684,12 +1722,8 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_role": {
-                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                        return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                            flags: [MessageFlags.Ephemeral]
-                        });
-                    }
+                    const [, , , ownerId] = interaction.customId.split('/');
+                    if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                     await interaction.deferUpdate();
                     interaction.deferred = true;
@@ -1710,18 +1744,13 @@ client.on("interactionCreate", async (interaction) => {
                     break;
                 }
                 case "livegame/select_agent": {
-                    if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                        return await interaction.reply({
-                            embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                            flags: [MessageFlags.Ephemeral]
-                        });
-                    }
+                    const [, , matchId, ownerId] = interaction.customId.split('/');
+                    if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                     await interaction.deferUpdate();
                     interaction.deferred = true;
 
                     const agentId = interaction.values[0];
-                    const matchId = interaction.customId.split('/')[2];
 
                     if (!agentId) return;
 
@@ -2180,14 +2209,8 @@ client.on("interactionCreate", async (interaction) => {
                 modal.addComponents(q1);
                 await interaction.showModal(modal);
             } else if (interaction.customId.startsWith("livegame/make_code/") || interaction.customId.startsWith("livegame/remove_code/")) {
-                const [, action, matchId] = interaction.customId.split('/');
-
-                if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                    return await interaction.reply({
-                        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                        flags: [MessageFlags.Ephemeral]
-                    });
-                }
+                const [, action, matchId, ownerId] = interaction.customId.split('/');
+                if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                 await interaction.deferUpdate();
                 interaction.deferred = true;
@@ -2276,17 +2299,11 @@ client.on("interactionCreate", async (interaction) => {
 
                 // Restart poller if still in agent select
                 if (liveGameData.success && (liveGameData.state === "pregame" || liveGameData.state === "queuing")) {
-                    startLiveGamePoller(interaction.user.id, interaction);
+                    startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
                 }
             } else if (interaction.customId.startsWith("livegame/start_queue/") || interaction.customId.startsWith("livegame/cancel_queue/")) {
-                const [, action, matchId] = interaction.customId.split('/');
-
-                if (interaction.message?.interaction?.user?.id && interaction.message.interaction.user.id !== interaction.user.id) {
-                    return await interaction.reply({
-                        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
-                        flags: [MessageFlags.Ephemeral]
-                    });
-                }
+                const [, action, matchId, ownerId] = interaction.customId.split('/');
+                if (await rejectNotYourLiveGame(interaction, ownerId)) return;
 
                 await interaction.deferUpdate();
                 interaction.deferred = true;
@@ -2306,7 +2323,7 @@ client.on("interactionCreate", async (interaction) => {
 
                 if (liveGameData.success) {
                     if (liveGameData.state === "queuing") {
-                        startLiveGamePoller(interaction.user.id, interaction);
+                        startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
                     } else if (liveGameData.state === "not_in_game") {
                         cancelLiveGamePoller(interaction.user.id);
                     }
