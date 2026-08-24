@@ -45,18 +45,18 @@
     "GENERIC_NO_PERMS": "**Neturiu reikiamų leidimų atlikti šį veiksmą šiame kanale!** Ar turiu tinkamą rolę?\nĮsitikinkite, kad šiame kanale galiu `Peržiūrėti kanalą`, `Siųsti žinutes` ir `Įterpti nuorodas`.",
     "NO_NMARKET": "**Šiuo metu Nakties turgus nevyksta!**",
     "NO_NMARKET_WITH_DATE": "**Šiuo metu Nakties turgus nevyksta!** Kitas prasidės <t:{t}:R>.",
-    "ACCOUNT_NOT_FOUND": "**Nepavyko rasti šios paskyros tarp tavo registruotų paskyrų!**",
-    "ACCOUNT_NUMBER_TOO_HIGH": "**Tu turi tik {n} paskyras(-ų)!**",
-    "TOO_MANY_ACCOUNTS": "**Bote galima turėti daugiausiai {n} paskyras(-ų)!** Pašalinkite dalį su `/forget` ir bandykite dar kartą.",
+    "ACCOUNT_NOT_FOUND": "Nepavyko rasti tos paskyros tarp jūsų registruotų paskyrų!",
+    "ACCOUNT_NUMBER_TOO_HIGH": "Turite tik {n} paskyrą(-as/-ų)!",
+    "TOO_MANY_ACCOUNTS": "Bote galima turėti ne daugiau kaip {n} paskyrų! `/forget` kai kurias paskyras ir bandykite vėl.",
     "GENERIC_ERROR": ":no_entry_sign: **Bandant tai atlikti įvyko klaida!** Kaltinu Riot.\n`{e}`",
     "QUEUE_WAIT": "Daug žmonių naudojasi botu! Prašome palaukti... (numatoma: <t:{t}:R>)",
     "NOT_A_NUMBER": "Tai ne skaičius, įveskite galiojantį skaičių.",
     "INVALID_PAGE_NUMBER": "Neteisingas puslapio numeris, įveskite reikšmę tarp **1 - {max}**.",
     "NO_MATCH_DATA": "Nerasta jokių {m} rungtynių duomenų, galbūt laikas stoti į eilę?",
-    "WAIT_FOR_PREVIUS_REQUEST": "Vis dar apdorojame tavo ankstesnę užklausą, palaukite akimirką prieš bandydami vėl!",
+    "WAIT_FOR_PREVIUS_REQUEST": "Vis dar apdorojame jūsų ankstesnę užklausą, prašome palaukti akimirką prieš bandant vėl!",
     "INVALID_WEB_AUTH_URL": "**Neteisingas URL!** Įsitikinkite, kad nukopijavote visą URL iš naršyklės adreso juostos po prisijungimo puslapio.\nJis turėtų prasidėti `http://localhost/redirect#access_token=...`",
     "WEB_AUTH_FAILED": "**Prisijungti nepavyko!** {e}",
-    "CUSTOM_GAME_ESCAPE_REJECTED": "Nepavyko pakeisti žaidimo režimo. **Jei šiuo metu esate Custom Game fojė**, Riot reikalauja, kad prieš keisdami eilę pirmiausia patys išeitumėte iš Custom Game savo Valorant žaidime!"
+    "CUSTOM_GAME_ESCAPE_REJECTED": "Nepavyko pakeisti žaidimo režimo. **Jei šiuo metu esate pritaikyto žaidimo (Custom Game) fojė**, Riot reikalauja, kad prieš keisdami eilę pirmiausia patys išeitumėte iš jo savo Valorant žaidimo programoje!"
   },
   "info": {
     "SHOP_HEADER": "Dienos parduotuvė naudotojui **{u}** (nauja parduotuvė <t:{t}:R>)",
@@ -73,7 +73,7 @@
     "EXPIRED": "baigėsi <t:{t}:R>",
     "PRICE": "Kaina: ",
     "FREE": "NEMOKAMAI",
-    "MORE_ITEMS": "...ir dar {n} elementai(-ų)",
+    "MORE_ITEMS": "...ir dar {n} vnt.",
     "INFO_HEADER": ":pencil: Informacija",
     "INFO_SERVERS": "Serveriai",
     "INFO_MEMBERS": "Nariai",
@@ -86,7 +86,7 @@
     "NMARKET_HEADER": "Nakties turgus naudotojui **{u}** (baigiasi <t:{t}:R>)",
     "WALLET_HEADER": "**{u}** piniginė:",
     "VPOINTS": "VALORANT Points",
-    "RADIANITE": "Radianite",
+    "RADIANITE": "Radianite Points",
     "KCREDIT": "Kingdom Credits",
     "ALERT_HAPPENED": ":tada: <@{i}> **{s}** yra **{u}** dienos parduotuvėje!\nJi pradings <t:{t}:R>.",
     "MULTIPLE_ALERT_HAPPENED": ":tada: **Tavo laiminga diena!** Keli norimi skinai pasirodė **{u}** parduotuvėje.\nJie pradings <t:{t}:R>.",
@@ -152,7 +152,7 @@
     "ACCESSORY_SHOP_SWITCH_BUTTON": "Aksesuarų parduotuvė",
     "DAILY_SHOP_SWITCH_BUTTON": "Skinų parduotuvė",
     "NIGHT_MARKET_BUTTON": "Nakties turgus",
-    "BATTLEPASS_BUTTON": "Battlepass",
+    "BATTLEPASS_BUTTON": "Mūšio pasas",
     "COLLECTION_BUTTON": "Kolekcija",
     "COMPETITIVE_HISTORY_BUTTON": "Reitinguotų rungtynių istorija",
     "RETURN_BUTTON": "Grįžti",
@@ -190,8 +190,8 @@
     "GAMES_HEADER": "🔫 Reikalingų žaidimų skaičius",
     "GAMEMODE_COL": "Režimas",
     "INCL_WEEKLIES_COL": "įsk. savaitines",
-    "NORMAL_ROW": "Unrated/Competitive",
-    "SPIKERUSH_ROW": "Spikerush",
+    "NORMAL_ROW": "Nereitinginės/Reitinginės",
+    "SPIKERUSH_ROW": "Spike Rush",
     "ACT_END": "Act baigiasi po {d} d.",
     "XP_HEADER": "📅 Reikalingi XP",
     "AVERAGE_COL": "Vidurkis",
@@ -202,7 +202,7 @@
     "TYPE": "Tipas",
     "SKIN": "Skinas",
     "CARD": "Kortelė",
-    "GUN_BUDDY": "Gun Buddy",
+    "GUN_BUDDY": "Ginklo pakabukas",
     "CURRENCY": "Valiuta",
     "SPRAY": "Graffiti"
   },
@@ -229,7 +229,7 @@
     "PAGE_INPUT_LABEL": "Eiti į puslapį (1-{max})"
   },
   "match": {
-    "COMPETITIVE": "Competitive",
+    "COMPETITIVE": "Reitinginės",
     "RANKED_RATING": "RR",
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
@@ -284,10 +284,10 @@
     "AVG_RANK": "Vid. rangas"
   },
   "queues": {
-    "COMPETITIVE": "Competitive",
-    "UNRATED": "Unrated",
-    "CUSTOM": "Custom Game",
+    "COMPETITIVE": "Reitinginės rungtynės",
+    "UNRATED": "Nereitinginės rungtynės",
+    "CUSTOM": "Pritaikytos rungtynės",
     "NEWMAP": "Naujas žemėlapis",
-    "RETAKE": "Retake"
+    "RETAKE": "Atkovojimas"
   }
 }

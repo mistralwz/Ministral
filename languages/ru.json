@@ -86,8 +86,8 @@
     "NMARKET_HEADER": "Ночной рынок для **{u}** (заканчивается <t:{t}:R>)",
     "WALLET_HEADER": "Кошелек пользователя **{u}**:",
     "VPOINTS": "VALORANT Points",
-    "RADIANITE": "Radianite",
-    "KCREDIT": "Kingdom Credit",
+    "RADIANITE": "Очки Radianite",
+    "KCREDIT": "Кредиты Kingdom",
     "ALERT_HAPPENED": ":tada: <@{i}> **{s}** в ежедневном магазине пользователя **{u}**!\nОн исчезнет <t:{t}:R>.",
     "MULTIPLE_ALERT_HAPPENED": ":tada: **Сегодня ваш удачный день!** Сразу несколько желаемых обликов появились в магазине пользователя **{u}**.\nОни исчезнут <t:{t}:R>.",
     "MULTIPLE_ALERT_HAPPENED_ON_DIFF_CHANNEL": ":tada: **Сегодня ваш удачный день!** Сразу несколько желаемых обликов появились в магазине пользователя **{u}**.\nОни исчезнут <t:{t}:R>.\nНо не все из них в этом сообщении, некоторые находятся в канале, где вы изначально установили уведомление.\nЧтобы увидеть их, используйте </alerts:{cid}>.",
@@ -139,9 +139,9 @@
     "COLLECTION_CATEGORY_SIDEARMS": "Пистолеты",
     "COLLECTION_CATEGORY_SMGS_SHOTGUNS": "ПП и дробовики",
     "COLLECTION_CATEGORY_RIFLES": "Винтовки",
-    "COLLECTION_CATEGORY_SNIPERS_HEAVIES": "Снайперские и тяжелые оружие",
+    "COLLECTION_CATEGORY_SNIPERS_HEAVIES": "Снайперское и тяжелое оружие",
     "COLLECTION_CATEGORY_MELEE": "Холодное оружие",
-    "COLLECTION_ALL_WEAPONS": "Все оружия",
+    "COLLECTION_ALL_WEAPONS": "Все виды оружия",
     "COLLECTION_STATS_HEADER": "Оценка и статистика коллекции игрока **{u}**:",
     "ACCOUNT_SWITCHED": "Переключено на аккаунт номер **{n}. {u}**",
     "ACCOUNT_ALREADY_SELECTED": "**{u}** уже выбран!",
@@ -191,7 +191,7 @@
     "GAMEMODE_COL": "Игровой режим",
     "INCL_WEEKLIES_COL": "вкл. еженедельные",
     "NORMAL_ROW": "Без рейтинга/Рейтинг",
-    "SPIKERUSH_ROW": "Быстрая установка пачки",
+    "SPIKERUSH_ROW": "Быстрая установка Spike",
     "ACT_END": "Акт заканчивается через {d} дней",
     "XP_HEADER": "📅 Необходимый XP",
     "AVERAGE_COL": "В среднем",
@@ -233,7 +233,7 @@
     "RANKED_RATING": "РР",
     "AVERAGE_DAMAGE_ROUND": "Ср. урон",
     "AVERAGE_COMBAT_SCORE": "БС",
-    "HS_PERCENT": "% В голову",
+    "HS_PERCENT": "% попаданий в голову",
     "PERCENT": "{v}%",
     "VICTORY": "Победа",
     "DEFEAT": "Поражение",
@@ -288,6 +288,6 @@
     "UNRATED": "Без рейтинга",
     "CUSTOM": "Своя Игра",
     "NEWMAP": "Новая Карта",
-    "RETAKE": "Захват"
+    "RETAKE": "Перезахват"
   }
 }

@@ -40,8 +40,8 @@
     "GHOST_ALERT": "該通知已經不存在了！",
     "ALERT_NO_PERMS": "**我沒有必要的權限！** 我有正確的身分嗎？\n請確保我在該頻道中擁有「檢視頻道」、「發送訊息」和「嵌入連結」的權限。",
     "DAILY_SHOP_CHANNEL_INACCESSIBLE": "⚠️ **每日商店提醒發生問題**\n\n{perms}\n\n**頻道：** <#{c}>\n**原因：** {r}\n\n請使用 `/settings` 在我有權限的頻道中設定每日商店提醒，或在不想再接收自動更新時停用它。",
-    "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **皮膚提醒頻道無法存取**\n\n{perms}\n\n**頻道：** <#{c}>\n**原因：** {r}\n\n✅ **我已自動將 {n} 個提醒移動到此私訊頻道**，以免你錯過任何提醒！\n\n若要在其他伺服器頻道設定提醒，請在該頻道再次使用 `/alert`。",
-    "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **皮膚提醒頻道無法存取**\n\n{perms}\n\n**頻道：** <#{c}>\n**原因：** {r}\n\n請在我有權限的頻道中使用 `/alert` 命令重新設定你的提醒。",
+    "ALERT_CHANNEL_INACCESSIBLE_MIGRATED": "⚠️ **造型提醒頻道無法存取**\n\n{perms}\n\n**頻道：** <#{c}>\n**原因：** {r}\n\n✅ **我已自動將 {n} 個提醒移動到此私訊頻道**，以免你錯過任何提醒！\n\n若要在其他伺服器頻道設定提醒，請在該頻道再次使用 `/alert`。",
+    "ALERT_CHANNEL_INACCESSIBLE": "⚠️ **造型提醒頻道無法存取**\n\n{perms}\n\n**頻道：** <#{c}>\n**原因：** {r}\n\n請在我有權限的頻道中使用 `/alert` 指令重新設定你的提醒。",
     "GENERIC_NO_PERMS": "**我沒有必要的權限在該頻道中執行該操作！** 是否擁有正確的身份？\n請確保我在該頻道中擁有「檢視頻道」、「發送訊息」和「嵌入連結」的權限。",
     "NO_NMARKET": "**目前沒有夜市！**",
     "NO_NMARKET_WITH_DATE": "**目前沒有夜市！** 下一次夜市將在 <t:{t}:R>。",
@@ -56,7 +56,7 @@
     "WAIT_FOR_PREVIUS_REQUEST": "我們仍在處理您上一次的請求，請稍候片刻後再試！",
     "INVALID_WEB_AUTH_URL": "**無效的 URL！** 請確保您從登錄頁面後的瀏覽器位址欄中複製了完整的 URL。\n它應該以 `http://localhost/redirect#access_token=...` 開頭",
     "WEB_AUTH_FAILED": "**登錄失敗！** {e}",
-    "CUSTOM_GAME_ESCAPE_REJECTED": "更改遊戲模式失敗。**如果您目前處於自定義遊戲大廳**，Riot 要求您在更改隊列之前手動退出原有的自定義遊戲！"
+    "CUSTOM_GAME_ESCAPE_REJECTED": "變更遊戲模式失敗。**如果您目前處於自訂遊戲大廳**，Riot 要求您在變更佇列之前，必須先在遊戲客戶端內手動退出自訂遊戲！"
   },
   "info": {
     "SHOP_HEADER": "每日商店供 **{u}** 使用（新商店 <t:{t}:R>）",
@@ -83,7 +83,7 @@
     "INFO_STATUS": "狀態",
     "INFO_RUNNING": "開始運行於 <t:{t1}:f>（<t:{t2}:R>）",
     "INFO_SOURCE": "原始碼",
-    "NMARKET_HEADER": "夜市供 **{u}** 使用（結束於 <t:{t}:R>）",
+    "NMARKET_HEADER": "**{u}** 的夜市（結束於 <t:{t}:R>）",
     "WALLET_HEADER": "**{u}** 的餘額：",
     "VPOINTS": "特務幣",
     "RADIANITE": "輻能點數",

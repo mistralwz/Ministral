@@ -74,7 +74,7 @@
     "PRICE": "Ár: ",
     "FREE": "INGYENES",
     "MORE_ITEMS": "...és még {n} elem",
-    "INFO_HEADER": ":pencil: Info",
+    "INFO_HEADER": ":pencil: Információ",
     "INFO_SERVERS": "Szerverek",
     "INFO_MEMBERS": "Tagok",
     "INFO_REGISTERED": "Regisztrálva",
@@ -85,9 +85,9 @@
     "INFO_SOURCE": "Forráskód",
     "NMARKET_HEADER": "Éjszakai piac **{u}** számára (Vége: <t:{t}:R>)",
     "WALLET_HEADER": "**{u}** Pénztárcája:",
-    "VPOINTS": "VALORANT Pont",
-    "RADIANITE": "Radianite",
-    "KCREDIT": "Kingdom Kredit",
+    "VPOINTS": "VALORANT Pontok",
+    "RADIANITE": "Radianite Pont",
+    "KCREDIT": "Kingdom-kreditek",
     "ALERT_HAPPENED": ":tada: <@{i}> A(z) **{s}** bekerült **{u}** napi boltjába!\nEl fog tűnni ekkor: <t:{t}:R>.",
     "MULTIPLE_ALERT_HAPPENED": ":tada: **Ez a szerencsenapod!** Több kívánt skin is megjelent **{u}** boltjában!\nEl fognak tűnni ekkor: <t:{t}:R>.",
     "MULTIPLE_ALERT_HAPPENED_ON_DIFF_CHANNEL": ":tada: **Ez a szerencsenapod!** Több kívánt skin is megjelent **{u}** boltjában!\nEl fognak tűnni ekkor: <t:{t}:R>.\nDe nem mindegyik van ebben az üzenetben, néhány abban a csatornában található, ahol eredetileg beállítottad az értesítést.\nA megtekintésükhöz használd a </alerts:{cid}> parancsot.",
@@ -191,7 +191,7 @@
     "GAMEMODE_COL": "Játékmód",
     "INCL_WEEKLIES_COL": "heti feladatokkal",
     "NORMAL_ROW": "Hagyományos/Kompetitív (Unrated/Competitive)",
-    "SPIKERUSH_ROW": "Spikerush",
+    "SPIKERUSH_ROW": "Spike Rush",
     "ACT_END": "Az Act véget ér {d} nap múlva",
     "XP_HEADER": "📅 Szükséges XP",
     "AVERAGE_COL": "Átlag",
@@ -200,11 +200,11 @@
     "REWARD": "Jutalom",
     "NEXT_BP_REWARD": "A következő battlepass jutalom:",
     "TYPE": "Típus",
-    "SKIN": "Skin",
+    "SKIN": "Kinézet (Skin)",
     "CARD": "Kártya",
-    "GUN_BUDDY": "Gun Buddy",
+    "GUN_BUDDY": "Fegyverdísz",
     "CURRENCY": "Fizetőeszköz",
-    "SPRAY": "Spray"
+    "SPRAY": "Graffiti (Spray)"
   },
   "settings": {
     "TRUE": "Igen",
@@ -288,6 +288,6 @@
     "UNRATED": "Hagyományos",
     "CUSTOM": "Egyéni játék",
     "NEWMAP": "Új pálya",
-    "RETAKE": "Retake"
+    "RETAKE": "Visszafoglalás (Retake)"
   }
 }

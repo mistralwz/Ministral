@@ -190,8 +190,8 @@
     "GAMES_HEADER": "🔫 Tarvittavien otteluiden määrä",
     "GAMEMODE_COL": "Pelimuoto",
     "INCL_WEEKLIES_COL": "sis. viikkotehtävät",
-    "NORMAL_ROW": "Unrated/Competitive",
-    "SPIKERUSH_ROW": "Spikerush",
+    "NORMAL_ROW": "Unrated / Kilpailullinen",
+    "SPIKERUSH_ROW": "Spike Rush",
     "ACT_END": "Act päättyy {d} päivän kuluttua",
     "XP_HEADER": "📅 Tarvittava XP",
     "AVERAGE_COL": "Keskiarvo",
@@ -215,7 +215,7 @@
     "SET_QUESTION": "Mihin haluat asettaa asetuksen **{s}**?",
     "CONFIRMATION": "Asetuksen **{s}** arvoksi on nyt asetettu **{v}**.",
     "dailyShop": "Lähetä kauppasi joka päivä",
-    "pingOnAutoDailyShop": "@täggää sinut, kun kauppasi lähetetään automaattisesti",
+    "pingOnAutoDailyShop": "Tee @maininta, kun kauppasi lähetetään automaattisesti",
     "hideIgn": "Piilota pelinsisäinen nimi",
     "othersCanViewShop": "Salli muiden käyttää /shop-komentoa käyttäjänimelläsi",
     "othersCanViewColl": "Salli muiden käyttää /collection-komentoa käyttäjänimelläsi",
@@ -229,7 +229,7 @@
     "PAGE_INPUT_LABEL": "Siirry sivulle (1-{max})"
   },
   "match": {
-    "COMPETITIVE": "Competitive",
+    "COMPETITIVE": "Kilpailullinen",
     "RANKED_RATING": "RR",
     "AVERAGE_DAMAGE_ROUND": "Adr",
     "AVERAGE_COMBAT_SCORE": "Acs",
@@ -284,9 +284,9 @@
     "AVG_RANK": "Keskiranki"
   },
   "queues": {
-    "COMPETITIVE": "Competitive",
+    "COMPETITIVE": "Kilpailullinen",
     "UNRATED": "Unrated",
-    "CUSTOM": "Custom Game",
+    "CUSTOM": "Mukautettu peli",
     "NEWMAP": "Uusi kartta",
     "RETAKE": "Retake"
   }

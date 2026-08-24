@@ -15,7 +15,7 @@
     "AUTH_ERROR_BALANCE": "**无法获取你的余额**, 可能你已经登出. 请重新登录.",
     "AUTH_ERROR_BPASS": "**无法获取你的通行证进度**, 可能你已经登出. 请重新登录.",
     "AUTH_ERROR_COLLECTION": "**无法获取你的皮肤收藏**, 可能你已经登出. 请重新登录.",
-    "AUTH_ERROR_COLLECTION_OTHER": "**无法获取 {u} 的皮肤收藏**, 可能你已经登出. 请重新登录.",
+    "AUTH_ERROR_COLLECTION_OTHER": "**无法获取 {u} 的皮肤收藏**, 可能对方已经登出。请提醒他们重新登录。",
     "AUTH_ERROR_ALERTS": "**你的通知无法工作, 因为你已经登出!** 请重新 `/login`.",
     "AUTH_ERROR_ALERTS_HAPPENED": "**<@{u}> 我无法检查你的通知!** 你是否修改了密码?\n请重新 `/login`.",
     "AUTH_ERROR_RETRY_EXPIRED": "**未知的重试操作**, 你是否在点击重试前等待了太长时间? 请重新 `/login`.",
@@ -204,7 +204,7 @@
     "CARD": "卡面",
     "GUN_BUDDY": "挂饰",
     "CURRENCY": "货币",
-    "SPRAY": "涂鸦"
+    "SPRAY": "喷漆"
   },
   "settings": {
     "TRUE": "是",
@@ -217,10 +217,10 @@
     "dailyShop": "每天发送你的商店",
     "pingOnAutoDailyShop": "自动发送商店时 @提醒你",
     "hideIgn": "隐藏游戏中名称",
-    "othersCanViewShop": "允许他人使用您的用户名 /shop",
+    "othersCanViewShop": "允许他人使用你的用户名 /shop",
     "othersCanViewColl": "允许他人使用你的用户名 /collection",
     "othersCanViewProfile": "允许他人使用您的用户名 /profile",
-    "othersCanUseAccountButtons": "允许他人按您 /shop 上的按钮",
+    "othersCanUseAccountButtons": "允许他人点击你 /shop 上的按钮",
     "locale": "语言"
   },
   "modal": {
@@ -234,7 +234,7 @@
     "AVERAGE_DAMAGE_ROUND": "平均伤害/回合",
     "AVERAGE_COMBAT_SCORE": "平均战斗分数",
     "HS_PERCENT": "爆头率",
-    "PERCENT": "%{v}",
+    "PERCENT": "{v}%",
     "VICTORY": "胜利",
     "DEFEAT": "失败",
     "DRAW": "平局",

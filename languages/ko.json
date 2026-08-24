@@ -46,7 +46,7 @@
     "NO_NMARKET": "**현재 진행 중인 야시장이 없습니다!**",
     "NO_NMARKET_WITH_DATE": "**현재 진행 중인 야시장이 없습니다!** 다음 야시장은 <t:{t}:R>에 시작됩니다.",
     "ACCOUNT_NOT_FOUND": "**등록된 계정 중에서 해당 계정을 찾을 수 없습니다!**",
-    "ACCOUNT_NUMBER_TOO_HIGH": "**등록된 계정은 한도인 {n}개뿐입니다!**",
+    "ACCOUNT_NUMBER_TOO_HIGH": "**등록된 계정은 {n}개뿐입니다!**",
     "TOO_MANY_ACCOUNTS": "**봇에 등록할 수 있는 계정은 최대 {n}개입니다!** `/forget`으로 계정을 지우고 다시 시도해주세요.",
     "GENERIC_ERROR": ":no_entry_sign: **작업 중 오류가 발생했습니다!** 라이엇 서버 문제일 수 있습니다.\n`{e}`",
     "QUEUE_WAIT": "현재 사용자가 많습니다! 잠시만 기다려주세요... (예상: <t:{t}:R>)",
