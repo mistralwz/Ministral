@@ -3,6 +3,7 @@ import {
     fetch,
     isMaintenance,
     isSameDay,
+    safeJson,
     userRegion,
     riotClientHeaders,
 } from "../misc/util.js";
@@ -74,18 +75,25 @@ export const getShop = async (id, account = null) => {
         body: JSON.stringify({})
     });
 
-    const json = JSON.parse(req.body);
-    if (req.statusCode !== 200) {
-        if (req.statusCode === 429 || json.httpStatus === 429 || json.errorCode === "RATE_LIMITED") {
+    // Riot answers an outage with an HTML error page, not JSON — parsing that
+    // unguarded threw out of getShop and took /shop, /alerts and the nightly
+    // alert run with it. A body we can't parse is a network error.
+    const json = safeJson(req.body);
+    if (req.statusCode !== 200 || !json) {
+        if (req.statusCode === 429 || json?.httpStatus === 429 || json?.errorCode === "RATE_LIMITED") {
             const retryAfterHeader = req.headers?.['retry-after'];
             const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 30000;
             return { success: false, rateLimit: Date.now() + retryAfter };
-        } else if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
+        } else if (json?.httpStatus === 400 && json?.errorCode === "BAD_CLAIMS") {
             deleteUserAuth(user);
             return { success: false, authFailure: true };
         } else if (isMaintenance(json)) return { success: false, maintenance: true };
         return { success: false, networkError: true };
     }
+
+    // A 200 without the shop payload is not a usable shop; callers reach
+    // straight into json.SkinsPanelLayout.SingleItemOffers.
+    if (!json.SkinsPanelLayout) return { success: false, networkError: true };
 
     try {
         await addStore(user.puuid, json.SkinsPanelLayout.SingleItemOffers);
@@ -186,9 +194,9 @@ export const getBalance = async (id, account = null) => {
         }
     });
 
-    const json = JSON.parse(req.body);
-    if (req.statusCode !== 200) {
-        if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
+    const json = safeJson(req.body);
+    if (req.statusCode !== 200 || !json?.Balances) {
+        if (json?.httpStatus === 400 && json?.errorCode === "BAD_CLAIMS") {
             deleteUserAuth(user);
             return { success: false, authFailure: true };
         } else if (isMaintenance(json)) return { success: false, maintenance: true };

@@ -43,11 +43,6 @@ import { removeDupeAlerts } from "./util.js";
 let db = null;
 let stmts = {};
 let saveUserToDbInTransaction = null;
-let dbClient = null;
-
-export const setDatabaseClient = (client) => {
-    dbClient = client;
-};
 
 const safeJsonParse = (value, fallback, context) => {
     try {
@@ -201,9 +196,6 @@ export const saveUserToDb = (user) => {
         saveUserToDbInTransaction(user);
     }
 };
-
-export const beginBatchWrites = () => {};
-export const commitBatchWrites = () => {};
 
 export const deleteUserFromDb = (id) => {
     if (!id || !db) return;

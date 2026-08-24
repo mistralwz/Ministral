@@ -13,7 +13,7 @@
  *   ext tiers:    GET  https://valorant-api.com/v1/competitivetiers
  */
 
-import { fetch, riotClientHeaders, userRegion } from "../misc/util.js";
+import { fetch, riotClientHeaders, safeJson, userRegion } from "../misc/util.js";
 import { authUser, getUser } from "./auth.js";
 import config from "../misc/config.js";
 import unofficialValorantApi from "unofficial-valorant-api";
@@ -476,10 +476,6 @@ export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
     const losses = games - wins;
 
     return { currentTier, currentRR, peakTier, peakSeasonId, wins, losses, games, winRate };
-};
-
-const safeJson = (str) => {
-    try { return JSON.parse(str); } catch { return null; }
 };
 
 /**

@@ -84,6 +84,8 @@ if (isMainThread) {
     const { startBot } = await import("./discord/bot.js");
     const { loadLogger } = await import("./misc/logger.js");
     const { initUserDatabase, closeUserDatabase } = await import("./misc/userDatabase.js");
+    const { flushSkinsJSON } = await import("./valorant/cache.js");
+    const { flushStats } = await import("./misc/stats.js");
 
     const config = loadConfig();
     if (config) {
@@ -94,7 +96,14 @@ if (isMainThread) {
             process.exit(1);
         }
 
+        let shuttingDown = false;
         const handleShutdown = () => {
+            if (shuttingDown) return;   // SIGINT then SIGTERM shouldn't flush twice
+            shuttingDown = true;
+            // skins.json and stats.json are written on a 3-5s debounce, so a
+            // plain `docker stop` used to drop whatever was still pending.
+            try { flushSkinsJSON(); } catch (e) { console.error("Failed to flush skins on shutdown:", e); }
+            try { flushStats(); } catch (e) { console.error("Failed to flush stats on shutdown:", e); }
             closeUserDatabase();
             process.exit(0);
         };

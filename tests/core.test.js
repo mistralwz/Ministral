@@ -13,7 +13,8 @@ import {
     removeDupeAlerts,
     WeaponType,
     WeaponTypeUuid,
-    WEAPON_CATEGORIES
+    WEAPON_CATEGORIES,
+    writeFileAtomic
 } from "../misc/util.js";
 
 import {
@@ -34,8 +35,6 @@ import {
     getAllUserIds,
     getUserIdsWithAlertsOrDailyShop,
     updateSingleAccountInDb,
-    beginBatchWrites,
-    commitBatchWrites,
     closeUserDatabase
 } from "../misc/userDatabase.js";
 
@@ -47,7 +46,8 @@ import {
     settingIsVisible
 } from "../misc/settings.js";
 
-import { User, getPuuid, refreshToken } from "../valorant/auth.js";
+import { User, getPuuid, refreshToken, activeRefreshCount } from "../valorant/auth.js";
+import { switchAccount } from "../valorant/accountSwitcher.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
@@ -170,15 +170,13 @@ test("userDatabase: CRUD operations and transactions", () => {
     const refetchedUser = getUserFromDb("discord-user-1");
     assert.equal(refetchedUser.accounts[0].username, "RenamedPlayer#456");
 
-    // Batch writes
-    beginBatchWrites();
+    // Multi-user save
     saveUserToDb({
         ...mockUser,
         id: "discord-user-2",
         settings: { dailyShop: false },
         accounts: [{ ...mockUser.accounts[0], puuid: "puuid-account-2", userId: "discord-user-2", alerts: [] }]
     });
-    commitBatchWrites();
 
     const allIds = getAllUserIds();
     assert.ok(allIds.includes("discord-user-1"));
@@ -1028,4 +1026,133 @@ test("livegame: repollLiveGame bails out before doing any work when it can't hel
 
     // Unregistered user: null, and the caller's fetchLiveGame surfaces the auth error.
     assert.equal(await repollLiveGame("definitely-not-registered", null, "pregame", "match-1"), null);
+});
+
+test("auth: a failed refresh releases its lock instead of caching the failure", async () => {
+    initUserDatabase("data/test_users.db");
+
+    const freshRso = "x." + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url") + ".y";
+    saveUserToDb({
+        id: "lock-test-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [{
+            puuid: "lock-test-puuid", userId: "lock-test-user", username: "Lock#001",
+            region: "eu", auth: { rso: freshRso }, alerts: []   // no ent, no refresh_token
+        }]
+    });
+
+    // This path has no `await` in it, so it used to complete — and run its
+    // `finally` release — before the line that registered the lock, leaving a
+    // settled {authFailure: true} cached under the key forever. Every later
+    // refresh for this user was then served that stale failure, so logging in
+    // again didn't help until the process restarted.
+    const result = await refreshToken("lock-test-user");
+    assert.equal(result.authFailure, true);
+    assert.equal(activeRefreshCount(), 0, "refresh lock leaked after a synchronous failure");
+
+    // And the normal path must release it too.
+    saveUserToDb({
+        id: "lock-test-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [{
+            puuid: "lock-test-puuid", userId: "lock-test-user", username: "Lock#001",
+            region: "eu", auth: { rso: freshRso, ent: "ent-token" }, alerts: []
+        }]
+    });
+    assert.deepEqual(await refreshToken("lock-test-user"), { success: true });
+    assert.equal(activeRefreshCount(), 0);
+
+    deleteUserFromDb("lock-test-user");
+});
+
+test("accountSwitcher: switchAccount rejects out-of-range indexes instead of persisting them", () => {
+    initUserDatabase("data/test_users.db");
+    const mk = (n) => ({
+        puuid: `switch-puuid-${n}`, userId: "switch-test-user", username: `Acct${n}#000`,
+        region: "eu", auth: { rso: "r" }, alerts: []
+    });
+    saveUserToDb({ id: "switch-test-user", currentAccount: 1, settings: {}, accounts: [mk(1), mk(2)] });
+
+    // Valid switch works and sticks.
+    assert.equal(switchAccount("switch-test-user", 2)?.username, "Acct2#000");
+    assert.equal(getUserFromDb("switch-test-user").currentAccount, 2);
+
+    // Everything invalid returns null AND leaves currentAccount untouched — it
+    // used to write the bad value first and report the failure afterwards.
+    for (const bad of [99, 0, -1, null, undefined, NaN, 1.5, "2"]) {
+        assert.equal(switchAccount("switch-test-user", bad), null, `accepted ${String(bad)}`);
+        assert.equal(getUserFromDb("switch-test-user").currentAccount, 2, `persisted ${String(bad)}`);
+    }
+
+    deleteUserFromDb("switch-test-user");
+});
+
+test("util: writeFileAtomic never leaves a half-written file in place", () => {
+    const target = "data/atomic-test.json";
+    try { fs.unlinkSync(target); } catch {}
+
+    writeFileAtomic(target, JSON.stringify({ v: 1 }));
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { v: 1 });
+
+    // Overwrite: the old content stays readable right up to the rename, and
+    // no .tmp is left behind afterwards.
+    writeFileAtomic(target, JSON.stringify({ v: 2 }));
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { v: 2 });
+    assert.equal(fs.existsSync(target + ".tmp"), false);
+
+    // Creates missing directories, like the callers used to do themselves.
+    writeFileAtomic("data/atomic-subdir/nested.json", "[]");
+    assert.equal(fs.readFileSync("data/atomic-subdir/nested.json", "utf8"), "[]");
+
+    fs.unlinkSync(target);
+    fs.rmSync("data/atomic-subdir", { recursive: true, force: true });
+});
+
+test("stats: old day buckets are pruned and rank reflects counts, not insertion order", async () => {
+    const statsFile = "data/stats.json";
+    const backup = fs.existsSync(statsFile) ? fs.readFileSync(statsFile) : null;
+
+    const dayKey = (daysAgo) => {
+        const d = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+        return `${d.getUTCDate()}-${d.getUTCMonth() + 1}-${d.getUTCFullYear()}`;
+    };
+
+    // One bucket inside the retention window, one well outside it.
+    fs.writeFileSync(statsFile, JSON.stringify({
+        fileVersion: 2,
+        stats: {
+            [dayKey(1)]:   { shopsIncluded: 1, items: { "skin-fresh": 1 }, users: ["p1"] },
+            [dayKey(400)]: { shopsIncluded: 1, items: { "skin-stale": 9 }, users: ["p2"] }
+        }
+    }));
+
+    // Don't depend on the deployment's config for either of these.
+    const { default: cfg } = await import("../misc/config.js");
+    const restore = { track: cfg.trackStoreStats, days: cfg.statsExpirationDays };
+    cfg.trackStoreStats = true;
+    cfg.statsExpirationDays = 14;
+
+    const { loadStats, getStatsFor, flushStats } = await import("../misc/stats.js?prune-test");
+
+    loadStats();
+    // The stale bucket predates statsExpirationDays, so its item is gone —
+    // stats.json used to keep every day forever while telling users the
+    // window was N days.
+    assert.equal(getStatsFor("skin-stale").count, 0);
+    assert.equal(getStatsFor("skin-fresh").count, 1);
+
+    // Rank is derived from counts. Insertion order used to decide it, and
+    // addStore increments in place without re-sorting, so it drifted.
+    assert.deepEqual(getStatsFor("skin-fresh").rank, [1, 1]);
+    assert.deepEqual(getStatsFor("nonexistent").rank, [0, 1]);
+
+    // Pruning schedules a debounced save; drain it rather than leaving a timer
+    // that writes to the real stats file after the suite finishes.
+    flushStats();
+    cfg.trackStoreStats = restore.track;
+    cfg.statsExpirationDays = restore.days;
+    if (backup) fs.writeFileSync(statsFile, backup);
+    else fs.unlinkSync(statsFile);
 });

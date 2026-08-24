@@ -1,4 +1,4 @@
-import { fetch, isMaintenance, userRegion, riotClientHeaders } from "../misc/util.js";
+import { fetch, isMaintenance, safeJson, userRegion, riotClientHeaders } from "../misc/util.js";
 import { authUser, deleteUserAuth, getUser } from "./auth.js";
 import config from "../misc/config.js";
 
@@ -11,7 +11,8 @@ export const getItemEntitlements = async (user, itemTypeId, itemType = "item") =
         }
     });
 
-    const json = JSON.parse(req.body);
+    const json = safeJson(req.body);
+    if (!json) return { success: false, networkError: true };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
         deleteUserAuth(user);
         return { success: false, authFailure: true };
@@ -85,7 +86,8 @@ export const getLoadout = async (user, account = null) => {
         }
     });
 
-    const json = JSON.parse(req.body);
+    const json = safeJson(req.body);
+    if (!json) return { success: false, networkError: true };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
         deleteUserAuth(user);
         return { success: false, authFailure: true };

@@ -1,11 +1,12 @@
 import config from "./config.js";
+import { safeJson } from "./util.js";
 
 const rateLimits = new Map();
 
 export const checkRateLimit = async (req, url) => {
     let rateLimited = req.statusCode === 429 || req.headers?.location?.startsWith("/auth-error?error=rate_limited");
     if (!rateLimited) try {
-        const json = JSON.parse(req.body);
+        const json = safeJson(req.body) ?? {};
         rateLimited = json.error === "rate_limited";
     } catch (e) {}
 

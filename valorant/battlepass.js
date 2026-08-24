@@ -1,5 +1,5 @@
 import { authUser, deleteUserAuth, getUser } from "./auth.js";
-import { fetch, isMaintenance, riotClientHeaders, userRegion } from "../misc/util.js";
+import { fetch, isMaintenance, riotClientHeaders, safeJson, userRegion } from "../misc/util.js";
 import { getBattlepassInfo, getBuddy, getCard, getFlex, getSkin, getSpray, getValorantVersion } from "./cache.js";
 import { getItemEntitlements } from "./inventory.js";
 import { l, s } from "../misc/languages.js";
@@ -11,7 +11,7 @@ const LEVEL_MULTIPLIER = 750;
 const getWeeklies = async () => {
     try {
         const req = await fetch("https://valorant-api.com/v1/missions");
-        const json = JSON.parse(req.body);
+        const json = safeJson(req.body);
 
         const now = Date.now();
         const weeklyData = {};
@@ -165,7 +165,8 @@ export const getBattlepassProgress = async (interaction, maxlevel = 50, targetId
         return { success: false };
     }
 
-    const json = JSON.parse(req.body);
+    const json = safeJson(req.body);
+    if (!json) return { success: false };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
         deleteUserAuth(valUser);
         return { success: false };

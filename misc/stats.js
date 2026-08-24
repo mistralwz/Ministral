@@ -1,5 +1,6 @@
 import config from "./config.js";
 import fs from "fs";
+import { writeFileAtomic } from "./util.js";
 
 let stats = {
     fileVersion: 2,
@@ -19,6 +20,40 @@ export const setStatsClient = (client) => {
     statsClient = client;
 };
 
+/** "17-3-2026" → a UTC timestamp. Matches formatDate() below. */
+const parseDayKey = (key) => {
+    const [d, m, y] = String(key).split("-").map(Number);
+    if (!d || !m || !y) return NaN;
+    return Date.UTC(y, m - 1, d);
+};
+
+/**
+ * Drop day buckets older than config.statsExpirationDays.
+ *
+ * This never existed. The config key was only ever read to fill in the
+ * "no stats for this skin in the last N days" message shown to users, so the
+ * number in that message was fiction and stats.json grew without bound —
+ * every day retaining a Set of every puuid that opened their shop, all of it
+ * loaded into memory on boot.
+ *
+ * @returns {boolean} true if anything was removed
+ */
+const pruneOldStats = () => {
+    const days = config.statsExpirationDays;
+    if (!days || days <= 0) return false;   // unset / 0 means keep everything
+
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    let removed = 0;
+    for (const day of Object.keys(stats.stats)) {
+        const ts = parseDayKey(day);
+        if (Number.isNaN(ts) || ts >= cutoff) continue;
+        delete stats.stats[day];
+        removed++;
+    }
+    if (removed) console.log(`Pruned ${removed} day(s) of store stats older than ${days} days`);
+    return removed > 0;
+};
+
 export const loadStats = (filename = "data/stats.json") => {
     if (!config.trackStoreStats) return;
     if (statsLoaded) return;
@@ -33,6 +68,8 @@ export const loadStats = (filename = "data/stats.json") => {
                     }
                 }
             }
+            statsLoaded = true;   // pruning writes, and saveStats must not re-enter this
+            if (pruneOldStats()) debouncedSaveStats();
             calculateOverallStats();
         }
     } catch (e) {
@@ -43,10 +80,6 @@ export const loadStats = (filename = "data/stats.json") => {
 
 const saveStats = (filename = "data/stats.json") => {
     try {
-        const dir = filename.substring(0, filename.lastIndexOf("/"));
-        if (dir && !fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
         const serializableStats = {
             fileVersion: stats.fileVersion,
             stats: {}
@@ -59,7 +92,7 @@ const saveStats = (filename = "data/stats.json") => {
                 users: dayStats.users instanceof Set ? [...dayStats.users] : (dayStats.users || [])
             };
         }
-        fs.writeFileSync(filename, JSON.stringify(serializableStats));
+        writeFileAtomic(filename, JSON.stringify(serializableStats));
         statsDirty = false;
     } catch (e) {
         console.error("Failed to save store stats to disk:", e);
@@ -106,15 +139,20 @@ export const calculateOverallStats = () => {
 
 export const getStatsFor = (uuid) => {
     loadStats();
+    const entries = Object.entries(overallStats.items);
     const count = overallStats.items[uuid] || 0;
-    const itemKeys = Object.keys(overallStats.items);
-    const rankIndex = itemKeys.indexOf(uuid);
+
+    // Rank by comparing counts, not by key insertion order. calculateOverallStats
+    // inserts sorted, but addStore increments in place without re-sorting, so
+    // the order drifted further from the truth with every shop opened after boot.
+    const rank = count > 0 ? entries.filter(([, c]) => c > count).length + 1 : 0;
+
     return {
         shopsIncluded: overallStats.shopsIncluded || 0,
         count: count,
         amount: count,
         percentage: Math.round((count / (overallStats.shopsIncluded || 1)) * 1000) / 10,
-        rank: [count > 0 && rankIndex !== -1 ? rankIndex + 1 : 0, itemKeys.length]
+        rank: [rank, entries.length]
     };
 };
 
@@ -131,6 +169,8 @@ export const addStore = async (puuid, items) => {
     loadStats();
     let todayStats = stats.stats[today];
     if (!todayStats) {
+        // Rolling over to a new day is the natural once-a-day moment to prune.
+        if (pruneOldStats()) calculateOverallStats();
         todayStats = { shopsIncluded: 0, items: {}, users: new Set() };
         stats.stats[today] = todayStats;
     } else if (Array.isArray(todayStats.users)) {

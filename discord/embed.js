@@ -2058,6 +2058,12 @@ export const alertsPageEmbed = async (interaction, alerts, pageIndex, emojiStrin
         const alert = alerts[0];
 
         const skin = await getSkin(alert.uuid);
+        // A skin pulled from the game (or a cache miss) would otherwise crash
+        // on skin.price / skin.icon below.
+        if (!skin) return {
+            embeds: [basicEmbed(s(interaction).error.NO_ALERTS)],
+            components: components
+        };
 
         return {
             embeds: [{

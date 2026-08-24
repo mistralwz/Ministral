@@ -22,7 +22,6 @@ import {
 import config from "../misc/config.js";
 import { l, s } from "../misc/languages.js";
 import { readUserJson, saveUser } from "../valorant/accountSwitcher.js";
-import { beginBatchWrites, commitBatchWrites } from "../misc/userDatabase.js";
 import { sendShardMessageForChannel, onShardMessage } from "../misc/shardMessage.js";
 import { VPEmoji } from "./emoji.js";
 import { getSetting } from "../misc/settings.js";
@@ -142,13 +141,12 @@ export const alertsPerChannelPerGuild = async () => {
 
 export const removeAlert = (id, uuid) => {
     const user = getUser(id);
+    if (!user) return false; // clicked a stale alert button after /forget
     const alertCount = user.alerts.length;
     user.alerts = user.alerts.filter(alert => alert.uuid !== uuid);
     saveUser(user);
     return alertCount > user.alerts.length;
 }
-
-const ALERT_BATCH_SIZE = 50;
 
 /**
  * Process alerts for a single user across all their Valorant accounts.
@@ -179,6 +177,7 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
         }
 
         const valorantUser = getUser(id, i);
+        if (!valorantUser) continue; // account row vanished mid-run
         const discordUser = getClient()?.users.cache.get(id);
         const discordUsername = discordUser ? discordUser.username : id;
         console.log(`Checking user ${discordUsername}'s ${valorantUser.username} account (${i}/${accountCount}) for alerts...`);
@@ -226,7 +225,7 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
         } while (!offers.success);
 
         if (offers.success && offers.offers) {
-            if (dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, valorantUser);
+            if (dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, i);
 
             const positiveAlerts = userAlerts.filter(alert => offers.offers.includes(alert.uuid));
             if (positiveAlerts.length) await sendAlert(id, i, positiveAlerts, offers.expires);
@@ -269,49 +268,39 @@ export const checkAlerts = async () => {
 
         const concurrency = config.alertConcurrency ?? 1;
 
+        // Note: this used to be wrapped in beginBatchWrites/commitBatchWrites,
+        // described as flushing each batch "in one SQLite transaction". Those
+        // were empty functions, so no batching ever happened — and it couldn't
+        // have: every user's turn awaits Riot over the network, and holding a
+        // write transaction open across that would lock every other shard out
+        // of the database for minutes. The chunking those calls justified went
+        // with them.
         if (concurrency > 1) {
-            // A5: Concurrent mode — process up to `alertConcurrency` users in parallel.
+            // Concurrent mode — process up to `alertConcurrency` users in parallel.
             // Set alertConcurrency > 1 in config.json to enable. Default is 1 (sequential).
             const { default: pLimit } = await import("p-limit");
             const limit = pLimit(concurrency);
 
-            // Single global batch wraps the entire concurrent run
-            beginBatchWrites();
-            try {
-                await Promise.all(userList.map(id => limit(async () => {
-                    try {
-                        // Each concurrent task starts fresh — no inter-user delay needed
-                        await processUserAlerts(id);
-                    } catch (e) {
-                        console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
-                        console.error(e);
-                    }
-                })));
-            } finally {
-                commitBatchWrites();
-            }
-        } else {
-            // Sequential mode (default): process users one at a time in batches of ALERT_BATCH_SIZE.
-            // Each batch is flushed as a single SQLite transaction, reducing write contention (A1).
-            let shouldWait = false;
-            let batchStart = 0;
-            while (batchStart < userList.length) {
-                const batchEnd = Math.min(batchStart + ALERT_BATCH_SIZE, userList.length);
-                beginBatchWrites();
+            await Promise.all(userList.map(id => limit(async () => {
                 try {
-                    for (let j = batchStart; j < batchEnd; j++) {
-                        const id = userList[j];
-                        try {
-                            shouldWait = await processUserAlerts(id, shouldWait);
-                        } catch (e) {
-                            console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
-                            console.error(e);
-                        }
-                    }
-                } finally {
-                    commitBatchWrites(); // flush this batch in one SQLite transaction
+                    // Each concurrent task starts fresh — no inter-user delay needed
+                    await processUserAlerts(id);
+                } catch (e) {
+                    console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
+                    console.error(e);
                 }
-                batchStart = batchEnd;
+            })));
+        } else {
+            // Sequential mode (default): one user at a time, with
+            // config.delayBetweenAlerts between real fetches.
+            let shouldWait = false;
+            for (const id of userList) {
+                try {
+                    shouldWait = await processUserAlerts(id, shouldWait);
+                } catch (e) {
+                    console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
+                    console.error(e);
+                }
             }
         }
 
@@ -475,13 +464,19 @@ export const sendCredentialsExpired = async (id, alert, tryOnOtherShard = true) 
     });
 }
 
-export const sendDailyShop = async (id, shop, channelId, valorantUser, tryOnOtherShard = true) => {
+export const sendDailyShop = async (id, shop, channelId, account, tryOnOtherShard = true) => {
     const channel = await fetchChannel(channelId);
     if (!channel) {
         if (tryOnOtherShard) {
+            // Carries the account index, not the User object. That object holds
+            // the Riot rso / entitlements / id / refresh tokens, and when the
+            // targeted delivery misses, sendShardMessageForChannel falls back to
+            // broadcasting to *every* shard — so one user's credentials were
+            // being serialised into every bot process just to render an embed.
+            // Every shard reads the same SQLite database and can look them up.
             const delivered = await sendShardMessageForChannel({
                 type: "dailyShop",
-                id, shop, channelId, valorantUser
+                id, shop, channelId, account
             }, channelId);
             if (!delivered) {
                 const user = await getClient()?.users.fetch(id).catch(() => null);
@@ -495,6 +490,9 @@ export const sendDailyShop = async (id, shop, channelId, valorantUser, tryOnOthe
         // If tryOnOtherShard=false and channel not found, silently skip
         return;
     }
+
+    const valorantUser = getUser(id, account);
+    if (!valorantUser) return;
 
     const shouldPing = getSetting(id, "pingOnAutoDailyShop");
     const content = shouldPing ? `<@${id}>` : null;
@@ -743,14 +741,14 @@ export const debugCheckAlerts = async () => {
 
                                 for (const alert of alerts) {
                                     const skin = await getSkin(alert.uuid);
-                                    unreachableChannels.get(key).skins.push(l(skin.names));
+                                    unreachableChannels.get(key).skins.push(skin ? l(skin.names) : alert.uuid);
                                 }
                             } else {
                                 log(`      Alert Channel ${channelId}: ✓ Accessible in guild "${channel.guild?.name || 'DM'}" #${channel.name}`, 'INFO');
                                 reachableChannels.add(channelId);
                                 for (const alert of alerts) {
                                     const skin = await getSkin(alert.uuid);
-                                    log(`        - ${l(skin.names)} (${alert.uuid})`, 'DEBUG');
+                                    log(`        - ${skin ? l(skin.names) : "(unknown skin)"} (${alert.uuid})`, "DEBUG");
                                 }
                             }
                         }
@@ -843,7 +841,7 @@ onShardMessage(async (message) => {
             await sendAlert(message.id, message.account, message.alerts, message.expires, false, message.alertsLength);
             return true;
         case "dailyShop":
-            await sendDailyShop(message.id, message.shop, message.channelId, message.valorantUser, false);
+            await sendDailyShop(message.id, message.shop, message.channelId, message.account, false);
             return true;
         case "credentialsExpired":
             await sendCredentialsExpired(message.id, message.alert, false);
