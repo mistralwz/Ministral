@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Ви вже перебуваєте в цій групі.",
     "JOIN_PARTY_FAIL": "Не вдалося приєднатися до групи. Переконайтеся, що клієнт VALORANT відкритий, виконано вхід і ви в тому самому регіоні.",
     "PARTY_CLOSED_DESC": "Цю групу закрито.",
-    "AVG_RANK": "Сер. ранг"
+    "AVG_RANK": "Сер. ранг",
+    "SELECT_ROLE_PLACEHOLDER": "Оберіть роль",
+    "SELECT_QUEUE_PLACEHOLDER": "Оберіть режим",
+    "STATE_PREGAME": "🟡 Вибір агента",
+    "STATE_INGAME": "🔴 У грі",
+    "STATE_NOT_IN_GAME": "⬜ Не в матчі",
+    "STATE_QUEUING": "🕒 У черзі"
   },
   "queues": {
     "COMPETITIVE": "Змагання",

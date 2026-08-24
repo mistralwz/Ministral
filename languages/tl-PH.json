@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Nasa party ka na na ito.",
     "JOIN_PARTY_FAIL": "Nabigong sumali sa party. Siguraduhing bukas ang iyong VALORANT client, naka-login, at nasa parehong rehiyon.",
     "PARTY_CLOSED_DESC": "Sarado ang party na ito.",
-    "AVG_RANK": "Average na Rank"
+    "AVG_RANK": "Average na Rank",
+    "SELECT_ROLE_PLACEHOLDER": "Pumili ng Role",
+    "SELECT_QUEUE_PLACEHOLDER": "Pumili ng Mode",
+    "STATE_PREGAME": "🟡 Pagpili ng Agent",
+    "STATE_INGAME": "🔴 Nasa Laro",
+    "STATE_NOT_IN_GAME": "⬜ Wala sa laban",
+    "STATE_QUEUING": "🕒 Nakapila"
   },
   "queues": {
     "COMPETITIVE": "Competitive",

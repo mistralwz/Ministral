@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Βρίσκεστε ήδη σε αυτήν την ομάδα.",
     "JOIN_PARTY_FAIL": "Αποτυχία συμμετοχής στην ομάδα. Βεβαιωθείτε ότι το VALORANT είναι ανοιχτό, συνδεδεμένο και στην ίδια περιοχή.",
     "PARTY_CLOSED_DESC": "Αυτή η ομάδα είναι κλειστή.",
-    "AVG_RANK": "Μέσος βαθμός"
+    "AVG_RANK": "Μέσος βαθμός",
+    "SELECT_ROLE_PLACEHOLDER": "Επίλεξε ρόλο",
+    "SELECT_QUEUE_PLACEHOLDER": "Επίλεξε λειτουργία",
+    "STATE_PREGAME": "🟡 Επιλογή Πράκτορα",
+    "STATE_INGAME": "🔴 Εντός Παιχνιδιού",
+    "STATE_NOT_IN_GAME": "⬜ Εκτός αγώνα",
+    "STATE_QUEUING": "🕒 Σε ουρά"
   },
   "queues": {
     "COMPETITIVE": "Ανταγωνιστικό",

@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "すでにこのパーティーに参加しています。",
     "JOIN_PARTY_FAIL": "パーティーへの参加に失敗しました。VALORANTが起動し、ログインしており、同じリージョンであることを確認してください。",
     "PARTY_CLOSED_DESC": "このパーティーは締め切られています。",
-    "AVG_RANK": "平均ランク"
+    "AVG_RANK": "平均ランク",
+    "SELECT_ROLE_PLACEHOLDER": "ロールを選択",
+    "SELECT_QUEUE_PLACEHOLDER": "モードを選択",
+    "STATE_PREGAME": "🟡 エージェント選択中",
+    "STATE_INGAME": "🔴 試合中",
+    "STATE_NOT_IN_GAME": "⬜ 待機中",
+    "STATE_QUEUING": "🕒 マッチ検索中"
   },
   "queues": {
     "COMPETITIVE": "コンペティティブ",

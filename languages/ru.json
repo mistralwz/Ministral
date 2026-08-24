@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Вы уже находитесь в этой группе.",
     "JOIN_PARTY_FAIL": "Не удалось вступить в группу. Убедитесь, что клиент VALORANT запущен, выполнен вход и вы находитесь в том же регионе.",
     "PARTY_CLOSED_DESC": "Эта группа закрыта.",
-    "AVG_RANK": "Средний ранг"
+    "AVG_RANK": "Средний ранг",
+    "SELECT_ROLE_PLACEHOLDER": "Выберите роль",
+    "SELECT_QUEUE_PLACEHOLDER": "Выберите режим",
+    "STATE_PREGAME": "🟡 Выбор агента",
+    "STATE_INGAME": "🔴 В игре",
+    "STATE_NOT_IN_GAME": "⬜ Не в матче",
+    "STATE_QUEUING": "🕒 В поиске"
   },
   "queues": {
     "COMPETITIVE": "Рейтинговая",

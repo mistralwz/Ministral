@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "이미 이 파티에 참가 중입니다.",
     "JOIN_PARTY_FAIL": "파티 참가에 실패했습니다. 발로란트 클라이언트가 실행 중이고 로그인되어 있으며 동일한 지역인지 확인하세요.",
     "PARTY_CLOSED_DESC": "이 파티는 닫혀 있습니다.",
-    "AVG_RANK": "평균 랭크"
+    "AVG_RANK": "평균 랭크",
+    "SELECT_ROLE_PLACEHOLDER": "역할 선택",
+    "SELECT_QUEUE_PLACEHOLDER": "모드 선택",
+    "STATE_PREGAME": "🟡 요원 선택 중",
+    "STATE_INGAME": "🔴 게임 중",
+    "STATE_NOT_IN_GAME": "⬜ 매치 미참여",
+    "STATE_QUEUING": "🕒 대기열 등록 중"
   },
   "queues": {
     "COMPETITIVE": "경쟁전",

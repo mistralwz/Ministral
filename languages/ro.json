@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "Ești deja în acest grup.",
     "JOIN_PARTY_FAIL": "Nu s-a putut alătura grupului. Asigură-te că jocul VALORANT este deschis, autentificat și în aceeași regiune.",
     "PARTY_CLOSED_DESC": "Acest grup este închis.",
-    "AVG_RANK": "Rang mediu"
+    "AVG_RANK": "Rang mediu",
+    "SELECT_ROLE_PLACEHOLDER": "Selectează un rol",
+    "SELECT_QUEUE_PLACEHOLDER": "Selectează un mod",
+    "STATE_PREGAME": "🟡 Selectare agent",
+    "STATE_INGAME": "🔴 În joc",
+    "STATE_NOT_IN_GAME": "⬜ Nu ești într-un meci",
+    "STATE_QUEUING": "🕒 În coadă"
   },
   "queues": {
     "COMPETITIVE": "Competitiv",

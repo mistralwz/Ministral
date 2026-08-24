@@ -281,7 +281,13 @@
     "JOIN_PARTY_ALREADY_IN": "V této skupině již jste.",
     "JOIN_PARTY_FAIL": "Nepodařilo se připojit ke skupině. Ujistěte se, že je váš klient VALORANT otevřený, přihlášený a ve stejném regionu.",
     "PARTY_CLOSED_DESC": "Tato skupina je uzavřena.",
-    "AVG_RANK": "Prům. hodnost"
+    "AVG_RANK": "Prům. hodnost",
+    "SELECT_ROLE_PLACEHOLDER": "Vyber roli",
+    "SELECT_QUEUE_PLACEHOLDER": "Vyber režim",
+    "STATE_PREGAME": "🟡 Výběr agenta",
+    "STATE_INGAME": "🔴 Ve hře",
+    "STATE_NOT_IN_GAME": "⬜ Není v zápase",
+    "STATE_QUEUING": "🕒 Ve frontě"
   },
   "queues": {
     "COMPETITIVE": "Kompetitivní",
