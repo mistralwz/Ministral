@@ -137,11 +137,10 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
  *
  * @param {object}  player
  * @param {Channel} channel       Discord channel (for emoji resolution)
- * @param {boolean} showCompStats Show WR + last 3 match results when true
  * @param {string}  valLang       Valorant language code (e.g. en-US, ja-JP)
  * @param {string}  userId        Discord user ID for localized text
  */
-export const formatPlayerRow = async (player, channel, showCompStats = false, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
+export const formatPlayerRow = async (player, channel, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
     const localizedAgentName = player.agentName ? (player.agentName[valLang] || player.agentName["en-US"] || "Unknown") : null;
     const enAgentName = player.agentName ? (player.agentName["en-US"] || "Unknown") : null;
 
@@ -198,33 +197,27 @@ export const formatPlayerRow = async (player, channel, showCompStats = false, va
 
     const line1 = `${agentPrefix}${leaderBadge}${nameToken} ${rankBadgePart} ${peakBadgePart}`.trim();
 
-    // Value items: ADR, K/D/A Ratio, Headshot %, Win% (fallback to 0 when no stats available)
-    const adr = player.adr ?? 0;
-    const kd = player.kd ?? "0";
-    const hs = player.hs ?? 0;
-    const winRate = player.winRate ?? 0;
-    const gameCount = player.games ? ` \`${player.games}\`` : "";
-
-    const statItems = [
-        `**${adr}** ADR`,
-        `**${kd}** K/D`,
-        `**${hs}%** HS`,
-        `**${winRate}%** Win${gameCount}`
-    ];
+    // Combat stats come from competitive match history and fall back to zeroes
+    // when there's none to read. Showing "0 ADR・0 K/D・0% HS" for ten players
+    // is worse than showing nothing, so omit each item we have no value for.
+    const statItems = [];
+    if (player.adr > 0) statItems.push(`**${player.adr}** ADR`);
+    if (Number(player.kd) > 0) statItems.push(`**${player.kd}** K/D`);
+    if (player.hs > 0) statItems.push(`**${player.hs}%** HS`);
+    if (player.games > 0) statItems.push(`**${player.winRate ?? 0}%** Win \`${player.games}\``);
 
     let recentMatchesStr = "";
-    if (player.recentMatches && player.recentMatches.length > 0) {
+    if (player.recentMatches?.length > 0) {
         const symbols = player.recentMatches.map(m => {
             if (m === "win") return "🔹";
             if (m === "loss") return "🔻";
             return "▫️";
         }).join("");
-        recentMatchesStr = ` \`${symbols}\``;
+        recentMatchesStr = `\`${symbols}\``;
     }
 
-    const line2 = `-# ${statItems.join("・")}${recentMatchesStr}`;
-
-    return `${line1}\n${line2}`;
+    const subtext = [statItems.join("・"), recentMatchesStr].filter(Boolean).join(" ");
+    return subtext ? `${line1}\n-# ${subtext}` : line1;
 };
 
 /**
@@ -260,10 +253,10 @@ export const calculateLobbyRank = async (players, userId = null) => {
 /**
  * Format a list of players into a unified markdown block for embed descriptions.
  */
-export const formatPlayersBlock = async (players, channel, showCompStats, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
+export const formatPlayersBlock = async (players, channel, valLang = DEFAULT_VALORANT_LANG, userId = null) => {
     if (!players || players.length === 0) return "";
     const lines = await Promise.all(players.map(p =>
-        formatPlayerRow(p, channel, showCompStats, valLang, userId)
+        formatPlayerRow(p, channel, valLang, userId)
     ));
     return lines.join("\n");
 };
@@ -309,7 +302,6 @@ const resolveTeamColor = (players, fallbackColor, isPreGame = false) => {
 const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId = null, valLang = DEFAULT_VALORANT_LANG) => {
     const stateLabel = STATE_LABEL[data.state] ?? "Live Game";
     const isPreGame = data.state === "pregame";
-    const showCompStats = data.queueId === "competitive" || data.queueId === "skirmish" || data.queueId === "skirmish 2v2";
     const defaultColor = resolveTeamColor(allyPlayers, COLOR_ALLY, isPreGame);
 
     const formattedServer = formatServerName(data.serverName);
@@ -322,9 +314,9 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
 
     const [{ avgRankQuote, color: rankColor }, allyBlock, enemyBlock] = await Promise.all([
         calculateLobbyRank(allPlayers, userId),
-        formatPlayersBlock(allyPlayers, channel, showCompStats, valLang, userId),
+        formatPlayersBlock(allyPlayers, channel, valLang, userId),
         isTeamGame
-            ? formatPlayersBlock(enemyPlayers, channel, showCompStats, valLang, userId)
+            ? formatPlayersBlock(enemyPlayers, channel, valLang, userId)
             : Promise.resolve(""),
     ]);
 
@@ -449,7 +441,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
         const descriptionParts = [];
         if (headerLines.length > 0) descriptionParts.push(headerLines.join("\n"));
         if (hasParty) {
-            const playerBlock = await formatPlayersBlock(allyPlayers, channel, true, valLang, userId);
+            const playerBlock = await formatPlayersBlock(allyPlayers, channel, valLang, userId);
             if (playerBlock) descriptionParts.push(playerBlock);
         }
         const description = fitDescription(descriptionParts);

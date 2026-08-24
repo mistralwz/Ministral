@@ -54,7 +54,7 @@ import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
 import { cachedByPuuid, resolveServerName, parseMMRData } from "../valorant/livegame.js";
-import { formatServerName, formatPreferredServers, fitDescription } from "../discord/livegameEmbed.js";
+import { formatServerName, formatPreferredServers, fitDescription, formatPlayerRow } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -975,4 +975,27 @@ test("livegame: fitDescription degrades instead of blowing the 4096 limit", () =
     const huge = fitDescription([`${"z".repeat(9000)}`]);
     assert.equal(huge.length, 4096);
     assert.ok(huge.endsWith("…"));
+});
+
+test("livegame: player row omits stat items it has no data for", async () => {
+    const base = { riotId: "Player#1", currentTier: 0, peakTier: 0, recentMatches: [] };
+
+    // Combat stats fall back to zeroes when there's no competitive history.
+    // That should render no subtext line at all, not "0 ADR・0 K/D・0% HS".
+    const bare = await formatPlayerRow({ ...base, adr: 0, kd: "0", hs: 0, winRate: null, games: 0 }, null);
+    assert.ok(!bare.includes("-#"), bare);
+    assert.ok(!bare.includes("ADR"));
+
+    // Partial data: only the items that actually have a value.
+    const partial = await formatPlayerRow({ ...base, adr: 150, kd: "0", hs: 0, winRate: null, games: 0 }, null);
+    assert.ok(partial.includes("**150** ADR"));
+    assert.ok(!partial.includes("K/D"));
+    assert.ok(!partial.includes("HS"));
+    assert.ok(!partial.includes("Win"));
+
+    // Full data: every item, win rate carrying the game count, streak appended.
+    const full = await formatPlayerRow({
+        ...base, adr: 152, kd: "1.18", hs: 28, winRate: 54, games: 230, recentMatches: ["win", "loss"]
+    }, null);
+    assert.ok(full.includes("**152** ADR・**1.18** K/D・**28%** HS・**54%** Win `230` `🔹🔻`"), full);
 });
