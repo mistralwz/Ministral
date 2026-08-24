@@ -112,6 +112,7 @@ export const clearLiveGameCache = () => {
     playerMmrCache.clear();
     playerRecentMatchesCache.clear();
     playerCombatStatsCache.clear();
+    playerNameCache.clear();
 };
 
 const loadGamemodes = async () => {
@@ -957,23 +958,41 @@ const fetchPlayerMMRs = (user, puuids) => {
  * Batch-fetch Riot IDs (GameName#TagLine) for a list of PUUIDs.
  * Returns Map<puuid, "GameName#Tag"> (or null for incognito/missing).
  */
+const playerNameCache = new Map();
+const NAME_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours — Riot IDs change rarely
+
 const fetchPlayerNames = async (user, puuids) => {
+    // This is one batched PUT rather than a request per player, so it can't use
+    // cachedByPuuid — but the same idea applies: only ask for the misses, and
+    // skip the request entirely when there are none. That's what takes a
+    // steady-state poll of an unchanged lobby down to zero name lookups.
+    const now = Date.now();
+    const out = new Map();
+    const toFetch = [];
+    for (const puuid of puuids) {
+        const hit = playerNameCache.get(puuid);
+        if (hit && now - hit.ts < NAME_CACHE_TTL) out.set(puuid, hit.data);
+        else toFetch.push(puuid);
+    }
+    if (toFetch.length === 0) return out;
+
     const headers = { ...authHeaders(user), "Content-Type": "application/json" };
     const pd = pdUrl(user);
 
-    const out = new Map();
     try {
         const resp = await fetch(`${pd}/name-service/v2/players`, {
             method: "PUT",
             headers,
-            body: JSON.stringify(puuids),
+            body: JSON.stringify(toFetch),
         });
         if (resp.statusCode === 200) {
             const json = safeJson(resp.body);
             if (Array.isArray(json)) {
                 for (const entry of json) {
                     if (entry.GameName) {
-                        out.set(entry.Subject, `${entry.GameName}#${entry.TagLine}`);
+                        const name = `${entry.GameName}#${entry.TagLine}`;
+                        playerNameCache.set(entry.Subject, { data: name, ts: now });
+                        out.set(entry.Subject, name);
                     }
                 }
             }
@@ -1276,6 +1295,61 @@ const buildPreGame = async (id, account, preGame) => {
         isSingleTeam: SINGLE_TEAM_QUEUES.has(preGame.queueId?.toLowerCase()),
         queueIcon: resolveQueueIcon(preGame.queueId),
     };
+};
+
+/** Returned by repollLiveGame when what's already on screen is still accurate. */
+export const LIVEGAME_UNCHANGED = Symbol("livegame:unchanged");
+
+/**
+ * Cheap re-poll for a user the bot already believes is in `state`.
+ *
+ * The poller knows what it drew last time, so it doesn't need fetchLiveGame's
+ * three probes and detail fetch — it only has to answer "is this still true?"
+ * against the match or party it is already showing.
+ *
+ *   pregame → the refreshed, enriched match, so agent hovers and locks stay
+ *             live and the stolen-agent check still has data to compare
+ *   queuing → LIVEGAME_UNCHANGED while the party is still MATCHMAKING. Nothing
+ *             on that embed moves until a match is found or the queue is
+ *             cancelled, so there is nothing to redraw and we skip the edit.
+ *
+ * Returns null when the state has moved on; the caller then runs the full
+ * fetchLiveGame to find out what it moved to.
+ */
+export const repollLiveGame = async (id, account, state, matchId) => {
+    if (!matchId) return null;
+    if (state !== "pregame" && state !== "queuing") return null;
+
+    const auth = await authUser(id, account);
+    if (!auth.success) return null;
+    const user = getUser(id, account);
+    if (!user) return null;
+
+    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapNames(), loadSeasons(), loadGamemodes()]);
+
+    if (state === "pregame") {
+        // Probe core-game alongside the pregame read rather than inferring the
+        // transition from a 404. Catching "the match started" is the poller's
+        // entire job, so it shouldn't rest on how Riot expires pregame data.
+        const [coreMatchId, preGame] = await Promise.all([
+            probeState(user, "core-game", "MatchID"),
+            getPreGameData(id, account, matchId),
+        ]);
+        if (coreMatchId) return null;                                   // in game now
+        if (!preGame.success || preGame.state !== "pregame") return null; // dodged / ended
+        return await buildPreGame(id, account, preGame);
+    }
+
+    if (state === "queuing") {
+        // One request: the party id is the matchId we're already displaying.
+        // Covers both transitions — a match being found and the queue being
+        // cancelled from the game client both drop State out of MATCHMAKING.
+        const resp = await fetch(`${glzUrl(user)}/parties/v1/parties/${matchId}`, { headers: authHeaders(user) });
+        const stillQueuing = resp.statusCode === 200 && safeJson(resp.body)?.State === "MATCHMAKING";
+        return stillQueuing ? LIVEGAME_UNCHANGED : null;
+    }
+
+    return null;
 };
 
 export const fetchLiveGame = async (id, account = null) => {

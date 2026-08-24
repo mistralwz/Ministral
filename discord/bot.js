@@ -108,6 +108,7 @@ import { getSkins, getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import {
     fetchLiveGame, selectAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode,
+    repollLiveGame, LIVEGAME_UNCHANGED,
     clearLiveGameCache
 } from "../valorant/livegame.js";
 import { renderLiveGame, renderLiveGameError, setRoleSelection } from "./livegameEmbed.js";
@@ -155,9 +156,13 @@ const cancelLiveGamePoller = (userId) => {
  * Start (or restart) the pre-game poller.
  * Edits `reply` in-place once the match transitions to in-game.
  *
- * @param {string}     userId
+ * @param {string}      userId
  * @param {Interaction} interaction  Original deferred interaction (for editReply)
- * @param {number}     retriesLeft
+ * @param {number}      retriesLeft
+ * @param {object|null} previousData Last rendered live-game data. Callers should
+ *   always pass what they just fetched: it lets the next tick take the cheap
+ *   repoll path instead of a full fetchLiveGame, and it's the baseline the
+ *   stolen-agent check compares against.
  */
 const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER_MAX_TIME_MS / config.livegamePollingInterval), previousData = null) => {
     cancelLiveGamePoller(userId);
@@ -166,7 +171,22 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
     const timer = setTimeout(async () => {
         liveGamePollers.delete(userId);
         try {
-            const data = await fetchLiveGame(userId);
+            // Cheap path: ask only whether the state we already drew is still
+            // true (1-2 requests). A full fetchLiveGame is the fallback for
+            // when it isn't — i.e. only once something actually changed.
+            let data = null;
+            if (previousData?.state === "pregame" || previousData?.state === "queuing") {
+                const probe = await repollLiveGame(userId, null, previousData.state, previousData.matchId);
+                if (probe === LIVEGAME_UNCHANGED) {
+                    // Still searching. Nothing on the queuing embed moves until
+                    // a match is found, so skip the redraw entirely.
+                    startLiveGamePoller(userId, interaction, retriesLeft - 1, previousData);
+                    return;
+                }
+                data = probe;
+            }
+
+            if (!data) data = await fetchLiveGame(userId);
             if (!data.success || data.state === "not_in_game") return; // stop
 
             // ─── STOLEN AGENT PING LOGIC ──────────────────────────────────────
@@ -1533,7 +1553,7 @@ client.on("interactionCreate", async (interaction) => {
 
                         // If in agent select or queuing, start poller to auto-upgrade embed
                         if (liveGameData.state === "pregame" || liveGameData.state === "queuing") {
-                            startLiveGamePoller(interaction.user.id, interaction);
+                            startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
                         }
                     }
 
@@ -2279,7 +2299,7 @@ client.on("interactionCreate", async (interaction) => {
 
                 // Restart poller if still in agent select
                 if (liveGameData.success && (liveGameData.state === "pregame" || liveGameData.state === "queuing")) {
-                    startLiveGamePoller(interaction.user.id, interaction);
+                    startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
                 }
             } else if (interaction.customId.startsWith("livegame/start_queue/") || interaction.customId.startsWith("livegame/cancel_queue/")) {
                 const [, action, matchId, ownerId] = interaction.customId.split('/');
@@ -2303,7 +2323,7 @@ client.on("interactionCreate", async (interaction) => {
 
                 if (liveGameData.success) {
                     if (liveGameData.state === "queuing") {
-                        startLiveGamePoller(interaction.user.id, interaction);
+                        startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
                     } else if (liveGameData.state === "not_in_game") {
                         cancelLiveGamePoller(interaction.user.id);
                     }

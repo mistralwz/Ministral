@@ -53,7 +53,7 @@ import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
-import { cachedByPuuid, resolveServerName, parseMMRData } from "../valorant/livegame.js";
+import { cachedByPuuid, resolveServerName, parseMMRData, repollLiveGame } from "../valorant/livegame.js";
 import { formatServerName, formatPreferredServers, fitDescription, formatPlayerRow } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
@@ -1016,4 +1016,16 @@ test("livegame embed: game embeds localize the queue name and state label", asyn
     assert.ok(embed.author.name.startsWith(s("en-GB").queues.COMPETITIVE), embed.author.name);
     assert.ok(embed.author.name.includes("🇩🇪 Frankfurt"), embed.author.name);
     assert.equal(embed.footer.text, s("en-GB").livegame.STATE_INGAME);
+});
+
+test("livegame: repollLiveGame bails out before doing any work when it can't help", async () => {
+    // Nothing to poll against.
+    assert.equal(await repollLiveGame("whoever", null, "pregame", null), null);
+
+    // States the cheap path doesn't cover fall through to a full fetchLiveGame.
+    assert.equal(await repollLiveGame("whoever", null, "ingame", "match-1"), null);
+    assert.equal(await repollLiveGame("whoever", null, "not_in_game", "party-1"), null);
+
+    // Unregistered user: null, and the caller's fetchLiveGame surfaces the auth error.
+    assert.equal(await repollLiveGame("definitely-not-registered", null, "pregame", "match-1"), null);
 });
