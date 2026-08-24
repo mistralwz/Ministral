@@ -2234,12 +2234,23 @@ client.on("interactionCreate", async (interaction) => {
                 } else if (result.reason === "auth_failed" || result.reason === "no_user") {
                     await interaction.editReply(authFailureMessage(interaction, result.auth || {}, s(interaction).error?.AUTH_ERROR_GENERIC || "Authentication failed. Please log in again using `/login`.", true));
                 } else {
+                    let errorMessage;
+                    if (result.errorCode === "ERR_MISSING_INVITE_CODE_MAPPING" || result.errorMessage?.includes("InviteCode mapping") || result.statusCode === 404) {
+                        errorMessage = s(interaction).livegame?.JOIN_PARTY_EXPIRED || "❌ This party code is invalid or has expired. The party may have closed or generated a new code.";
+                    } else if (result.errorCode === "ERR_PARTY_FULL" || result.errorCode === "PARTY_FULL") {
+                        errorMessage = s(interaction).livegame?.JOIN_PARTY_FULL || "❌ This party is already full.";
+                    } else if (result.errorCode === "ERR_PLAYER_ALREADY_IN_PARTY" || result.errorCode === "ALREADY_IN_PARTY") {
+                        errorMessage = s(interaction).livegame?.JOIN_PARTY_ALREADY_IN || "ℹ️ You are already in this party.";
+                    } else {
+                        errorMessage = s(interaction).livegame?.JOIN_PARTY_FAIL || "❌ Failed to join the party. Ensure your VALORANT client is open, logged in, and in the same region.";
+                    }
+
                     let debugInfo = "";
-                    if (result.statusCode) {
+                    if (result.statusCode && result.statusCode !== 404) {
                         debugInfo = `\n\n-# ⚠️ **Debug Info:** \`HTTP ${result.statusCode}${result.errorCode ? ` | ${result.errorCode}` : ""}${result.errorMessage ? ` | ${result.errorMessage}` : ""}\``;
                     }
                     await interaction.editReply({
-                        embeds: [basicEmbed((s(interaction).livegame?.JOIN_PARTY_FAIL || "❌ Failed to join the party. Ensure your VALORANT client is open, logged in, and in the same region.") + debugInfo)]
+                        embeds: [basicEmbed(errorMessage + debugInfo)]
                     });
                 }
             } else if (interaction.customId.startsWith("livegame/refresh/")) {
