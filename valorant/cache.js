@@ -1,4 +1,4 @@
-import { fetch, itemTypes } from "../misc/util.js";
+import { fetch, itemTypes, safeJson } from "../misc/util.js";
 import config from "../misc/config.js";
 import fuzzysort from "fuzzysort";
 import fs from "fs";
@@ -10,6 +10,20 @@ export const setCacheClient = (c) => {
     cacheClient = c;
 };
 const isShardZero = () => !cacheClient?.shard || cacheClient.shard.ids[0] === 0;
+
+/**
+ * Parse a valorant-api.com response, or throw something readable.
+ *
+ * console.assert only logs — it doesn't throw — so a 5xx used to fall straight
+ * through to JSON.parse and die on "Unexpected token <". The outer catch in
+ * _fetchDataImpl then reported a generic "error fetching skin data" with no
+ * indication of which endpoint was down.
+ */
+const parseValorantApi = (req, what) => {
+    const json = safeJson(req.body);
+    if (!json?.data) throw new Error(`Valorant ${what} fetch failed: HTTP ${req.statusCode}, no usable JSON body`);
+    return json;
+};
 
 const formatVersion = 17;
 let gameVersion;
@@ -101,9 +115,7 @@ export const getValorantVersion = async () => {
     versionFetchPromise = (async () => {
         console.log("Fetching current valorant version...");
         const req = await fetch("https://valorant-api.com/v1/version");
-        console.assert(req.statusCode === 200, `Valorant version status code is ${req.statusCode}!`, req);
-        const json = JSON.parse(req.body);
-        console.assert(json.status === 200, `Valorant version data status code is ${json.status}!`, json);
+        const json = parseValorantApi(req, "version");
         return json.data;
     })();
 
@@ -317,10 +329,7 @@ export const getSkinList = async (gameVersion) => {
     console.log("Fetching valorant skin list...");
 
     const req = await fetch("https://valorant-api.com/v1/weapons?language=all");
-    console.assert(req.statusCode === 200, `Valorant skins status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant skins data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "skins");
 
     skins = { version: gameVersion };
     weapons = {};
@@ -511,10 +520,7 @@ const getBundleList = async (gameVersion) => {
     console.log("Fetching valorant bundle list...");
 
     const req = await fetch("https://valorant-api.com/v1/bundles?language=all");
-    console.assert(req.statusCode === 200, `Valorant bundles status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant bundles data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "bundles");
 
     const oldBundles = bundles || {};
     bundles = { version: gameVersion };
@@ -588,10 +594,7 @@ const getRarities = async (gameVersion) => {
     console.log("Fetching skin rarities list...");
 
     const req = await fetch("https://valorant-api.com/v1/contenttiers/");
-    console.assert(req.statusCode === 200, `Valorant rarities status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant rarities data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "rarities");
 
     rarities = { version: gameVersion };
     for (const rarity of json.data) {
@@ -611,10 +614,7 @@ export const getBuddies = async (gameVersion) => {
     console.log("Fetching gun buddies list...");
 
     const req = await fetch("https://valorant-api.com/v1/buddies?language=all");
-    console.assert(req.statusCode === 200, `Valorant buddies status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant buddies data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "buddies");
 
     buddies = { version: gameVersion };
     for (const buddy of json.data) {
@@ -634,10 +634,7 @@ export const getFlexes = async (gameVersion) => {
     console.log("Fetching flex list...");
 
     const req = await fetch("https://valorant-api.com/v1/flex?language=all");
-    console.assert(req.statusCode === 200, `Valorant flex status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant flex data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "flex");
 
     flexes = { version: gameVersion };
     for (const flex of json.data) {
@@ -653,10 +650,7 @@ export const getCards = async (gameVersion) => {
     console.log("Fetching player cards list...");
 
     const req = await fetch("https://valorant-api.com/v1/playercards?language=all");
-    console.assert(req.statusCode === 200, `Valorant cards status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant cards data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "cards");
 
     cards = { version: gameVersion };
     for (const card of json.data) {
@@ -679,10 +673,7 @@ export const getSprays = async (gameVersion) => {
     console.log("Fetching sprays list...");
 
     const req = await fetch("https://valorant-api.com/v1/sprays?language=all");
-    console.assert(req.statusCode === 200, `Valorant sprays status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant sprays data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "sprays");
 
     sprays = { version: gameVersion };
     for (const spray of json.data) {
@@ -701,10 +692,7 @@ export const getTitles = async (gameVersion) => {
     console.log("Fetching player titles list...");
 
     const req = await fetch("https://valorant-api.com/v1/playertitles?language=all");
-    console.assert(req.statusCode === 200, `Valorant titles status code is ${req.statusCode}!`, req);
-
-    const json = JSON.parse(req.body);
-    console.assert(json.status === 200, `Valorant titles data status code is ${json.status}!`, json);
+    const json = parseValorantApi(req, "titles");
 
     titles = { version: gameVersion };
     for (const title of json.data) {

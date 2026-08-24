@@ -91,6 +91,19 @@ export const fetch = (url, options = {}) => {
     });
 };
 
+/**
+ * JSON.parse that returns null instead of throwing.
+ *
+ * Riot and valorant-api.com don't always answer with JSON — a 5xx, a proxy
+ * error page or a dropped connection gives you HTML or an empty body, and a
+ * bare JSON.parse(req.body) then throws from inside whatever function was
+ * asking. The global uncaughtException handler stops that killing the bot, so
+ * the symptom is a feature that silently does nothing during an outage.
+ */
+export const safeJson = (str) => {
+    try { return JSON.parse(str); } catch { return null; }
+};
+
 export const WeaponTypeUuid = {
     Odin: "63e6c2b6-4a8e-869c-3d4c-e38355226584",
     Ares: "55d8a0f4-4274-ca67-fe2c-06ab45efdf58",
@@ -201,8 +214,8 @@ export const fetchRiotVersionData = async () => {
     try {
         const req = await fetch("https://valorant-api.com/v1/version");
         if (req.statusCode === 200) {
-            const json = JSON.parse(req.body);
-            if (json.status === 200 && json.data) {
+            const json = safeJson(req.body);
+            if (json?.status === 200 && json.data) {
                 setRiotVersionData(json.data);
                 return json.data;
             }
@@ -278,7 +291,7 @@ export const isMaintenance = (json) => {
 
 export const fetchMaintenances = async (region) => {
     const req = await fetch(`https://valorant.secure.dyn.riotcdn.net/channels/public/x/status/${region}.json`);
-    return JSON.parse(req.body);
+    return safeJson(req.body);
 };
 
 export const removeDupeAlerts = (alerts) => {

@@ -84,6 +84,7 @@ import {
     WeaponTypeUuid,
     WeaponType,
     fetch,
+    safeJson,
     fetchRiotVersionData,
     fetchMaintenances
 } from "../misc/util.js";
@@ -1850,7 +1851,11 @@ client.on("interactionCreate", async (interaction) => {
 
                     if (!skin) {
                         const req = await fetch(`https://valorant-api.com/v1/weapons/skins/${skinUuid}?language=all`);
-                        skin = JSON.parse(req.body).data;
+                        skin = safeJson(req.body)?.data;
+                        if (!skin?.levels?.length) return await interaction.followUp({
+                            embeds: [basicEmbed(s(interaction).error.GENERIC_ERROR)],
+                            flags: [MessageFlags.Ephemeral]
+                        });
                         skinUuid = skin.levels[0].uuid;
                     }
 

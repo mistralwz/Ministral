@@ -1,5 +1,6 @@
 import {
     fetch,
+    safeJson,
     tokenExpiry,
     decodeToken,
     wait,
@@ -113,8 +114,8 @@ export const getUserInfo = async (user) => {
         return null;
     }
 
-    const json = JSON.parse(req.body);
-    if (json.acct) return {
+    const json = safeJson(req.body);
+    if (json?.acct) return {
         puuid: json.sub,
         username: json.acct.game_name && json.acct.game_name + "#" + json.acct.tag_line
     };
@@ -135,8 +136,7 @@ export const fetchEntitlementsToken = async (user) => {
         return null;
     }
 
-    const json = JSON.parse(req.body);
-    return json.entitlements_token;
+    return safeJson(req.body)?.entitlements_token ?? null;
 };
 
 export const getRegion = async (user) => {
@@ -156,8 +156,7 @@ export const getRegion = async (user) => {
         return null;
     }
 
-    const json = JSON.parse(req.body);
-    return json.affinities.live;
+    return safeJson(req.body)?.affinities?.live ?? null;
 };
 
 const activeRefreshes = new Map();
@@ -325,8 +324,7 @@ const exchangeCodeForTokens = async (code) => {
         return null;
     }
 
-    const json = JSON.parse(req.body);
-    return json;
+    return safeJson(req.body);
 };
 
 export const refreshWithRefreshToken = async (refreshToken) => {
@@ -352,19 +350,15 @@ export const refreshWithRefreshToken = async (refreshToken) => {
                 return { success: false, rateLimit: true, statusCode: 429, retryAfter };
             }
 
-            let invalidToken = false;
-            try {
-                const json = JSON.parse(req.body);
-                if (json.error === "invalid_grant" || json.error === "bad_claims") {
-                    invalidToken = true;
-                }
-            } catch {
-                invalidToken = false;
-            }
+            const errJson = safeJson(req.body);
+            const invalidToken = errJson?.error === "invalid_grant" || errJson?.error === "bad_claims";
             return { success: false, invalidToken, statusCode: req.statusCode };
         }
 
-        const json = JSON.parse(req.body);
+        const json = safeJson(req.body);
+        // A 200 that isn't JSON is not a successful refresh — treat it as
+        // transient so the caller keeps the user's credentials.
+        if (!json) return { success: false, networkError: true };
         return { success: true, tokenData: json };
     } catch (e) {
         console.error(`[refreshWithRefreshToken] Exception during token refresh:`, e);
