@@ -268,6 +268,30 @@ export const formatPlayersBlock = async (players, channel, showCompStats, valLan
     return lines.join("\n");
 };
 
+const DESCRIPTION_LIMIT = 4096;
+
+/**
+ * Join description parts, degrading instead of failing if they don't fit.
+ *
+ * Discord rejects the entire interaction (error 50035) when a description
+ * passes 4096 chars, and ten players is closer to that than it looks: a custom
+ * emoji is ~25 chars of raw markdown and the hover-tooltip link another ~70,
+ * so long Riot IDs can push a full lobby over on their own.
+ *
+ * The per-player `-#` subtext lines go first — they're the least important
+ * thing on screen — and only then do we truncate.
+ */
+export const fitDescription = (parts) => {
+    const text = parts.filter(Boolean).join("\n\n");
+    if (!text) return undefined;
+    if (text.length <= DESCRIPTION_LIMIT) return text;
+
+    const stripped = text.split("\n").filter(line => !line.startsWith("-# ")).join("\n");
+    if (stripped.length <= DESCRIPTION_LIMIT) return stripped;
+
+    return stripped.slice(0, DESCRIPTION_LIMIT - 1) + "…";
+};
+
 const resolveTeamColor = (players, fallbackColor, isPreGame = false) => {
     if (isPreGame) return COLOR_PREGAME;
     const teamId = players?.[0]?.teamId?.toLowerCase();
@@ -315,7 +339,7 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
             name: `${data.queueName}・${mapAndServer}`,
             icon_url: data.queueIcon ?? undefined,
         },
-        description: descParts.length > 0 ? descParts.join("\n\n") : undefined,
+        description: fitDescription(descParts),
         color: rankColor || defaultColor,
         footer: { text: stateLabel },
         timestamp: new Date().toISOString(),
@@ -428,7 +452,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             const playerBlock = await formatPlayersBlock(allyPlayers, channel, true, valLang, userId);
             if (playerBlock) descriptionParts.push(playerBlock);
         }
-        const description = descriptionParts.length > 0 ? descriptionParts.join("\n\n") : undefined;
+        const description = fitDescription(descriptionParts);
 
         const embed = {
             author,

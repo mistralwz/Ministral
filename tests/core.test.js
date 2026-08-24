@@ -54,7 +54,7 @@ import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
 import { cachedByPuuid, resolveServerName, parseMMRData } from "../valorant/livegame.js";
-import { formatServerName, formatPreferredServers } from "../discord/livegameEmbed.js";
+import { formatServerName, formatPreferredServers, fitDescription } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -951,4 +951,28 @@ test("livegame: parseMMRData reports the current act, not the last one played", 
     assert.equal(played.games, 10);
     assert.equal(played.wins, 6);
     assert.equal(played.winRate, 60);
+});
+
+test("livegame: fitDescription degrades instead of blowing the 4096 limit", () => {
+    assert.equal(fitDescription([]), undefined);
+    assert.equal(fitDescription(["a", "", null, "b"]), "a\n\nb");
+
+    // Under the limit: untouched, stat lines kept.
+    const small = ["header", "`Player` rank\n-# **150** ADR"];
+    assert.equal(fitDescription(small), "header\n\n`Player` rank\n-# **150** ADR");
+
+    // Over the limit: `-#` subtext lines are dropped first, and that alone
+    // brings a realistic full lobby back under.
+    const rows = Array.from({ length: 10 }, (_, i) =>
+        `${"x".repeat(300)} player${i}\n-# ${"y".repeat(120)}`
+    );
+    const degraded = fitDescription(rows);
+    assert.ok(degraded.length <= 4096);
+    assert.ok(!degraded.includes("-# "));
+    assert.ok(degraded.includes("player9"));   // no players lost
+
+    // Still too big even without subtext: hard truncate, never exceed.
+    const huge = fitDescription([`${"z".repeat(9000)}`]);
+    assert.equal(huge.length, 4096);
+    assert.ok(huge.endsWith("…"));
 });
