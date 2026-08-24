@@ -47,7 +47,7 @@ const STATE_LABEL = {
 const SERVER_FLAGS = {
     // Americas
     "Ashburn": "🇺🇸", "Atlanta": "🇺🇸", "Georgia": "🇺🇸", "Chicago": "🇺🇸", "Illinois": "🇺🇸",
-    "Dallas": "🇺🇸", "Texas": "🇺🇸", "Virginia": "🇺🇸", "California": "🇺🇸", "N. California": "🇺🇸",
+    "Dallas": "🇺🇸", "Texas": "🇺🇸", "Virginia": "🇺🇸", "N. Virginia": "🇺🇸", "California": "🇺🇸", "N. California": "🇺🇸",
     "Oregon": "🇺🇸", "Miami": "🇺🇸", "Santiago": "🇨🇱", "Mexico City": "🇲🇽", "Bogota": "🇨🇴", "Bogotá": "🇨🇴", "Sao Paulo": "🇧🇷",
     // Europe, Middle East & Africa
     "Frankfurt": "🇩🇪", "London": "🇬🇧", "Paris": "🇫🇷", "Madrid": "🇪🇸",
@@ -61,9 +61,8 @@ const SERVER_FLAGS = {
 /** Format a single server name with its flag emoji. */
 export const formatServerName = (serverName) => {
     if (!serverName) return "";
-    const clean = serverName.replace(/^US (East|Central|West) \((.+)\)$/, '$2').replace(/ \d+$/, '');
-    const flag = serverName.startsWith("US ") ? "🇺🇸" : (SERVER_FLAGS[clean] || SERVER_FLAGS[serverName] || "");
-    return flag ? `${flag} ${clean}` : clean;
+    const flag = SERVER_FLAGS[serverName] || "";
+    return flag ? `${flag} ${serverName}` : serverName;
 };
 
 /**
@@ -82,10 +81,8 @@ export const formatPreferredServers = (preferredGamePods, autoText = "Auto") => 
     if (!preferredGamePods?.length) return `\`${autoText}\``;
 
     const pods = preferredGamePods.map(pod => {
-        const raw = resolveServerName(pod);
-        const name = raw.replace(/^US (East|Central|West) \((.+)\)$/, '$2').replace(/ \d+$/, '');
-        const flag = raw.startsWith("US ") ? "🇺🇸" : (SERVER_FLAGS[name] || "");
-        return { name, flag };
+        const name = resolveServerName(pod);
+        return { name, flag: SERVER_FLAGS[name] || "" };
     });
 
     const unique = [];

@@ -53,7 +53,8 @@ import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
-import { cachedByPuuid } from "../valorant/livegame.js";
+import { cachedByPuuid, resolveServerName } from "../valorant/livegame.js";
+import { formatServerName, formatPreferredServers } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -875,4 +876,47 @@ test("livegame: cachedByPuuid serves fresh hits, fetches only misses, retries fa
     cache.set("stale", { data: "old", ts: 0 });
     out = await cachedByPuuid(cache, 60_000, ["stale"], async () => null, empty);
     assert.equal(out.get("stale"), "old");
+});
+
+test("livegame: resolveServerName parses real game pod ids", () => {
+    // Prod pods — display names match what the old hardcoded table rendered.
+    assert.equal(resolveServerName("aresriot.aws-euc1-prod.eu-gp-frankfurt-1"), "Frankfurt");
+    assert.equal(resolveServerName("aresriot.aws-use1-prod.na-gp-ashburn-1"), "N. Virginia");
+    assert.equal(resolveServerName("aresriot.aws-rclusterprod-use1-1.na-gp-ashburn-awsedge-1"), "N. Virginia");
+    assert.equal(resolveServerName("aresriot.aws-usw1-prod.na-gp-norcal-1"), "N. California");
+    assert.equal(resolveServerName("aresriot.aws-atl1-prod.na-gp-atlanta-1"), "Georgia");
+    assert.equal(resolveServerName("aresriot.aws-dfw1-prod.na-gp-dallas-1"), "Texas");
+    assert.equal(resolveServerName("aresriot.aws-chi1-prod.na-gp-chicago-1"), "Illinois");
+    assert.equal(resolveServerName("aresriot.aws-sae1-prod.br-gp-saopaulo-1"), "Sao Paulo");
+    assert.equal(resolveServerName("aresriot.aws-ape1-prod.ap-gp-hongkong-1"), "Hong Kong");
+    assert.equal(resolveServerName("aresriot.aws-bog1-prod.latam-gp-bogota-1"), "Bogotá");
+    assert.equal(resolveServerName("aresriot.aws-mnl1-prod.ap-gp-manila-1"), "Manila");
+    assert.equal(resolveServerName("loltencent.qcloud.val-gp-beijing-1"), "Beijing");
+
+    // A pod the old table never listed still resolves — the point of the regex.
+    assert.equal(resolveServerName("aresriot.aws-xyz9-prod.eu-gp-helsinki-1"), "Helsinki");
+
+    // PreferredGamePods short ids.
+    assert.equal(resolveServerName("na-3"), "Texas");
+    assert.equal(resolveServerName("latam-2"), "Mexico City");
+    assert.equal(resolveServerName("p-eu-1"), "Frankfurt");
+
+    // Unparseable ids fall through to the raw value rather than inventing one.
+    assert.equal(resolveServerName("arestencent.qcloud-cq1.alpha1-gp-1"), "arestencent.qcloud-cq1.alpha1-gp-1");
+    assert.equal(resolveServerName(""), "");
+    assert.equal(resolveServerName(null), null);
+});
+
+test("livegame: formatServerName and formatPreferredServers attach flags", () => {
+    assert.equal(formatServerName(resolveServerName("aresriot.aws-use1-prod.na-gp-ashburn-1")), "🇺🇸 N. Virginia");
+    assert.equal(formatServerName("Frankfurt"), "🇩🇪 Frankfurt");
+    assert.equal(formatServerName(""), "");
+
+    // Single pod, grouped pods, and the >3-across-countries compact form.
+    assert.equal(formatPreferredServers(["aresriot.aws-euc1-prod.eu-gp-frankfurt-1"]), "🇩🇪 Frankfurt");
+    assert.equal(formatPreferredServers([], "Auto"), "`Auto`");
+    assert.equal(
+        formatPreferredServers(["aresriot.aws-dfw1-prod.na-gp-dallas-1", "aresriot.aws-chi1-prod.na-gp-chicago-1"]),
+        "🇺🇸 Texas, Illinois"
+    );
 });
