@@ -701,9 +701,20 @@ export const stopBot = async (replyFn) => {
 
 client.on("messageCreate", async (message) => {
     try {
+        // Fail closed. This used to grant admin to EVERYONE when ownerId was
+        // unset — and ownerId defaults to "" — so an unconfigured deployment
+        // handed every user in every guild `!config`, `!undeploy` and
+        // `!broadcast`. `!config token x` + `!config reload` persists to disk,
+        // so that was two messages away from bricking the bot permanently.
+        if (!config.ownerId) {
+            if (message.content.trim().startsWith('!')) {
+                console.error("Ignoring admin command: `ownerId` is not set in config.json, so nobody is authorised to run one.");
+            }
+            return;
+        }
+
         let isAdmin = false;
-        if (!config.ownerId) isAdmin = true;
-        else for (const id of config.ownerId.split(/, ?/)) {
+        for (const id of config.ownerId.split(/, ?/).filter(Boolean)) {
             if (message.author.id === id || message.guildId === id) {
                 isAdmin = true;
                 break;
@@ -813,6 +824,14 @@ client.on("messageCreate", async (message) => {
             } else {
                 const target = splits[1];
                 const value = splits.slice(2).join(' ');
+
+                // `!config reload` persists whatever is in memory, so setting
+                // either of these from chat is a one-way door: a bad token
+                // can't log in to fix itself, and a bad ownerId locks every
+                // admin out of the command that would undo it.
+                if (target === "token" || target === "ownerId") {
+                    return await message.reply(`[Error] \`${target}\` can only be changed by editing config.json directly — setting it here could permanently lock the bot out.`);
+                }
 
                 const configType = typeof config[target];
                 switch (configType) {
