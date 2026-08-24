@@ -22,7 +22,6 @@ import {
 import config from "../misc/config.js";
 import { l, s } from "../misc/languages.js";
 import { readUserJson, saveUser } from "../valorant/accountSwitcher.js";
-import { beginBatchWrites, commitBatchWrites } from "../misc/userDatabase.js";
 import { sendShardMessageForChannel, onShardMessage } from "../misc/shardMessage.js";
 import { VPEmoji } from "./emoji.js";
 import { getSetting } from "../misc/settings.js";
@@ -149,8 +148,6 @@ export const removeAlert = (id, uuid) => {
     return alertCount > user.alerts.length;
 }
 
-const ALERT_BATCH_SIZE = 50;
-
 /**
  * Process alerts for a single user across all their Valorant accounts.
  * Extracted so it can be called from both sequential and concurrent paths.
@@ -271,49 +268,39 @@ export const checkAlerts = async () => {
 
         const concurrency = config.alertConcurrency ?? 1;
 
+        // Note: this used to be wrapped in beginBatchWrites/commitBatchWrites,
+        // described as flushing each batch "in one SQLite transaction". Those
+        // were empty functions, so no batching ever happened — and it couldn't
+        // have: every user's turn awaits Riot over the network, and holding a
+        // write transaction open across that would lock every other shard out
+        // of the database for minutes. The chunking those calls justified went
+        // with them.
         if (concurrency > 1) {
-            // A5: Concurrent mode — process up to `alertConcurrency` users in parallel.
+            // Concurrent mode — process up to `alertConcurrency` users in parallel.
             // Set alertConcurrency > 1 in config.json to enable. Default is 1 (sequential).
             const { default: pLimit } = await import("p-limit");
             const limit = pLimit(concurrency);
 
-            // Single global batch wraps the entire concurrent run
-            beginBatchWrites();
-            try {
-                await Promise.all(userList.map(id => limit(async () => {
-                    try {
-                        // Each concurrent task starts fresh — no inter-user delay needed
-                        await processUserAlerts(id);
-                    } catch (e) {
-                        console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
-                        console.error(e);
-                    }
-                })));
-            } finally {
-                commitBatchWrites();
-            }
-        } else {
-            // Sequential mode (default): process users one at a time in batches of ALERT_BATCH_SIZE.
-            // Each batch is flushed as a single SQLite transaction, reducing write contention (A1).
-            let shouldWait = false;
-            let batchStart = 0;
-            while (batchStart < userList.length) {
-                const batchEnd = Math.min(batchStart + ALERT_BATCH_SIZE, userList.length);
-                beginBatchWrites();
+            await Promise.all(userList.map(id => limit(async () => {
                 try {
-                    for (let j = batchStart; j < batchEnd; j++) {
-                        const id = userList[j];
-                        try {
-                            shouldWait = await processUserAlerts(id, shouldWait);
-                        } catch (e) {
-                            console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
-                            console.error(e);
-                        }
-                    }
-                } finally {
-                    commitBatchWrites(); // flush this batch in one SQLite transaction
+                    // Each concurrent task starts fresh — no inter-user delay needed
+                    await processUserAlerts(id);
+                } catch (e) {
+                    console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
+                    console.error(e);
                 }
-                batchStart = batchEnd;
+            })));
+        } else {
+            // Sequential mode (default): one user at a time, with
+            // config.delayBetweenAlerts between real fetches.
+            let shouldWait = false;
+            for (const id of userList) {
+                try {
+                    shouldWait = await processUserAlerts(id, shouldWait);
+                } catch (e) {
+                    console.error("There was an error while trying to fetch and send alerts for user " + discordTag(id));
+                    console.error(e);
+                }
             }
         }
 

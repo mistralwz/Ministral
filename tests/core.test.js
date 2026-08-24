@@ -35,8 +35,6 @@ import {
     getAllUserIds,
     getUserIdsWithAlertsOrDailyShop,
     updateSingleAccountInDb,
-    beginBatchWrites,
-    commitBatchWrites,
     closeUserDatabase
 } from "../misc/userDatabase.js";
 
@@ -172,15 +170,13 @@ test("userDatabase: CRUD operations and transactions", () => {
     const refetchedUser = getUserFromDb("discord-user-1");
     assert.equal(refetchedUser.accounts[0].username, "RenamedPlayer#456");
 
-    // Batch writes
-    beginBatchWrites();
+    // Multi-user save
     saveUserToDb({
         ...mockUser,
         id: "discord-user-2",
         settings: { dailyShop: false },
         accounts: [{ ...mockUser.accounts[0], puuid: "puuid-account-2", userId: "discord-user-2", alerts: [] }]
     });
-    commitBatchWrites();
 
     const allIds = getAllUserIds();
     assert.ok(allIds.includes("discord-user-1"));
@@ -1112,4 +1108,51 @@ test("util: writeFileAtomic never leaves a half-written file in place", () => {
 
     fs.unlinkSync(target);
     fs.rmSync("data/atomic-subdir", { recursive: true, force: true });
+});
+
+test("stats: old day buckets are pruned and rank reflects counts, not insertion order", async () => {
+    const statsFile = "data/stats.json";
+    const backup = fs.existsSync(statsFile) ? fs.readFileSync(statsFile) : null;
+
+    const dayKey = (daysAgo) => {
+        const d = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+        return `${d.getUTCDate()}-${d.getUTCMonth() + 1}-${d.getUTCFullYear()}`;
+    };
+
+    // One bucket inside the retention window, one well outside it.
+    fs.writeFileSync(statsFile, JSON.stringify({
+        fileVersion: 2,
+        stats: {
+            [dayKey(1)]:   { shopsIncluded: 1, items: { "skin-fresh": 1 }, users: ["p1"] },
+            [dayKey(400)]: { shopsIncluded: 1, items: { "skin-stale": 9 }, users: ["p2"] }
+        }
+    }));
+
+    // Don't depend on the deployment's config for either of these.
+    const { default: cfg } = await import("../misc/config.js");
+    const restore = { track: cfg.trackStoreStats, days: cfg.statsExpirationDays };
+    cfg.trackStoreStats = true;
+    cfg.statsExpirationDays = 14;
+
+    const { loadStats, getStatsFor, flushStats } = await import("../misc/stats.js?prune-test");
+
+    loadStats();
+    // The stale bucket predates statsExpirationDays, so its item is gone —
+    // stats.json used to keep every day forever while telling users the
+    // window was N days.
+    assert.equal(getStatsFor("skin-stale").count, 0);
+    assert.equal(getStatsFor("skin-fresh").count, 1);
+
+    // Rank is derived from counts. Insertion order used to decide it, and
+    // addStore increments in place without re-sorting, so it drifted.
+    assert.deepEqual(getStatsFor("skin-fresh").rank, [1, 1]);
+    assert.deepEqual(getStatsFor("nonexistent").rank, [0, 1]);
+
+    // Pruning schedules a debounced save; drain it rather than leaving a timer
+    // that writes to the real stats file after the suite finishes.
+    flushStats();
+    cfg.trackStoreStats = restore.track;
+    cfg.statsExpirationDays = restore.days;
+    if (backup) fs.writeFileSync(statsFile, backup);
+    else fs.unlinkSync(statsFile);
 });
