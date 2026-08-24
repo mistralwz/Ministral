@@ -228,7 +228,7 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
         } while (!offers.success);
 
         if (offers.success && offers.offers) {
-            if (dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, valorantUser);
+            if (dailyShopChannel && i === userJson.currentAccount) await sendDailyShop(id, offers, dailyShopChannel, i);
 
             const positiveAlerts = userAlerts.filter(alert => offers.offers.includes(alert.uuid));
             if (positiveAlerts.length) await sendAlert(id, i, positiveAlerts, offers.expires);
@@ -477,13 +477,19 @@ export const sendCredentialsExpired = async (id, alert, tryOnOtherShard = true) 
     });
 }
 
-export const sendDailyShop = async (id, shop, channelId, valorantUser, tryOnOtherShard = true) => {
+export const sendDailyShop = async (id, shop, channelId, account, tryOnOtherShard = true) => {
     const channel = await fetchChannel(channelId);
     if (!channel) {
         if (tryOnOtherShard) {
+            // Carries the account index, not the User object. That object holds
+            // the Riot rso / entitlements / id / refresh tokens, and when the
+            // targeted delivery misses, sendShardMessageForChannel falls back to
+            // broadcasting to *every* shard — so one user's credentials were
+            // being serialised into every bot process just to render an embed.
+            // Every shard reads the same SQLite database and can look them up.
             const delivered = await sendShardMessageForChannel({
                 type: "dailyShop",
-                id, shop, channelId, valorantUser
+                id, shop, channelId, account
             }, channelId);
             if (!delivered) {
                 const user = await getClient()?.users.fetch(id).catch(() => null);
@@ -497,6 +503,9 @@ export const sendDailyShop = async (id, shop, channelId, valorantUser, tryOnOthe
         // If tryOnOtherShard=false and channel not found, silently skip
         return;
     }
+
+    const valorantUser = getUser(id, account);
+    if (!valorantUser) return;
 
     const shouldPing = getSetting(id, "pingOnAutoDailyShop");
     const content = shouldPing ? `<@${id}>` : null;
@@ -845,7 +854,7 @@ onShardMessage(async (message) => {
             await sendAlert(message.id, message.account, message.alerts, message.expires, false, message.alertsLength);
             return true;
         case "dailyShop":
-            await sendDailyShop(message.id, message.shop, message.channelId, message.valorantUser, false);
+            await sendDailyShop(message.id, message.shop, message.channelId, message.account, false);
             return true;
         case "credentialsExpired":
             await sendCredentialsExpired(message.id, message.alert, false);
