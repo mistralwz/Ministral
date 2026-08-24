@@ -107,12 +107,13 @@ import fuzzysort from "fuzzysort";
 import { getSkins, getLoadout } from "../valorant/inventory.js";
 import { getAccountInfo, fetchMatchHistory } from "../valorant/profile.js";
 import {
-    fetchLiveGame, selectAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode
+    fetchLiveGame, selectAgent, makePartyCode, removePartyCode, changeQueue, startQueue, cancelQueue, joinPartyByCode,
+    clearLiveGameCache
 } from "../valorant/livegame.js";
 import { renderLiveGame, renderLiveGameError, setRoleSelection } from "./livegameEmbed.js";
 
 // ─── Pre-game → in-game transition poller ─────────────────────────────────
-// Maps userId → { timer: Timeout, retries: number }
+// Maps userId → Timeout
 const liveGamePollers = new Map();
 const POLLER_MAX_TIME_MS = 300_000;       // 5 mins total
 
@@ -143,9 +144,9 @@ const rejectNotYourLiveGame = async (interaction, ownerId) => {
  * Cancel any running pre-game poller for this user.
  */
 const cancelLiveGamePoller = (userId) => {
-    const existing = liveGamePollers.get(userId);
-    if (existing) {
-        clearTimeout(existing.timer);
+    const timer = liveGamePollers.get(userId);
+    if (timer) {
+        clearTimeout(timer);
         liveGamePollers.delete(userId);
     }
 };
@@ -236,7 +237,7 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
         }
     }, config.livegamePollingInterval);
 
-    liveGamePollers.set(userId, { timer, retries: retriesLeft });
+    liveGamePollers.set(userId, timer);
 };
 import { spawn } from "child_process";
 import * as fs from "fs";
@@ -652,9 +653,7 @@ const globalCommands = commands.map(cmd => ({ ...cmd, integration_types: [0, 1],
 
 export const stopBot = async (replyFn) => {
     localLog("Stopping the bot...");
-    for (const [userId, poller] of liveGamePollers.entries()) {
-        clearTimeout(poller.timer);
-    }
+    for (const timer of liveGamePollers.values()) clearTimeout(timer);
     liveGamePollers.clear();
     if (replyFn) {
         try {
@@ -787,6 +786,7 @@ client.on("messageCreate", async (message) => {
                 await message.channel.send("Clearing shop cache (memory + Redis), deleting skins.json and resetting skin cache...");
                 fs.rmSync("data/skins.json");
                 clearCache();
+                clearLiveGameCache();
                 await fetchData();
 
                 await message.reply("Successfully cleared shop cache (memory + Redis) and skin cache!");

@@ -53,7 +53,7 @@ import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
-import { cachedByPuuid, resolveServerName } from "../valorant/livegame.js";
+import { cachedByPuuid, resolveServerName, parseMMRData } from "../valorant/livegame.js";
 import { formatServerName, formatPreferredServers } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
@@ -919,4 +919,36 @@ test("livegame: formatServerName and formatPreferredServers attach flags", () =>
         formatPreferredServers(["aresriot.aws-dfw1-prod.na-gp-dallas-1", "aresriot.aws-chi1-prod.na-gp-chicago-1"]),
         "🇺🇸 Texas, Illinois"
     );
+});
+
+test("livegame: parseMMRData reports the current act, not the last one played", () => {
+    const CURRENT = "act-current", OLD = "act-old";
+    const seasonal = {
+        [OLD]: { CompetitiveTier: 20, RankedRating: 60, NumberOfGames: 40, NumberOfWinsWithPlacements: 25 }
+    };
+    const mmr = {
+        LatestCompetitiveUpdate: { SeasonID: OLD, TierAfterUpdate: 20, RankedRatingAfterUpdate: 60 },
+        QueueSkills: { competitive: { SeasonalInfoBySeasonID: seasonal } }
+    };
+
+    // Hasn't played the current act -> Unranked, not last act's tier.
+    const fresh = parseMMRData(mmr, CURRENT);
+    assert.equal(fresh.currentTier, 0);
+    assert.equal(fresh.currentRR, 0);
+    assert.equal(fresh.peakTier, 20);          // peak still remembers it
+    assert.equal(fresh.peakSeasonId, OLD);
+
+    // A stale currentSeasonId is exactly the act-rollover bug: the same payload
+    // reports the old act's rank as current. Expiring the seasons cache at the
+    // act's endTime is what stops this happening.
+    assert.equal(parseMMRData(mmr, OLD).currentTier, 20);
+
+    // Played the current act -> that act's numbers win.
+    seasonal[CURRENT] = { CompetitiveTier: 12, RankedRating: 30, NumberOfGames: 10, NumberOfWinsWithPlacements: 6 };
+    const played = parseMMRData(mmr, CURRENT);
+    assert.equal(played.currentTier, 12);
+    assert.equal(played.currentRR, 30);
+    assert.equal(played.games, 10);
+    assert.equal(played.wins, 6);
+    assert.equal(played.winRate, 60);
 });

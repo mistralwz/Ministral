@@ -105,10 +105,10 @@ export const clearLiveGameCache = () => {
     competitiveTiersCache = null;
     gamemodesCache = null;
     gamemodeIconsCache = null;
-    mapImagesCache = null;
     mapNamesCache = null;
     seasonsCache = null;
     currentSeasonId = null;
+    nextSeasonCheck = 0;
     playerMmrCache.clear();
     playerRecentMatchesCache.clear();
     playerCombatStatsCache.clear();
@@ -188,47 +188,24 @@ export const resolveMapName = (mapId) =>
     ?? (mapId?.split("/").pop() ?? "Unknown Map");
 
 // ──────────────────────────────────────────────
-// Map data cache — image + display name per mapUrl
+// Map data cache — display name per mapUrl
 // ──────────────────────────────────────────────
 
-let mapImagesCache = null;
-let mapNamesCache = null;  // populated alongside images
+let mapNamesCache = null;
 
-const loadMapImages = async () => {
-    if (mapImagesCache) return;
+const loadMapNames = async () => {
+    if (mapNamesCache) return;
     try {
         const req = await fetch("https://valorant-api.com/v1/maps");
         const json = JSON.parse(req.body);
-        mapImagesCache = {};
         mapNamesCache = {};
         for (const m of json.data) {
-            const icon = m.listViewIcon ?? m.splash ?? null;
-            if (m.mapUrl) {
-                // listViewIcon is the compact image used in the embed
-                mapImagesCache[m.mapUrl] = icon;
-                if (m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
-            }
-            if (m.displayName) {
-                mapImagesCache[m.displayName] = icon;
-                mapImagesCache[m.displayName.toLowerCase()] = icon;
-            }
+            if (m.mapUrl && m.displayName) mapNamesCache[m.mapUrl] = m.displayName;
         }
     } catch (e) {
-        console.error("[livegame] Failed to load map images:", e);
-        mapImagesCache = {};
+        console.error("[livegame] Failed to load map names:", e);
         mapNamesCache = {};
     }
-};
-
-export const resolveMapImage = async (mapIdOrName) => {
-    if (!mapIdOrName) return null;
-    await loadMapImages();
-    if (mapImagesCache[mapIdOrName]) return mapImagesCache[mapIdOrName];
-    if (mapImagesCache[mapIdOrName.toLowerCase()]) return mapImagesCache[mapIdOrName.toLowerCase()];
-    if (mapIdOrName === "/Game/Maps/Arena/Arena") {
-        return mapImagesCache["/Game/Maps/Poveglia/Range"] ?? mapImagesCache["/Game/Maps/PovegliaV2/RangeV2"] ?? null;
-    }
-    return null;
 };
 
 // ──────────────────────────────────────────────
@@ -236,7 +213,8 @@ export const resolveMapImage = async (mapIdOrName) => {
 // ──────────────────────────────────────────────
 
 let seasonsCache = null;
-let currentSeasonId = null;  // UUID of the currently active act (populated by loadSeasons)
+let currentSeasonId = null;   // UUID of the currently active act (populated by loadSeasons)
+let nextSeasonCheck = 0;      // re-derive the active act once the current one ends
 
 /**
  * Derive a short act label from the season's assetPath.
@@ -253,8 +231,15 @@ const actLabelFromPath = (assetPath = "") => {
 };
 
 const loadSeasons = async () => {
-    if (seasonsCache) return seasonsCache;
-    seasonsCache = new Map();
+    // Acts roll over every ~2 months. Caching this for the process lifetime left
+    // currentSeasonId pointing at the *previous* act, and parseMMRData would then
+    // read everyone's old-act entry and report it as their current rank until the
+    // bot was restarted. Expire at the act's own endTime instead.
+    if (seasonsCache && Date.now() < nextSeasonCheck) return seasonsCache;
+
+    const seasons = new Map();
+    let activeId = null;
+    let activeEndsAt = 0;
     try {
         const req = await fetch("https://valorant-api.com/v1/seasons");
         if (req.statusCode === 200) {
@@ -263,13 +248,16 @@ const loadSeasons = async () => {
             for (const s of data) {
                 if (s.type === "EAresSeasonType::Act") {
                     const label = actLabelFromPath(s.assetPath);
-                    if (label) seasonsCache.set(s.uuid, label);
+                    if (label) seasons.set(s.uuid, label);
                     // Detect the currently active act so parseMMRData can
                     // distinguish "unranked this season" from "old season rank".
                     if (s.startTime && s.endTime) {
                         const start = new Date(s.startTime).getTime();
                         const end = new Date(s.endTime).getTime();
-                        if (now >= start && now <= end) currentSeasonId = s.uuid;
+                        if (now >= start && now <= end) {
+                            activeId = s.uuid;
+                            activeEndsAt = end;
+                        }
                     }
                 }
             }
@@ -277,6 +265,13 @@ const loadSeasons = async () => {
     } catch (e) {
         console.error("[livegame] loadSeasons failed:", e);
     }
+
+    // Keep the previous cache on a failed refresh rather than blanking it.
+    if (seasons.size > 0 || !seasonsCache) seasonsCache = seasons;
+    if (activeId) currentSeasonId = activeId;
+    // Re-check when the act ends, but never more than hourly — a failed fetch or
+    // a gap between acts must not turn this into a per-call request.
+    nextSeasonCheck = Math.max(activeEndsAt, Date.now() + 60 * 60 * 1000);
     return seasonsCache;
 };
 
@@ -422,7 +417,7 @@ const SINGLE_TEAM_QUEUES = new Set(["deathmatch"]);
  * the raw pd/mmr/v1/players response JSON.
  */
 export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
-    const empty = { currentTier: 0, currentRR: 0, peakTier: 0, wins: 0, games: 0, winRate: null, _rawLatestMatchId: null, _rawLatestMatchStartTime: null };
+    const empty = { currentTier: 0, currentRR: 0, peakTier: 0, wins: 0, games: 0, winRate: null };
     if (!mmrJson) return empty;
 
     // Current rank — best source is the latest competitive update
@@ -479,11 +474,7 @@ export const parseMMRData = (mmrJson, knownCurrentSeasonId = null) => {
     const winRate = games > 0 ? Math.round((wins / games) * 100) : null;
     const losses = games - wins;
 
-    return {
-        currentTier, currentRR, peakTier, peakSeasonId, wins, losses, games, winRate,
-        _rawLatestMatchId: latest?.MatchID ?? null,
-        _rawLatestMatchStartTime: latest?.MatchStartTime ?? null
-    };
+    return { currentTier, currentRR, peakTier, peakSeasonId, wins, losses, games, winRate };
 };
 
 const safeJson = (str) => {
@@ -1174,7 +1165,7 @@ const fetchPlayerCombatStats = (user, puuids) => {
  * Enrich raw player objects with name, rank, agent, and level info.
  * modifies players in-place AND returns them.
  */
-const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
+const enrichPlayers = async (id, account, rawPlayers) => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
 
@@ -1274,7 +1265,7 @@ const enrichPlayers = async (id, account, rawPlayers, queueId = "") => {
  */
 export const fetchLiveGame = async (id, account = null) => {
     // 1. Ensure static caches are ready before the parallel API calls
-    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapImages(), loadSeasons(), loadGamemodes()]);
+    await Promise.all([loadAgents(), loadCompetitiveTiers(), loadMapNames(), loadSeasons(), loadGamemodes()]);
 
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
@@ -1291,27 +1282,25 @@ export const fetchLiveGame = async (id, account = null) => {
     if (!party.success) return party;
 
     if (inGame.state === "ingame") {
-        const enriched = await enrichPlayers(id, account, inGame.players, inGame.queueId);
+        const enriched = await enrichPlayers(id, account, inGame.players);
         const allyPlayers = enriched.filter(p => p.isAlly);
         const enemyPlayers = enriched.filter(p => !p.isAlly);
-        const mapImage = await resolveMapImage(inGame.mapId);
         const isSingleTeam = SINGLE_TEAM_QUEUES.has(inGame.queueId?.toLowerCase());
         const queueIcon = resolveQueueIcon(inGame.queueId);
-        return { ...inGame, players: enriched, allyPlayers, enemyPlayers, mapImage, isSingleTeam, queueIcon };
+        return { ...inGame, players: enriched, allyPlayers, enemyPlayers, isSingleTeam, queueIcon };
     }
 
     if (preGame.state === "pregame") {
-        const enriched = await enrichPlayers(id, account, preGame.players, preGame.queueId);
-        const mapImage = await resolveMapImage(preGame.mapId);
+        const enriched = await enrichPlayers(id, account, preGame.players);
         const isSingleTeam = SINGLE_TEAM_QUEUES.has(preGame.queueId?.toLowerCase());
         const queueIcon = resolveQueueIcon(preGame.queueId);
-        return { ...preGame, players: enriched, allyPlayers: enriched, enemyPlayers: [], mapImage, isSingleTeam, queueIcon };
+        return { ...preGame, players: enriched, allyPlayers: enriched, enemyPlayers: [], isSingleTeam, queueIcon };
     }
 
     if (party.state === "queuing" || party.state === "not_queuing") {
         let enriched = [];
         if (party.members && party.members.length > 0) {
-            enriched = await enrichPlayers(id, account, party.members, party.queueId);
+            enriched = await enrichPlayers(id, account, party.members);
         }
 
         const user = getUser(id, account);
