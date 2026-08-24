@@ -13,7 +13,8 @@ import {
     removeDupeAlerts,
     WeaponType,
     WeaponTypeUuid,
-    WEAPON_CATEGORIES
+    WEAPON_CATEGORIES,
+    writeFileAtomic
 } from "../misc/util.js";
 
 import {
@@ -1090,4 +1091,25 @@ test("accountSwitcher: switchAccount rejects out-of-range indexes instead of per
     }
 
     deleteUserFromDb("switch-test-user");
+});
+
+test("util: writeFileAtomic never leaves a half-written file in place", () => {
+    const target = "data/atomic-test.json";
+    try { fs.unlinkSync(target); } catch {}
+
+    writeFileAtomic(target, JSON.stringify({ v: 1 }));
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { v: 1 });
+
+    // Overwrite: the old content stays readable right up to the rename, and
+    // no .tmp is left behind afterwards.
+    writeFileAtomic(target, JSON.stringify({ v: 2 }));
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { v: 2 });
+    assert.equal(fs.existsSync(target + ".tmp"), false);
+
+    // Creates missing directories, like the callers used to do themselves.
+    writeFileAtomic("data/atomic-subdir/nested.json", "[]");
+    assert.equal(fs.readFileSync("data/atomic-subdir/nested.json", "utf8"), "[]");
+
+    fs.unlinkSync(target);
+    fs.rmSync("data/atomic-subdir", { recursive: true, force: true });
 });

@@ -1,5 +1,6 @@
 import config from "./config.js";
 import fs from "fs";
+import { writeFileAtomic } from "./util.js";
 
 let stats = {
     fileVersion: 2,
@@ -43,10 +44,6 @@ export const loadStats = (filename = "data/stats.json") => {
 
 const saveStats = (filename = "data/stats.json") => {
     try {
-        const dir = filename.substring(0, filename.lastIndexOf("/"));
-        if (dir && !fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
         const serializableStats = {
             fileVersion: stats.fileVersion,
             stats: {}
@@ -59,7 +56,7 @@ const saveStats = (filename = "data/stats.json") => {
                 users: dayStats.users instanceof Set ? [...dayStats.users] : (dayStats.users || [])
             };
         }
-        fs.writeFileSync(filename, JSON.stringify(serializableStats));
+        writeFileAtomic(filename, JSON.stringify(serializableStats));
         statsDirty = false;
     } catch (e) {
         console.error("Failed to save store stats to disk:", e);

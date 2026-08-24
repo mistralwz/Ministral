@@ -104,6 +104,28 @@ export const safeJson = (str) => {
     try { return JSON.parse(str); } catch { return null; }
 };
 
+/**
+ * Write a file atomically: temp file first, then rename over the target.
+ *
+ * A plain writeFileSync truncates the real file before it writes, so a crash,
+ * a `docker stop` or a full disk mid-write leaves a half-written file that
+ * JSON.parse can't read on the next boot. rename() within a filesystem is
+ * atomic, so a reader sees either the old file or the new one.
+ */
+export const writeFileAtomic = (filename, contents) => {
+    const dir = filename.substring(0, filename.lastIndexOf("/"));
+    if (dir && !fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const tmpFile = `${filename}.tmp`;
+    try {
+        fs.writeFileSync(tmpFile, contents);
+        fs.renameSync(tmpFile, filename);
+    } catch (e) {
+        try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch {}
+        throw e;
+    }
+};
+
 export const WeaponTypeUuid = {
     Odin: "63e6c2b6-4a8e-869c-3d4c-e38355226584",
     Ares: "55d8a0f4-4274-ca67-fe2c-06ab45efdf58",

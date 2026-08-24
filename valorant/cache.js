@@ -1,4 +1,4 @@
-import { fetch, itemTypes, safeJson } from "../misc/util.js";
+import { fetch, itemTypes, safeJson, writeFileAtomic } from "../misc/util.js";
 import config from "../misc/config.js";
 import fuzzysort from "fuzzysort";
 import fs from "fs";
@@ -211,10 +211,6 @@ const buildSkinIndices = () => {
 };
 
 export const saveSkinsJSON = (filename = "data/skins.json") => {
-    const dir = filename.substring(0, filename.lastIndexOf("/"));
-    if (dir && !fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
     let cleanSkins = skins;
     if (skins && typeof skins === "object") {
         cleanSkins = { version: skins.version };
@@ -228,7 +224,7 @@ export const saveSkinsJSON = (filename = "data/skins.json") => {
             }
         }
     }
-    fs.writeFileSync(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins: cleanSkins, prices, bundles, rarities, buddies, flexes, sprays, cards, titles, battlepass }));
+    writeFileAtomic(filename, JSON.stringify({ formatVersion, gameVersion, weapons, skins: cleanSkins, prices, bundles, rarities, buddies, flexes, sprays, cards, titles, battlepass }));
     skinsSaveDirty = false;
     
     sendShardMessage({ type: "skinsReload" });
