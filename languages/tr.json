@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Otomatik",
     "JOIN_PARTY": "Gruba Katıl",
     "PARTY_CLOSED": "Grup Kapalı",
-    "PLAYER_NUM": "Oyuncu {n}"
+    "PLAYER_NUM": "Oyuncu {n}",
+    "JOIN_PARTY_SUCCESS": "Gruba başarıyla katıldın!",
+    "JOIN_PARTY_EXPIRED": "Bu grup kodu geçersiz veya süresi dolmuş. Grup kapatılmış veya yeni bir kod oluşturulmuş olabilir.",
+    "JOIN_PARTY_FULL": "Bu grup zaten dolu.",
+    "JOIN_PARTY_ALREADY_IN": "Zaten bu gruptasın.",
+    "JOIN_PARTY_FAIL": "Gruba katılma başarısız oldu. VALORANT istemcinizin açık, giriş yapılmış ve aynı bölgede olduğundan emin olun.",
+    "PARTY_CLOSED_DESC": "Bu grup kapalı.",
+    "AVG_RANK": "Ort. Kademe"
   },
   "queues": {
     "COMPETITIVE": "Rekabetçi",

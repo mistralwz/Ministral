@@ -233,7 +233,7 @@ export const formatPlayerRow = async (player, channel, showCompStats = false, va
 /**
  * Calculate average rank and matching embed color across players.
  */
-export const calculateLobbyRank = async (players) => {
+export const calculateLobbyRank = async (players, userId = null) => {
     if (!players || players.length === 0) return { avgRankQuote: "", color: null };
 
     const rankedPlayers = players.filter(p => p.currentTier > 0);
@@ -255,7 +255,8 @@ export const calculateLobbyRank = async (players) => {
         lobbyColor = getRankColor(avgPeakTierInfo.name);
     }
 
-    const avgRankQuote = avgRankStr ? `> 🏆 **Avg. Rank:** ${avgRankStr}` : "";
+    const avgRankLabel = s(userId).livegame?.AVG_RANK || "Avg. Rank";
+    const avgRankQuote = avgRankStr ? `> 🏆 **${avgRankLabel}:** ${avgRankStr}` : "";
     return { avgRankQuote, color: lobbyColor };
 };
 
@@ -299,7 +300,7 @@ const buildGameEmbeds = async (data, allyPlayers, enemyPlayers, channel, userId 
     const allPlayers = isTeamGame ? [...allyPlayers, ...enemyPlayers] : allyPlayers;
 
     const [{ avgRankQuote, color: rankColor }, allyBlock, enemyBlock] = await Promise.all([
-        calculateLobbyRank(allPlayers),
+        calculateLobbyRank(allPlayers, userId),
         formatPlayersBlock(allyPlayers, channel, showCompStats, valLang, userId),
         isTeamGame
             ? formatPlayersBlock(enemyPlayers, channel, showCompStats, valLang, userId)
@@ -413,7 +414,7 @@ export const renderLiveGame = async (liveGameData, userId, _isDM = false, channe
             }
         }
 
-        const { avgRankQuote, color: rankColor } = hasParty ? await calculateLobbyRank(allyPlayers) : { avgRankQuote: "", color: null };
+        const { avgRankQuote, color: rankColor } = hasParty ? await calculateLobbyRank(allyPlayers, userId) : { avgRankQuote: "", color: null };
 
         const headerLines = [];
         if (config.notice) headerLines.push(config.notice);

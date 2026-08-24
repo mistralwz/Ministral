@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "自动",
     "JOIN_PARTY": "加入队伍",
     "PARTY_CLOSED": "队伍已关闭",
-    "PLAYER_NUM": "玩家 {n}"
+    "PLAYER_NUM": "玩家 {n}",
+    "JOIN_PARTY_SUCCESS": "成功加入队伍！",
+    "JOIN_PARTY_EXPIRED": "此队伍代码无效或已过期。队伍可能已关闭或生成了新代码。",
+    "JOIN_PARTY_FULL": "此队伍已满员。",
+    "JOIN_PARTY_ALREADY_IN": "你已经在此队伍中。",
+    "JOIN_PARTY_FAIL": "加入队伍失败。请确保你的无畏契约客户端已启动、已登录且在同一区域。",
+    "PARTY_CLOSED_DESC": "此队伍已关闭。",
+    "AVG_RANK": "平均段位"
   },
   "queues": {
     "COMPETITIVE": "竞技",

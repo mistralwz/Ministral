@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Tự động",
     "JOIN_PARTY": "Tham gia nhóm",
     "PARTY_CLOSED": "Nhóm đã đóng",
-    "PLAYER_NUM": "Người chơi {n}"
+    "PLAYER_NUM": "Người chơi {n}",
+    "JOIN_PARTY_SUCCESS": "Đã tham gia nhóm thành công!",
+    "JOIN_PARTY_EXPIRED": "Mã nhóm này không hợp lệ hoặc đã hết hạn. Nhóm có thể đã đóng hoặc tạo mã mới.",
+    "JOIN_PARTY_FULL": "Nhóm này đã đầy.",
+    "JOIN_PARTY_ALREADY_IN": "Bạn đã ở trong nhóm này rồi.",
+    "JOIN_PARTY_FAIL": "Không thể tham gia nhóm. Hãy đảm bảo game VALORANT đang mở, đã đăng nhập và cùng khu vực.",
+    "PARTY_CLOSED_DESC": "Nhóm này đã đóng.",
+    "AVG_RANK": "Hạng trung bình"
   },
   "queues": {
     "COMPETITIVE": "Xếp hạng",

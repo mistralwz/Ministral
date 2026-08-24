@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Av automatikk (A-Ser)",
     "JOIN_PARTY": "Bli med i gruppe",
     "PARTY_CLOSED": "Gruppe stengt",
-    "PLAYER_NUM": "Spiller {n}"
+    "PLAYER_NUM": "Spiller {n}",
+    "JOIN_PARTY_SUCCESS": "Ble med i gruppen!",
+    "JOIN_PARTY_EXPIRED": "Denne gruppekoden er ugyldig eller utløpt. Gruppen kan være stengt eller ha generert en ny kode.",
+    "JOIN_PARTY_FULL": "Denne gruppen er allerede full.",
+    "JOIN_PARTY_ALREADY_IN": "Du er allerede i denne gruppen.",
+    "JOIN_PARTY_FAIL": "Kunne ikke bli med i gruppen. Kontroller at VALORANT-klienten er åpen, innlogget og i samme region.",
+    "PARTY_CLOSED_DESC": "Denne gruppen er stengt.",
+    "AVG_RANK": "Gj.snittlig rang"
   },
   "queues": {
     "COMPETITIVE": "Konkurranse-Rangert",

@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Otomatis",
     "JOIN_PARTY": "Gabung Party",
     "PARTY_CLOSED": "Party Ditutup",
-    "PLAYER_NUM": "Pemain {n}"
+    "PLAYER_NUM": "Pemain {n}",
+    "JOIN_PARTY_SUCCESS": "Berhasil bergabung dengan party!",
+    "JOIN_PARTY_EXPIRED": "Kode party ini tidak valid atau telah kedaluwarsa. Party mungkin sudah ditutup atau membuat kode baru.",
+    "JOIN_PARTY_FULL": "Party ini sudah penuh.",
+    "JOIN_PARTY_ALREADY_IN": "Kamu sudah berada di party ini.",
+    "JOIN_PARTY_FAIL": "Gagal bergabung dengan party. Pastikan client VALORANT kamu terbuka, sudah login, dan berada di region yang sama.",
+    "PARTY_CLOSED_DESC": "Party ini ditutup.",
+    "AVG_RANK": "Rank Rata-rata"
   },
   "queues": {
     "COMPETITIVE": "Kompetitif",

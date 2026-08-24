@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Join Party",
     "PARTY_CLOSED": "Party Closed",
-    "PLAYER_NUM": "Player {n}"
+    "PLAYER_NUM": "Player {n}",
+    "JOIN_PARTY_SUCCESS": "Successfully joined the party!",
+    "JOIN_PARTY_EXPIRED": "This party code is invalid or has expired. The party may have closed or generated a new code.",
+    "JOIN_PARTY_FULL": "This party is already full.",
+    "JOIN_PARTY_ALREADY_IN": "You are already in this party.",
+    "JOIN_PARTY_FAIL": "Failed to join the party. Ensure your VALORANT client is open, logged in, and in the same region.",
+    "PARTY_CLOSED_DESC": "This party is closed.",
+    "AVG_RANK": "Avg. Rank"
   },
   "queues": {
     "COMPETITIVE": "Competitive",

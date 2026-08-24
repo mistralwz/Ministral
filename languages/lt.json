@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Automatinis",
     "JOIN_PARTY": "Prisijungti prie grupės",
     "PARTY_CLOSED": "Grupė uždaryta",
-    "PLAYER_NUM": "Žaidėjas {n}"
+    "PLAYER_NUM": "Žaidėjas {n}",
+    "JOIN_PARTY_SUCCESS": "Sėkmingai prisijungta prie grupės!",
+    "JOIN_PARTY_EXPIRED": "Šis grupės kodas neteisingas arba baigėsi jo galiojimas. Grupė galėjo būti uždaryta arba sukurtas naujas kodas.",
+    "JOIN_PARTY_FULL": "Ši grupė jau pilna.",
+    "JOIN_PARTY_ALREADY_IN": "Jūs jau esate šioje grupėje.",
+    "JOIN_PARTY_FAIL": "Nepavyko prisijungti prie grupės. Įsitikinkite, kad VALORANT klientas atidarytas, esate prisijungę ir tame pačiame regione.",
+    "PARTY_CLOSED_DESC": "Ši grupė uždaryta.",
+    "AVG_RANK": "Vid. rangas"
   },
   "queues": {
     "COMPETITIVE": "Competitive",

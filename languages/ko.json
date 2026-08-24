@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "자동",
     "JOIN_PARTY": "파티 참가",
     "PARTY_CLOSED": "파티 마감",
-    "PLAYER_NUM": "플레이어 {n}"
+    "PLAYER_NUM": "플레이어 {n}",
+    "JOIN_PARTY_SUCCESS": "파티에 성공적으로 참가했습니다!",
+    "JOIN_PARTY_EXPIRED": "이 파티 코드가 유효하지 않거나 만료되었습니다. 파티가 닫혔거나 새로운 코드가 생성되었을 수 있습니다.",
+    "JOIN_PARTY_FULL": "파티가 이미 가득 찼습니다.",
+    "JOIN_PARTY_ALREADY_IN": "이미 이 파티에 참가 중입니다.",
+    "JOIN_PARTY_FAIL": "파티 참가에 실패했습니다. 발로란트 클라이언트가 실행 중이고 로그인되어 있으며 동일한 지역인지 확인하세요.",
+    "PARTY_CLOSED_DESC": "이 파티는 닫혀 있습니다.",
+    "AVG_RANK": "평균 랭크"
   },
   "queues": {
     "COMPETITIVE": "경쟁전",

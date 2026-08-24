@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Sumali sa Party",
     "PARTY_CLOSED": "Sarado ang Party",
-    "PLAYER_NUM": "Manlalaro {n}"
+    "PLAYER_NUM": "Manlalaro {n}",
+    "JOIN_PARTY_SUCCESS": "Matagumpay na sumali sa party!",
+    "JOIN_PARTY_EXPIRED": "Ang party code na ito ay hindi wasto o nag-expire na. Maaaring sarado na ang party o nakabuo ng bagong code.",
+    "JOIN_PARTY_FULL": "Puno na ang party na ito.",
+    "JOIN_PARTY_ALREADY_IN": "Nasa party ka na na ito.",
+    "JOIN_PARTY_FAIL": "Nabigong sumali sa party. Siguraduhing bukas ang iyong VALORANT client, naka-login, at nasa parehong rehiyon.",
+    "PARTY_CLOSED_DESC": "Sarado ang party na ito.",
+    "AVG_RANK": "Average na Rank"
   },
   "queues": {
     "COMPETITIVE": "Competitive",

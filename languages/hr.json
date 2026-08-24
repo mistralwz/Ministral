@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Ai/Aut",
     "JOIN_PARTY": "Pridruži se grupi",
     "PARTY_CLOSED": "Grupa zatvorena",
-    "PLAYER_NUM": "Igrač {n}"
+    "PLAYER_NUM": "Igrač {n}",
+    "JOIN_PARTY_SUCCESS": "Uspješno ste se pridružili grupi!",
+    "JOIN_PARTY_EXPIRED": "Ovaj kod grupe nije valjan ili je istekao. Grupa je možda zatvorena ili je stvoren novi kod.",
+    "JOIN_PARTY_FULL": "Ova grupa je već puna.",
+    "JOIN_PARTY_ALREADY_IN": "Već ste u ovoj grupi.",
+    "JOIN_PARTY_FAIL": "Neuspješno pridruživanje grupi. Provjerite je li vaš VALORANT klijent otvoren, prijavljen i u istoj regiji.",
+    "PARTY_CLOSED_DESC": "Ova grupa je zatvorena.",
+    "AVG_RANK": "Prosj. rang"
   },
   "queues": {
     "COMPETITIVE": "Konkur...",

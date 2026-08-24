@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "自動",
     "JOIN_PARTY": "パーティーに参加",
     "PARTY_CLOSED": "パーティーは締め切られました",
-    "PLAYER_NUM": "プレイヤー {n}"
+    "PLAYER_NUM": "プレイヤー {n}",
+    "JOIN_PARTY_SUCCESS": "パーティーに参加しました！",
+    "JOIN_PARTY_EXPIRED": "このパーティーコードは無効か、有効期限が切れています。パーティーが解散したか、新しいコードが生成された可能性があります。",
+    "JOIN_PARTY_FULL": "このパーティーはすでに満員です。",
+    "JOIN_PARTY_ALREADY_IN": "すでにこのパーティーに参加しています。",
+    "JOIN_PARTY_FAIL": "パーティーへの参加に失敗しました。VALORANTが起動し、ログインしており、同じリージョンであることを確認してください。",
+    "PARTY_CLOSED_DESC": "このパーティーは締め切られています。",
+    "AVG_RANK": "平均ランク"
   },
   "queues": {
     "COMPETITIVE": "コンペティティブ",

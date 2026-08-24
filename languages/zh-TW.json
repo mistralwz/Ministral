@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "自動",
     "JOIN_PARTY": "加入隊伍",
     "PARTY_CLOSED": "隊伍已關閉",
-    "PLAYER_NUM": "玩家 {n}"
+    "PLAYER_NUM": "玩家 {n}",
+    "JOIN_PARTY_SUCCESS": "成功加入隊伍！",
+    "JOIN_PARTY_EXPIRED": "此隊伍代碼無效或已過期。隊伍可能已關閉或生成了新代碼。",
+    "JOIN_PARTY_FULL": "此隊伍已滿員。",
+    "JOIN_PARTY_ALREADY_IN": "你已經在此隊伍中。",
+    "JOIN_PARTY_FAIL": "加入隊伍失敗。請確保你的特戰英豪用戶端已啟動、已登入且在同一地區。",
+    "PARTY_CLOSED_DESC": "此隊伍已關閉。",
+    "AVG_RANK": "平均牌位"
   },
   "queues": {
     "COMPETITIVE": "競技",

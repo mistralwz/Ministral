@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Alătură-te Grupului",
     "PARTY_CLOSED": "Grup Închis",
-    "PLAYER_NUM": "Jucătorul {n}"
+    "PLAYER_NUM": "Jucătorul {n}",
+    "JOIN_PARTY_SUCCESS": "Te-ai alăturat grupului cu succes!",
+    "JOIN_PARTY_EXPIRED": "Acest cod de grup este nevalid sau a expirat. Este posibil ca grupul să se fi închis sau să fi generat un cod nou.",
+    "JOIN_PARTY_FULL": "Acest grup este deja plin.",
+    "JOIN_PARTY_ALREADY_IN": "Ești deja în acest grup.",
+    "JOIN_PARTY_FAIL": "Nu s-a putut alătura grupului. Asigură-te că jocul VALORANT este deschis, autentificat și în aceeași regiune.",
+    "PARTY_CLOSED_DESC": "Acest grup este închis.",
+    "AVG_RANK": "Rang mediu"
   },
   "queues": {
     "COMPETITIVE": "Competitiv",

@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Automatycznie",
     "JOIN_PARTY": "Dołącz do grupy",
     "PARTY_CLOSED": "Grupa zamknięta",
-    "PLAYER_NUM": "Gracz {n}"
+    "PLAYER_NUM": "Gracz {n}",
+    "JOIN_PARTY_SUCCESS": "Pomyślnie dołączono do grupy!",
+    "JOIN_PARTY_EXPIRED": "Ten kod grupy jest nieprawidłowy lub wygasł. Grupa mogła zostać zamknięta lub wygenerowano nowy kod.",
+    "JOIN_PARTY_FULL": "Ta grupa jest już pełna.",
+    "JOIN_PARTY_ALREADY_IN": "Jesteś już w tej grupie.",
+    "JOIN_PARTY_FAIL": "Nie udało się dołączyć do grupy. Upewnij się, że klient VALORANT jest uruchomiony, zalogowany i w tym samym regionie.",
+    "PARTY_CLOSED_DESC": "Ta grupa jest zamknięta.",
+    "AVG_RANK": "Śr. ranga"
   },
   "queues": {
     "COMPETITIVE": "Rankingowa",

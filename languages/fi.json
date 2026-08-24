@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Automaattinen",
     "JOIN_PARTY": "Liity ryhmään",
     "PARTY_CLOSED": "Ryhmä suljettu",
-    "PLAYER_NUM": "Pelaaja {n}"
+    "PLAYER_NUM": "Pelaaja {n}",
+    "JOIN_PARTY_SUCCESS": "Ryhmään liittyminen onnistui!",
+    "JOIN_PARTY_EXPIRED": "Tämä ryhmäkoodi on virheellinen tai vanhentunut. Ryhmä on saattanut sulkeutua tai luoda uuden koodin.",
+    "JOIN_PARTY_FULL": "Tämä ryhmä on jo täynnä.",
+    "JOIN_PARTY_ALREADY_IN": "Olet jo tässä ryhmässä.",
+    "JOIN_PARTY_FAIL": "Ryhmään liittyminen epäonnistui. Varmista, että VALORANT-asiakasohjelmasi on auki, kirjautuneena ja samalla alueella.",
+    "PARTY_CLOSED_DESC": "Tämä ryhmä on suljettu.",
+    "AVG_RANK": "Keskiranki"
   },
   "queues": {
     "COMPETITIVE": "Competitive",

@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Auto",
     "JOIN_PARTY": "Gå med i grupp",
     "PARTY_CLOSED": "Grupp stängd",
-    "PLAYER_NUM": "Spelare {n}"
+    "PLAYER_NUM": "Spelare {n}",
+    "JOIN_PARTY_SUCCESS": "Gick med i gruppen framgångsrikt!",
+    "JOIN_PARTY_EXPIRED": "Den här gruppkoden är ogiltig eller har löpt ut. Gruppen kan ha stängts eller skapat en ny kod.",
+    "JOIN_PARTY_FULL": "Den här gruppen är redan full.",
+    "JOIN_PARTY_ALREADY_IN": "Du är redan med i den här gruppen.",
+    "JOIN_PARTY_FAIL": "Kunde inte gå med i gruppen. Se till att din VALORANT-klient är öppen, inloggad och i samma region.",
+    "PARTY_CLOSED_DESC": "Den här gruppen är stängd.",
+    "AVG_RANK": "Genomsnittlig rank"
   },
   "queues": {
     "COMPETITIVE": "Rankat",

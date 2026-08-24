@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Automatisch",
     "JOIN_PARTY": "Deelnemen aan groep",
     "PARTY_CLOSED": "Groep gesloten",
-    "PLAYER_NUM": "Speler {n}"
+    "PLAYER_NUM": "Speler {n}",
+    "JOIN_PARTY_SUCCESS": "Succesvol lid geworden van de groep!",
+    "JOIN_PARTY_EXPIRED": "Deze groepscode is ongeldig of verlopen. De groep is mogelijk gesloten of heeft een nieuwe code gegenereerd.",
+    "JOIN_PARTY_FULL": "Deze groep is al vol.",
+    "JOIN_PARTY_ALREADY_IN": "Je zit al in deze groep.",
+    "JOIN_PARTY_FAIL": "Kan niet deelnemen aan de groep. Zorg ervoor dat je VALORANT-client geopend, ingelogd en in dezelfde regio is.",
+    "PARTY_CLOSED_DESC": "Deze groep is gesloten.",
+    "AVG_RANK": "Gem. rang"
   },
   "queues": {
     "COMPETITIVE": "Competitief",

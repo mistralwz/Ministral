@@ -274,7 +274,14 @@
     "AUTO_SERVERS": "Automatikus",
     "JOIN_PARTY": "Csatlakozás a csapathoz",
     "PARTY_CLOSED": "Csapat lezárva",
-    "PLAYER_NUM": "{n}. játékos"
+    "PLAYER_NUM": "{n}. játékos",
+    "JOIN_PARTY_SUCCESS": "Sikeresen csatlakoztál a csapathoz!",
+    "JOIN_PARTY_EXPIRED": "Ez a csapatkód érvénytelen vagy lejárt. Lehet, hogy a csapat bezárult, vagy új kódot generáltak.",
+    "JOIN_PARTY_FULL": "Ez a csapat már megtelt.",
+    "JOIN_PARTY_ALREADY_IN": "Már ebben a csapatban vagy.",
+    "JOIN_PARTY_FAIL": "Nem sikerült csatlakozni a csapathoz. Győződj meg róla, hogy a VALORANT kliens nyitva van, be vagy jelentkezve, és ugyanabban a régióban vagy.",
+    "PARTY_CLOSED_DESC": "Ez a csapat zárva van.",
+    "AVG_RANK": "Átlag rang"
   },
   "queues": {
     "COMPETITIVE": "Kompetitív",
