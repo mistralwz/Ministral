@@ -53,6 +53,7 @@ import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
+import { cachedByPuuid } from "../valorant/livegame.js";
 
 test("util: token decoding and expiration", () => {
     // Standard mock JWT with exp: 1900000000 (Fri, 15 Mar 2030) and sub: "mock-puuid-123"
@@ -835,4 +836,43 @@ test("auth: refreshToken short-circuits only when both rso and ent are fresh", a
     assert.equal(result.authFailure, true);
 
     deleteUserFromDb("refresh-test-user");
+});
+
+test("livegame: cachedByPuuid serves fresh hits, fetches only misses, retries failures", async () => {
+    const cache = new Map();
+    const empty = () => "EMPTY";
+    let calls = [];
+    const fetchOne = async (puuid) => {
+        calls.push(puuid);
+        return puuid === "fails" ? null : `data-${puuid}`;
+    };
+
+    // Cold: everything is a miss and gets fetched.
+    let out = await cachedByPuuid(cache, 60_000, ["a", "b"], fetchOne, empty);
+    assert.deepEqual(calls.sort(), ["a", "b"]);
+    assert.equal(out.get("a"), "data-a");
+
+    // Warm: nothing is refetched — this is the whole point of the cache.
+    calls = [];
+    out = await cachedByPuuid(cache, 60_000, ["a", "b"], fetchOne, empty);
+    assert.deepEqual(calls, []);
+    assert.equal(out.get("b"), "data-b");
+
+    // Expired TTL: refetched.
+    calls = [];
+    await cachedByPuuid(cache, -1, ["a"], fetchOne, empty);
+    assert.deepEqual(calls, ["a"]);
+
+    // Failure with nothing cached falls back to empty and is NOT negative-cached,
+    // so the next call retries instead of pinning the bad value for the whole TTL.
+    calls = [];
+    out = await cachedByPuuid(cache, 60_000, ["fails"], fetchOne, empty);
+    assert.equal(out.get("fails"), "EMPTY");
+    out = await cachedByPuuid(cache, 60_000, ["fails"], fetchOne, empty);
+    assert.deepEqual(calls, ["fails", "fails"]);
+
+    // Failure with a stale entry serves the stale value rather than empty.
+    cache.set("stale", { data: "old", ts: 0 });
+    out = await cachedByPuuid(cache, 60_000, ["stale"], async () => null, empty);
+    assert.equal(out.get("stale"), "old");
 });

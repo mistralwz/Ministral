@@ -110,6 +110,8 @@ export const clearLiveGameCache = () => {
     seasonsCache = null;
     currentSeasonId = null;
     playerMmrCache.clear();
+    playerRecentMatchesCache.clear();
+    playerCombatStatsCache.clear();
 };
 
 const loadGamemodes = async () => {
@@ -1206,45 +1208,61 @@ export const getInGameData = async (id, account = null) => {
 // ──────────────────────────────────────────────
 const playerMmrCache = new Map();
 const playerRecentMatchesCache = new Map();
-const MMR_CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
+// Read-through TTL. Ranks don't move mid-match, so this covers a whole
+// /livegame session (incl. the 8s poller) without a single refetch.
+const MMR_CACHE_TTL = 1000 * 60 * 15; // 15 minutes
+
+/**
+ * Read-through per-PUUID cache: serve fresh cache hits, fetch only the misses.
+ * A failed fetch serves a stale entry if there is one and is retried next call
+ * (deliberately not negative-cached — a transient 5xx shouldn't pin a player
+ * to "Unranked" for the whole TTL).
+ *
+ * @param {Map}      cache    puuid → { data, ts }
+ * @param {number}   ttl      freshness window in ms
+ * @param {string[]} puuids
+ * @param {Function} fetchOne (puuid) => Promise<data|null>  — null means "failed"
+ * @param {Function} empty    () => data  fallback when there's nothing cached
+ */
+export const cachedByPuuid = async (cache, ttl, puuids, fetchOne, empty) => {
+    const now = Date.now();
+    const out = new Map();
+    const toFetch = [];
+
+    for (const puuid of puuids) {
+        const hit = cache.get(puuid);
+        if (hit && now - hit.ts < ttl) out.set(puuid, hit.data);
+        else toFetch.push(puuid);
+    }
+
+    const results = await Promise.allSettled(toFetch.map(fetchOne));
+    toFetch.forEach((puuid, i) => {
+        const r = results[i];
+        if (r.status === "fulfilled" && r.value != null) {
+            cache.set(puuid, { data: r.value, ts: now });
+            out.set(puuid, r.value);
+        } else {
+            out.set(puuid, cache.get(puuid)?.data ?? empty());
+        }
+    });
+    return out;
+};
 
 /**
  * Batch-fetch MMR for a list of PUUIDs using the caller's auth.
  * Returns Map<puuid, parsedMMR>.
  */
-const fetchPlayerMMRs = async (user, puuids) => {
+const fetchPlayerMMRs = (user, puuids) => {
     const headers = authHeaders(user);
     const pd = pdUrl(user);
-    const now = Date.now();
 
-    const results = await Promise.allSettled(
-        puuids.map(puuid =>
-            fetch(`${pd}/mmr/v1/players/${puuid}`, { headers })
-                .then(r => r.statusCode === 200 ? safeJson(r.body) : null)
-        )
-    );
-
-    const out = new Map();
-    for (let i = 0; i < puuids.length; i++) {
-        const puuid = puuids[i];
-        const raw = results[i].status === "fulfilled" ? results[i].value : null;
-        let parsed = raw ? parseMMRData(raw, currentSeasonId) : null;
-
-        if (parsed) {
-            playerMmrCache.set(puuid, { data: parsed, ts: now });
-        } else {
-            const cached = playerMmrCache.get(puuid);
-            if (cached && (now - cached.ts < MMR_CACHE_TTL)) {
-                parsed = cached.data;
-            } else {
-                parsed = parseMMRData(null, currentSeasonId);
-                playerMmrCache.set(puuid, { data: parsed, ts: now });
-            }
-        }
-
-        out.set(puuid, parsed);
-    }
-    return out;
+    return cachedByPuuid(playerMmrCache, MMR_CACHE_TTL, puuids,
+        puuid => fetch(`${pd}/mmr/v1/players/${puuid}`, { headers })
+            .then(r => {
+                const raw = r.statusCode === 200 ? safeJson(r.body) : null;
+                return raw ? parseMMRData(raw, currentSeasonId) : null;
+            }),
+        () => parseMMRData(null, currentSeasonId));
 };
 
 /**
@@ -1282,48 +1300,23 @@ const fetchPlayerNames = async (user, puuids) => {
  * Fetch last 3 competitive match results for a list of PUUIDs.
  * Returns Map<puuid, Array<"win" | "loss" | "tie">>
  */
-const fetchPlayerRecentMatches = async (user, puuids) => {
+const fetchPlayerRecentMatches = (user, puuids) => {
     const pd = pdUrl(user);
     const headers = authHeaders(user);
-    const now = Date.now();
 
-    const results = await Promise.allSettled(
-        puuids.map(puuid =>
-            fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=3&queue=competitive`, { headers })
-                .then(r => r.statusCode === 200 ? safeJson(r.body) : null)
-        )
-    );
-
-    const out = new Map();
-    for (let i = 0; i < puuids.length; i++) {
-        const puuid = puuids[i];
-        const raw = results[i].status === "fulfilled" ? results[i].value : null;
-        let history = null;
-
-        if (raw?.Matches) {
-            history = [];
-            for (const m of raw.Matches.slice(0, 3)) {
-                if (m.RankedRatingEarned > 0 || (m.TierAfterUpdate > m.TierBeforeUpdate)) {
-                    history.push("win");
-                } else if (m.RankedRatingEarned < 0 || (m.TierAfterUpdate < m.TierBeforeUpdate)) {
-                    history.push("loss");
-                } else if (m.RankedRatingEarned === 0) {
-                    history.push("tie");
-                }
-            }
-            playerRecentMatchesCache.set(puuid, { data: history, ts: now });
-        } else {
-            const cached = playerRecentMatchesCache.get(puuid);
-            if (cached && now - cached.ts < MMR_CACHE_TTL) {
-                history = cached.data;
-            } else {
-                history = [];
-                playerRecentMatchesCache.set(puuid, { data: history, ts: now });
-            }
-        }
-        out.set(puuid, history);
-    }
-    return out;
+    return cachedByPuuid(playerRecentMatchesCache, MMR_CACHE_TTL, puuids,
+        puuid => fetch(`${pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=0&endIndex=3&queue=competitive`, { headers })
+            .then(r => {
+                const raw = r.statusCode === 200 ? safeJson(r.body) : null;
+                if (!raw?.Matches) return null;
+                return raw.Matches.slice(0, 3).map(m => {
+                    if (m.RankedRatingEarned > 0 || m.TierAfterUpdate > m.TierBeforeUpdate) return "win";
+                    if (m.RankedRatingEarned < 0 || m.TierAfterUpdate < m.TierBeforeUpdate) return "loss";
+                    if (m.RankedRatingEarned === 0) return "tie";
+                    return null;
+                }).filter(Boolean);
+            }),
+        () => []);
 };
 
 const playerCombatStatsCache = new Map();
@@ -1334,27 +1327,14 @@ const COMBAT_STATS_CACHE_TTL = 1000 * 60 * 30; // 30 mins
  * Uses HenrikDev API when configured, falls back to Riot match details / MMR.
  * Returns Map<puuid, { adr, kd, hs }>.
  */
-const fetchPlayerCombatStats = async (user, puuids) => {
-    const now = Date.now();
-    const out = new Map();
-    const toFetch = [];
+const NO_COMBAT_STATS = () => ({ adr: 0, kd: "0", hs: 0 });
 
-    for (const puuid of puuids) {
-        const cached = playerCombatStatsCache.get(puuid);
-        if (cached && now - cached.ts < COMBAT_STATS_CACHE_TTL) {
-            out.set(puuid, cached.data);
-        } else {
-            toFetch.push(puuid);
-        }
-    }
-
-    if (toFetch.length === 0) return out;
-
+const fetchPlayerCombatStats = (user, puuids) => {
     const vapi = getVAPI();
     const region = userRegion(user);
 
-    await Promise.allSettled(
-        toFetch.map(async (puuid) => {
+    return cachedByPuuid(playerCombatStatsCache, COMBAT_STATS_CACHE_TTL, puuids,
+        async (puuid) => {
             let stats = null;
 
             // Strategy 1: HenrikDev API (if available)
@@ -1471,15 +1451,11 @@ const fetchPlayerCombatStats = async (user, puuids) => {
                 }
             }
 
-            if (!stats) {
-                stats = { adr: 0, kd: "0", hs: 0 };
-            }
-            playerCombatStatsCache.set(puuid, { data: stats, ts: now });
-            out.set(puuid, stats);
-        })
-    );
-
-    return out;
+            // "no competitive history" is a real answer, not a failure — return it
+            // so it gets cached, otherwise every poll re-runs the 6-request fallback.
+            return stats ?? NO_COMBAT_STATS();
+        },
+        NO_COMBAT_STATS);
 };
 
 // ──────────────────────────────────────────────
