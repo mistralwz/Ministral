@@ -48,6 +48,7 @@ import {
 } from "../misc/settings.js";
 
 import { User, getPuuid, refreshToken, activeRefreshCount } from "../valorant/auth.js";
+import { switchAccount } from "../valorant/accountSwitcher.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
@@ -1067,4 +1068,26 @@ test("auth: a failed refresh releases its lock instead of caching the failure", 
     assert.equal(activeRefreshCount(), 0);
 
     deleteUserFromDb("lock-test-user");
+});
+
+test("accountSwitcher: switchAccount rejects out-of-range indexes instead of persisting them", () => {
+    initUserDatabase("data/test_users.db");
+    const mk = (n) => ({
+        puuid: `switch-puuid-${n}`, userId: "switch-test-user", username: `Acct${n}#000`,
+        region: "eu", auth: { rso: "r" }, alerts: []
+    });
+    saveUserToDb({ id: "switch-test-user", currentAccount: 1, settings: {}, accounts: [mk(1), mk(2)] });
+
+    // Valid switch works and sticks.
+    assert.equal(switchAccount("switch-test-user", 2)?.username, "Acct2#000");
+    assert.equal(getUserFromDb("switch-test-user").currentAccount, 2);
+
+    // Everything invalid returns null AND leaves currentAccount untouched — it
+    // used to write the bad value first and report the failure afterwards.
+    for (const bad of [99, 0, -1, null, undefined, NaN, 1.5, "2"]) {
+        assert.equal(switchAccount("switch-test-user", bad), null, `accepted ${String(bad)}`);
+        assert.equal(getUserFromDb("switch-test-user").currentAccount, 2, `persisted ${String(bad)}`);
+    }
+
+    deleteUserFromDb("switch-test-user");
 });

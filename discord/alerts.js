@@ -142,6 +142,7 @@ export const alertsPerChannelPerGuild = async () => {
 
 export const removeAlert = (id, uuid) => {
     const user = getUser(id);
+    if (!user) return false; // clicked a stale alert button after /forget
     const alertCount = user.alerts.length;
     user.alerts = user.alerts.filter(alert => alert.uuid !== uuid);
     saveUser(user);
@@ -179,6 +180,7 @@ const processUserAlerts = async (id, initialShouldWait = false) => {
         }
 
         const valorantUser = getUser(id, i);
+        if (!valorantUser) continue; // account row vanished mid-run
         const discordUser = getClient()?.users.cache.get(id);
         const discordUsername = discordUser ? discordUser.username : id;
         console.log(`Checking user ${discordUsername}'s ${valorantUser.username} account (${i}/${accountCount}) for alerts...`);
@@ -743,14 +745,14 @@ export const debugCheckAlerts = async () => {
 
                                 for (const alert of alerts) {
                                     const skin = await getSkin(alert.uuid);
-                                    unreachableChannels.get(key).skins.push(l(skin.names));
+                                    unreachableChannels.get(key).skins.push(skin ? l(skin.names) : alert.uuid);
                                 }
                             } else {
                                 log(`      Alert Channel ${channelId}: ✓ Accessible in guild "${channel.guild?.name || 'DM'}" #${channel.name}`, 'INFO');
                                 reachableChannels.add(channelId);
                                 for (const alert of alerts) {
                                     const skin = await getSkin(alert.uuid);
-                                    log(`        - ${l(skin.names)} (${alert.uuid})`, 'DEBUG');
+                                    log(`        - ${skin ? l(skin.names) : "(unknown skin)"} (${alert.uuid})`, "DEBUG");
                                 }
                             }
                         }

@@ -1484,8 +1484,12 @@ client.on("interactionCreate", async (interaction) => {
                     const targetAccount = interaction.options.get("account").value;
                     const targetIndex = findTargetAccountIndex(interaction.user.id, targetAccount);
 
+                    // switchAccount validates and returns null on a bad index —
+                    // it used to be called first and the result checked after,
+                    // so `/account 99` persisted a nonsense currentAccount and
+                    // then crashed on valorantUser.username below.
                     const valorantUser = switchAccount(interaction.user.id, targetIndex);
-                    if (targetIndex === null) return await interaction.reply({
+                    if (!valorantUser) return await interaction.reply({
                         embeds: [basicEmbed(s(interaction).error.ACCOUNT_NOT_FOUND)],
                         flags: [MessageFlags.Ephemeral]
                     });

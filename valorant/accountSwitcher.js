@@ -135,6 +135,13 @@ export const switchAccount = (id, accountNumber) => {
     const userJson = readUserJson(id);
     if (!userJson) return null;
 
+    // Validate here rather than at each call site. Both callers can hand this
+    // a bad value — `/account 99` resolves to 99, and the account button path
+    // parseInt()s a customId segment — and an unvalidated number was written
+    // to currentAccount and persisted, leaving a pointer that getUserJson then
+    // has to silently paper over on every later read.
+    if (!Number.isInteger(accountNumber) || accountNumber < 1 || accountNumber > userJson.accounts.length) return null;
+
     userJson.currentAccount = accountNumber;
     saveUserToDb(userJson);
 
