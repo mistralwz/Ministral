@@ -1492,6 +1492,22 @@ export const collectionOfWeaponEmbed = async (interaction, id, user, weaponTypeU
         // Dropdown menu (Row 1)
         actionRows.push(await weaponSelectDropdown(interaction, id, skins, weaponTypeUuid));
 
+        const canEquip = id === interaction.user.id;
+        if (canEquip && pageSkins.length > 0) {
+            const equipRow = new ActionRowBuilder();
+            for (const skin of pageSkins.slice(0, 4)) {
+                const isEq = equippedSkinId && skin.skinUuid === equippedSkinId;
+                equipRow.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`clw_equip/${weaponTypeIndex}/${skin.skinUuid}/${id}/${pageIndex}/card`)
+                        .setLabel(isEq ? "Unequip" : "Equip")
+                        .setEmoji(isEq ? "❌" : "✅")
+                        .setStyle(isEq ? ButtonStyle.Danger : ButtonStyle.Success)
+                );
+            }
+            actionRows.push(equipRow);
+        }
+
         // Navigation & View Toggle (Row 2)
         const row2Buttons = [
             new ButtonBuilder()

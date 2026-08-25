@@ -42,6 +42,22 @@ export const settings = {
         values: [true, false],
         default: false,
     },
+    matchFoundPing: {
+        values: [true, false],
+        default: true
+    },
+    queueAfkReping: {
+        values: [true, false],
+        default: false
+    },
+    postMatchTracker: {
+        values: [true, false],
+        default: false
+    },
+    friendActivityFeed: {
+        values: [true, false],
+        default: false
+    },
     locale: {
         values: ["Automatic", ...Object.keys(discLanguageNames)],
         default: "Automatic"
