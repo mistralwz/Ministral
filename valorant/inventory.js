@@ -62,6 +62,11 @@ export const getSkins = async (user, account = null) => {
 
 const loadoutCache = {};
 
+export const clearLoadoutCache = (puuid) => {
+    if (puuid) delete loadoutCache[puuid];
+    else for (const key of Object.keys(loadoutCache)) delete loadoutCache[key];
+};
+
 export const getLoadout = async (user, account = null) => {
     if (user.puuid in loadoutCache) {
         const cached = loadoutCache[user.puuid];

@@ -221,7 +221,11 @@
     "othersCanViewColl": "Allow others to use /collection with your username",
     "othersCanViewProfile": "Allow others to use /profile with your username",
     "othersCanUseAccountButtons": "Allow others to press buttons on your /shop",
-    "locale": "Language"
+    "matchFoundPing": "Ping you when a match is found while queuing",
+    "queueAfkReping": "Re-ping if you don't accept a found match",
+    "locale": "Language",
+    "postMatchTracker": "Send your match result after a tracked game ends",
+    "friendActivityFeed": "Post when your friends start playing"
   },
   "modal": {
     "PAGE_TITLE": "Page Navigator",
