@@ -1,5 +1,5 @@
 import { fetch, isMaintenance, safeJson, userRegion, riotClientHeaders } from "../misc/util.js";
-import { authUser, deleteUserAuth, getUser } from "./auth.js";
+import { authUser, handleBadClaims, getUser } from "./auth.js";
 import config from "../misc/config.js";
 
 export const getItemEntitlements = async (user, itemTypeId, itemType = "item") => {
@@ -14,8 +14,7 @@ export const getItemEntitlements = async (user, itemTypeId, itemType = "item") =
     const json = safeJson(req.body);
     if (!json) return { success: false, networkError: true };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        deleteUserAuth(user);
-        return { success: false, authFailure: true };
+        return await handleBadClaims(user);
     } else if (isMaintenance(json)) {
         return { success: false, maintenance: true };
     }
@@ -89,8 +88,7 @@ export const getLoadout = async (user, account = null) => {
     const json = safeJson(req.body);
     if (!json) return { success: false, networkError: true };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        deleteUserAuth(user);
-        return { success: false, authFailure: true };
+        return await handleBadClaims(user);
     } else if (isMaintenance(json)) {
         return { success: false, maintenance: true };
     }
@@ -103,10 +101,10 @@ export const getLoadout = async (user, account = null) => {
         }
     });
 
-    const json2 = JSON.parse(req2.body);
+    const json2 = safeJson(req2.body);
+    if (!json2) return { success: false, networkError: true };
     if (json2.httpStatus === 400 && json2.errorCode === "BAD_CLAIMS") {
-        deleteUserAuth(user);
-        return { success: false, authFailure: true };
+        return await handleBadClaims(user);
     } else if (isMaintenance(json2)) {
         return { success: false, maintenance: true };
     }

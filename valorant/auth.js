@@ -264,6 +264,23 @@ export const deleteUserAuth = (user) => {
     saveUser(user);
 };
 
+// BAD_CLAIMS fires after authUser() already confirmed rso isn't expired, so
+// it almost always means only the entitlements token went stale on its own
+// clock. Re-fetch just that with the still-good rso instead of wiping the
+// whole login (rso/idt/refresh_token) and forcing a full re-auth.
+export const handleBadClaims = async (user) => {
+    try {
+        const ent = await fetchEntitlementsToken(user);
+        if (ent) {
+            user.auth.ent = ent;
+            saveUser(user);
+            return { success: false, networkError: true };
+        }
+    } catch {}
+    deleteUserAuth(user);
+    return { success: false, authFailure: true };
+};
+
 let cachedUserAgent = null;
 
 export const getUserAgent = async () => {

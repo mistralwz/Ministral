@@ -1,4 +1,4 @@
-import { authUser, deleteUserAuth, getUser, getPuuid } from "./auth.js";
+import { authUser, handleBadClaims, getUser, getPuuid } from "./auth.js";
 import {
     fetch,
     isMaintenance,
@@ -85,8 +85,7 @@ export const getShop = async (id, account = null) => {
             const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 30000;
             return { success: false, rateLimit: Date.now() + retryAfter };
         } else if (json?.httpStatus === 400 && json?.errorCode === "BAD_CLAIMS") {
-            deleteUserAuth(user);
-            return { success: false, authFailure: true };
+            return await handleBadClaims(user);
         } else if (isMaintenance(json)) return { success: false, maintenance: true };
         return { success: false, networkError: true };
     }
@@ -197,8 +196,7 @@ export const getBalance = async (id, account = null) => {
     const json = safeJson(req.body);
     if (req.statusCode !== 200 || !json?.Balances) {
         if (json?.httpStatus === 400 && json?.errorCode === "BAD_CLAIMS") {
-            deleteUserAuth(user);
-            return { success: false, authFailure: true };
+            return await handleBadClaims(user);
         } else if (isMaintenance(json)) return { success: false, maintenance: true };
         return { success: false, networkError: true };
     }

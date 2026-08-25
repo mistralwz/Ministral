@@ -1,4 +1,4 @@
-import { authUser, deleteUserAuth, getUser } from "./auth.js";
+import { authUser, handleBadClaims, getUser } from "./auth.js";
 import { fetch, isMaintenance, riotClientHeaders, safeJson, userRegion } from "../misc/util.js";
 import { getBattlepassInfo, getBuddy, getCard, getFlex, getSkin, getSpray, getValorantVersion } from "./cache.js";
 import { getItemEntitlements } from "./inventory.js";
@@ -168,8 +168,7 @@ export const getBattlepassProgress = async (interaction, maxlevel = 50, targetId
     const json = safeJson(req.body);
     if (!json) return { success: false };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        deleteUserAuth(valUser);
-        return { success: false };
+        return await handleBadClaims(valUser);
     } else if (isMaintenance(json)) {
         return { success: false, maintenance: true };
     }
