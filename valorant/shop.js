@@ -58,7 +58,7 @@ export const formatNightMarket = (rawNightMarket) => {
     };
 };
 
-export const getShop = async (id, account = null) => {
+export const getShop = async (id, account = null, _retried = false) => {
     const authSuccess = await authUser(id, account);
     if (!authSuccess.success) return authSuccess;
 
@@ -85,7 +85,9 @@ export const getShop = async (id, account = null) => {
             const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : 30000;
             return { success: false, rateLimit: Date.now() + retryAfter };
         } else if (json?.httpStatus === 400 && json?.errorCode === "BAD_CLAIMS") {
-            return await handleBadClaims(user);
+            const badClaimsResult = await handleBadClaims(user);
+            if (badClaimsResult.retry && !_retried) return await getShop(id, account, true);
+            return badClaimsResult;
         } else if (isMaintenance(json)) return { success: false, maintenance: true };
         return { success: false, networkError: true };
     }
@@ -178,7 +180,7 @@ export const getNightMarket = async (id, account = null) => {
     return { success: true, ...formatNightMarket(resp.shop.BonusStore) };
 };
 
-export const getBalance = async (id, account = null) => {
+export const getBalance = async (id, account = null, _retried = false) => {
     const authSuccess = await authUser(id, account);
     if (!authSuccess.success) return authSuccess;
 
@@ -196,7 +198,9 @@ export const getBalance = async (id, account = null) => {
     const json = safeJson(req.body);
     if (req.statusCode !== 200 || !json?.Balances) {
         if (json?.httpStatus === 400 && json?.errorCode === "BAD_CLAIMS") {
-            return await handleBadClaims(user);
+            const result = await handleBadClaims(user);
+            if (result.retry && !_retried) return await getBalance(id, account, true);
+            return result;
         } else if (isMaintenance(json)) return { success: false, maintenance: true };
         return { success: false, networkError: true };
     }

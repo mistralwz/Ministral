@@ -139,7 +139,7 @@ const getNextReward = async (interaction, currentTier) => {
     }
 };
 
-export const getBattlepassProgress = async (interaction, maxlevel = 50, targetId = interaction.user.id) => {
+export const getBattlepassProgress = async (interaction, maxlevel = 50, targetId = interaction.user.id, _retried = false) => {
     const user = getUser(targetId);
     if (!user) return { success: false };
 
@@ -168,7 +168,9 @@ export const getBattlepassProgress = async (interaction, maxlevel = 50, targetId
     const json = safeJson(req.body);
     if (!json) return { success: false };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        return await handleBadClaims(valUser);
+        const result = await handleBadClaims(valUser);
+        if (result.retry && !_retried) return await getBattlepassProgress(interaction, maxlevel, targetId, true);
+        return result;
     } else if (isMaintenance(json)) {
         return { success: false, maintenance: true };
     }

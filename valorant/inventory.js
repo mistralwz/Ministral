@@ -2,7 +2,7 @@ import { fetch, isMaintenance, safeJson, userRegion, riotClientHeaders } from ".
 import { authUser, handleBadClaims, getUser } from "./auth.js";
 import config from "../misc/config.js";
 
-export const getItemEntitlements = async (user, itemTypeId, itemType = "item") => {
+export const getItemEntitlements = async (user, itemTypeId, itemType = "item", _retried = false) => {
     const req = await fetch(`https://pd.${userRegion(user)}.a.pvp.net/store/v1/entitlements/${user.puuid}/${itemTypeId}`, {
         headers: {
             "Authorization": "Bearer " + user.auth.rso,
@@ -14,7 +14,12 @@ export const getItemEntitlements = async (user, itemTypeId, itemType = "item") =
     const json = safeJson(req.body);
     if (!json) return { success: false, networkError: true };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        return await handleBadClaims(user);
+        const result = await handleBadClaims(user);
+        if (result.retry && !_retried) {
+            user = getUser(user.id);
+            return await getItemEntitlements(user, itemTypeId, itemType, true);
+        }
+        return result;
     } else if (isMaintenance(json)) {
         return { success: false, maintenance: true };
     }
@@ -61,7 +66,7 @@ export const getSkins = async (user, account = null) => {
 
 const loadoutCache = {};
 
-export const getLoadout = async (user, account = null) => {
+export const getLoadout = async (user, account = null, _retried = false) => {
     if (user.puuid in loadoutCache) {
         const cached = loadoutCache[user.puuid];
         const expiresIn = cached.timestamp - Date.now() + config.loadoutCacheExpiration;
@@ -88,7 +93,9 @@ export const getLoadout = async (user, account = null) => {
     const json = safeJson(req.body);
     if (!json) return { success: false, networkError: true };
     if (json.httpStatus === 400 && json.errorCode === "BAD_CLAIMS") {
-        return await handleBadClaims(user);
+        const result = await handleBadClaims(user);
+        if (result.retry && !_retried) return await getLoadout(getUser(user.id, account), account, true);
+        return result;
     } else if (isMaintenance(json)) {
         return { success: false, maintenance: true };
     }
@@ -104,7 +111,9 @@ export const getLoadout = async (user, account = null) => {
     const json2 = safeJson(req2.body);
     if (!json2) return { success: false, networkError: true };
     if (json2.httpStatus === 400 && json2.errorCode === "BAD_CLAIMS") {
-        return await handleBadClaims(user);
+        const result = await handleBadClaims(user);
+        if (result.retry && !_retried) return await getLoadout(getUser(user.id, account), account, true);
+        return result;
     } else if (isMaintenance(json2)) {
         return { success: false, maintenance: true };
     }

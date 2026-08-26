@@ -282,11 +282,13 @@ export const authFailureMessage = (interactionOrId, authResponse, message = "AUT
     else {
         embed = basicEmbed(message);
 
-        // two-strike system
-        const user = getUser(id);
-        if (user) {
-            user.authFailures++;
-            saveUser(user);
+        // two-strike system — only count genuine auth failures, not transient network errors
+        if (authResponse.authFailure) {
+            const user = getUser(id);
+            if (user) {
+                user.authFailures++;
+                saveUser(user);
+            }
         }
     }
 

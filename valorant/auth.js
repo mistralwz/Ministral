@@ -274,7 +274,7 @@ export const handleBadClaims = async (user) => {
         if (ent) {
             user.auth.ent = ent;
             saveUser(user);
-            return { success: false, networkError: true };
+            return { success: false, retry: true };
         }
     } catch {}
     deleteUserAuth(user);
