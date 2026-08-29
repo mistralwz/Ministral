@@ -53,7 +53,7 @@ import { getPrice } from "../valorant/cache.js";
 import { getStatsFor, getOverallStats, addStore } from "../misc/stats.js";
 import { basicEmbed, secondaryEmbed, actionRow, removeAlertButton, collectionModeButtons, weaponSelectDropdown, statsForSkinEmbed, getSkinLevels, getRankColor, getTierName, formatSeason, getPlayerTitle, resolvePeakRankString, renderProgressBar, renderCompetitiveMatchHistory, renderProfile, renderCollection, profileButtons, competitiveHistoryButtons, replyOrFollowUp, deferInteraction } from "../discord/embed.js";
 import { renderLiveGame } from "../discord/livegameEmbed.js";
-import { cachedByPuuid, resolveServerName, parseMMRData, repollLiveGame } from "../valorant/livegame.js";
+import { cachedByPuuid, resolveServerName, parseMMRData, repollLiveGame, enrichPlayers } from "../valorant/livegame.js";
 import { formatServerName, formatPreferredServers, fitDescription, formatPlayerRow } from "../discord/livegameEmbed.js";
 
 test("util: token decoding and expiration", () => {
@@ -1027,6 +1027,49 @@ test("livegame: repollLiveGame bails out before doing any work when it can't hel
     // Unregistered user: null, and the caller's fetchLiveGame surfaces the auth error.
     assert.equal(await repollLiveGame("definitely-not-registered", null, "pregame", "match-1"), null);
 });
+
+test("livegame: enrichPlayers preserves names for party members with incognito enabled", async () => {
+    initUserDatabase("data/test_users.db");
+    saveUserToDb({
+        id: "party-test-user",
+        currentAccount: 1,
+        settings: {},
+        accounts: [{
+            puuid: "user-puuid-self",
+            userId: "party-test-user",
+            username: "Self#001",
+            region: "eu",
+            auth: { rso: "fake", ent: "fake" },
+            alerts: []
+        }]
+    });
+
+    const rawPlayers = [
+        { puuid: "user-puuid-self", partyId: "party-alpha", incognito: true },
+        { puuid: "party-member-puuid", partyId: "party-alpha", incognito: true },
+        { puuid: "non-party-incognito", partyId: "party-beta", incognito: true },
+        { puuid: "non-party-normal", partyId: "party-beta", incognito: false },
+    ];
+
+    const enriched = await enrichPlayers("party-test-user", null, rawPlayers);
+    const self = enriched.find(p => p.puuid === "user-puuid-self");
+    const partyMember = enriched.find(p => p.puuid === "party-member-puuid");
+    const nonPartyIncognito = enriched.find(p => p.puuid === "non-party-incognito");
+    const nonPartyNormal = enriched.find(p => p.puuid === "non-party-normal");
+
+    // Self and party member should NOT have their names hidden (incognito = false)
+    assert.equal(self.incognito, false);
+    assert.equal(partyMember.incognito, false);
+
+    // Non-party player with incognito should stay incognito
+    assert.equal(nonPartyIncognito.incognito, true);
+
+    // Non-party player without incognito should not be incognito
+    assert.equal(nonPartyNormal.incognito, false);
+
+    deleteUserFromDb("party-test-user");
+});
+
 
 test("auth: a failed refresh releases its lock instead of caching the failure", async () => {
     initUserDatabase("data/test_users.db");

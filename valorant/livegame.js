@@ -1169,15 +1169,16 @@ const fetchPlayerCombatStats = (user, puuids) => {
  * Enrich raw player objects with name, rank, agent, and level info.
  * modifies players in-place AND returns them.
  */
-const enrichPlayers = async (id, account, rawPlayers) => {
+export const enrichPlayers = async (id, account, rawPlayers) => {
     const user = getUser(id, account);
     const puuids = rawPlayers.map(p => p.puuid);
+    const userPartyId = rawPlayers.find(p => user?.puuid && p.puuid === user.puuid)?.partyId;
 
     // loadSeasons must finish first so that currentSeasonId (module-level) is
     // populated before fetchPlayerMMRs calls parseMMRData(raw, currentSeasonId).
     // Running them in parallel caused a race where every player appeared Unranked
     // on the first /livegame refresh while already in a match.
-    const seasonMap = seasonsCache; // Pre-warmed by fetchLiveGame
+    const seasonMap = seasonsCache ?? await loadSeasons(); // Pre-warmed by fetchLiveGame
     const [mmrMap, nameMap, recentMatchesMap, combatStatsMap] = await Promise.all([
         fetchPlayerMMRs(user, puuids),
         fetchPlayerNames(user, puuids),
@@ -1203,8 +1204,9 @@ const enrichPlayers = async (id, account, rawPlayers) => {
         const level = p.accountLevel ?? null;
         const levelHidden = p.isHideAccountLevel ?? false;
 
-        const isUserSelf = p.puuid === user.puuid;
-        const shouldHideName = p.incognito && !isUserSelf;
+        const isUserSelf = Boolean(user?.puuid && p.puuid === user.puuid);
+        const isInUserParty = isUserSelf || Boolean(userPartyId && p.partyId && p.partyId === userPartyId);
+        const shouldHideName = Boolean(p.incognito && !isInUserParty);
 
         return {
             ...p,
@@ -1227,7 +1229,7 @@ const enrichPlayers = async (id, account, rawPlayers) => {
             peakTier: mmr?.peakTier ?? 0,
             peakTierName: peakTierInfo.name,
             peakTierIcon: peakTierInfo.icon,
-            peakActLabel: seasonMap.get(mmr?.peakSeasonId ?? "") ?? null,
+            peakActLabel: seasonMap?.get(mmr?.peakSeasonId ?? "") ?? null,
             // Win stats
             wins: mmr?.wins ?? 0,
             losses: mmr?.losses ?? 0,
