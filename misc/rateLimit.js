@@ -1,47 +1,37 @@
 import config from "./config.js";
-import { safeJson } from "./util.js";
 
+// Deliberately per-process, not shared across shards via SQLite/IPC: this is
+// a "stop hammering a host we personally just got 429'd on" circuit breaker,
+// not a correctness requirement like the refresh lock. Sharing it would mean
+// every shard talking to every other shard on every request; each shard
+// discovering its own 429s independently and backing off is enough to protect
+// the one thing that matters (not making a rate limit worse) without adding
+// cross-shard chatter for something this cheap to re-learn locally.
 const rateLimits = new Map();
 
-export const checkRateLimit = async (req, url) => {
-    let rateLimited = req.statusCode === 429 || req.headers?.location?.startsWith("/auth-error?error=rate_limited");
-    if (!rateLimited) try {
-        const json = safeJson(req.body) ?? {};
-        rateLimited = json.error === "rate_limited";
-    } catch (e) {}
-
-    if (rateLimited) {
-        let retryAfter = parseInt(req.headers?.['retry-after']) + 1;
-        if (retryAfter) {
-            console.log(`I am ratelimited at ${url} for ${retryAfter - 1} more seconds!`);
-            if (retryAfter > config.rateLimitCap) {
-                console.log(`Delay higher than rateLimitCap, setting it to ${config.rateLimitCap} seconds instead`);
-                retryAfter = config.rateLimitCap;
-            }
-        } else {
-            retryAfter = config.rateLimitBackoff;
-            console.log(`I am temporarily ratelimited at ${url} (no ETA given, waiting ${config.rateLimitBackoff}s)`);
-        }
-
-        const retryAt = Date.now() + retryAfter * 1000;
-        rateLimits.set(url, retryAt);
-        return retryAt;
-    }
-
-    return false;
-};
-
-export const isRateLimited = async (url) => {
-    const retryAt = rateLimits.get(url);
-
+/** Has `hostname` told us to back off, and are we still inside that window? */
+export const isRateLimited = (hostname) => {
+    const retryAt = rateLimits.get(hostname);
     if (!retryAt) return false;
-    if (retryAt < Date.now()) {
-        rateLimits.delete(url);
+    if (retryAt <= Date.now()) {
+        rateLimits.delete(hostname);
         return false;
     }
+    return retryAt;
+};
 
-    const retryAfter = Math.ceil((retryAt - Date.now()) / 1000);
-    console.log(`I am still ratelimited at ${url} for ${retryAfter} more seconds!`);
+/** Inspect a response for a 429/rate-limit shape and remember it if so. */
+export const noteRateLimit = (res, hostname) => {
+    let bodyRateLimited = false;
+    try { bodyRateLimited = JSON.parse(res.body)?.error === "rate_limited"; } catch {}
+    if (res.statusCode !== 429 && !bodyRateLimited) return false;
 
+    let retryAfter = parseInt(res.headers?.['retry-after'], 10);
+    retryAfter = Number.isFinite(retryAfter) ? retryAfter + 1 : Number(config.rateLimitBackoff) || 30;
+    retryAfter = Math.min(retryAfter, Number(config.rateLimitCap) || 3600);
+
+    const retryAt = Date.now() + retryAfter * 1000;
+    rateLimits.set(hostname, retryAt);
+    console.warn(`[rateLimit] ${hostname} rate-limited us for ${retryAfter}s`);
     return retryAt;
 };

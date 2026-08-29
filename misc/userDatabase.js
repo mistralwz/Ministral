@@ -102,6 +102,18 @@ const createTables = () => {
     `);
 
     db.exec(`CREATE INDEX IF NOT EXISTS idx_accounts_userId ON accounts(userId)`);
+
+    // Cross-shard mutual exclusion for Riot token refreshes. Riot single-uses
+    // refresh tokens (rotates on every use), so two shards refreshing the same
+    // account at once means one of them legitimately gets invalid_grant back
+    // and the account looks logged out even though nothing is actually wrong.
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS refresh_locks (
+            key TEXT PRIMARY KEY,
+            ownerId TEXT NOT NULL,
+            claimedAt INTEGER NOT NULL
+        )
+    `);
 };
 
 const prepareStatements = () => {
@@ -117,6 +129,16 @@ const prepareStatements = () => {
         deleteAccount: db.prepare(`DELETE FROM accounts WHERE puuid = ?`),
         updateSingleAccount: db.prepare(`UPDATE accounts SET username = ?, region = ?, auth = ?, alerts = ?, authFailures = ?, lastFetchedData = ?, lastNoticeSeen = ?, lastSawEasterEgg = ?, updatedAt = ? WHERE puuid = ?`),
         getUserIdsWithAlertsOrDailyShop: db.prepare(`SELECT DISTINCT u.id FROM users u LEFT JOIN accounts a ON a.userId = u.id WHERE (a.alerts IS NOT NULL AND a.alerts != '[]') OR (json_extract(u.settings, '$.dailyShop') NOT IN (0, 'false', false) AND json_extract(u.settings, '$.dailyShop') IS NOT NULL)`),
+        // Atomic claim: inserts a fresh lock, or steals an existing one only
+        // if it's older than its TTL (owner presumably crashed/hung). One
+        // statement so two shards racing this can't both "win" — SQLite
+        // serializes the writes and only one INSERT/UPDATE actually applies.
+        acquireRefreshLock: db.prepare(`
+            INSERT INTO refresh_locks (key, ownerId, claimedAt) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET ownerId = excluded.ownerId, claimedAt = excluded.claimedAt
+            WHERE refresh_locks.claimedAt < excluded.claimedAt - ?
+        `),
+        releaseRefreshLock: db.prepare(`DELETE FROM refresh_locks WHERE key = ? AND ownerId = ?`),
     };
 };
 
@@ -255,6 +277,19 @@ export const updateSingleAccountInDb = (account) => {
         account.puuid
     );
     return result.changes > 0;
+};
+
+/** Try to claim `key` for `ownerId`. Returns false if another owner holds a live claim. */
+export const acquireRefreshLock = (key, ownerId, ttlMs) => {
+    if (!key || !db || !stmts?.acquireRefreshLock) return true;
+    const result = stmts.acquireRefreshLock.run(key, ownerId, Date.now(), ttlMs);
+    return result.changes > 0;
+};
+
+/** Release `key`, but only if `ownerId` still holds it (a stolen lock isn't ours to release). */
+export const releaseRefreshLock = (key, ownerId) => {
+    if (!key || !db || !stmts?.releaseRefreshLock) return;
+    stmts.releaseRefreshLock.run(key, ownerId);
 };
 
 export const runUserDbTransaction = (fn) => {

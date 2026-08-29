@@ -14,7 +14,8 @@ import {
     WeaponType,
     WeaponTypeUuid,
     WEAPON_CATEGORIES,
-    writeFileAtomic
+    writeFileAtomic,
+    wait
 } from "../misc/util.js";
 
 import {
@@ -35,7 +36,9 @@ import {
     getAllUserIds,
     getUserIdsWithAlertsOrDailyShop,
     updateSingleAccountInDb,
-    closeUserDatabase
+    closeUserDatabase,
+    acquireRefreshLock,
+    releaseRefreshLock
 } from "../misc/userDatabase.js";
 
 import {
@@ -47,6 +50,7 @@ import {
 } from "../misc/settings.js";
 
 import { User, getPuuid, refreshToken, activeRefreshCount } from "../valorant/auth.js";
+import { isRateLimited, noteRateLimit } from "../misc/rateLimit.js";
 import { switchAccount } from "../valorant/accountSwitcher.js";
 import { formatNightMarket } from "../valorant/shop.js";
 import { getPrice } from "../valorant/cache.js";
@@ -1108,6 +1112,55 @@ test("auth: a failed refresh releases its lock instead of caching the failure", 
     assert.equal(activeRefreshCount(), 0);
 
     deleteUserFromDb("lock-test-user");
+});
+
+test("userDatabase: refresh lock blocks other owners, then frees on release or after its TTL", async () => {
+    initUserDatabase("data/test_users.db");
+
+    // Riot rotates refresh tokens on use, so two shards refreshing the same
+    // account at once means one gets a real invalid_grant back. This lock is
+    // what's supposed to stop that: only one owner can hold a given key.
+    assert.equal(acquireRefreshLock("cross-shard-key", "shard-0", 10000), true, "first claim should succeed");
+    assert.equal(acquireRefreshLock("cross-shard-key", "shard-1", 10000), false, "second shard must not double-claim a live lock");
+
+    // Releasing with the wrong owner must be a no-op — a shard can't free a lock it doesn't hold.
+    releaseRefreshLock("cross-shard-key", "shard-1");
+    assert.equal(acquireRefreshLock("cross-shard-key", "shard-1", 10000), false, "lock must still be held by shard-0 after shard-1's no-op release");
+
+    // The real owner releases; the other shard can now claim it.
+    releaseRefreshLock("cross-shard-key", "shard-0");
+    assert.equal(acquireRefreshLock("cross-shard-key", "shard-1", 10000), true, "lock should be free after its actual owner releases it");
+
+    // A holder that died without releasing (crash/hang) must not lock the account out forever.
+    // Staleness is judged by the TTL the *stealing* call passes (how old is too old, from its
+    // point of view) against the existing claim's timestamp — not the original claim's own TTL.
+    assert.equal(acquireRefreshLock("stale-key", "shard-0", 10000), true);
+    await wait(30);
+    assert.equal(acquireRefreshLock("stale-key", "shard-1", 5), true, "claim older than the stealer's TTL should be stealable");
+});
+
+test("rateLimit: notes a 429, honors retry-after, and clears once it elapses", async () => {
+    const host = "rate-limit-test.example.com";
+    assert.equal(isRateLimited(host), false, "a host we've never seen should not be limited");
+
+    // 200s must never register, however they're shaped.
+    assert.equal(noteRateLimit({ statusCode: 200, headers: {}, body: "" }, host), false);
+    assert.equal(isRateLimited(host), false);
+
+    // A 429 backs the host off for at least the retry-after window.
+    const retryAt = noteRateLimit({ statusCode: 429, headers: { "retry-after": "0" }, body: "" }, host);
+    assert.ok(retryAt > Date.now(), "noteRateLimit should return a future timestamp");
+    assert.equal(isRateLimited(host), retryAt, "isRateLimited should report the same deadline back");
+
+    // A rate limit signaled only in the body (no 429 status) is caught too —
+    // Riot returns some of these as 200s with an error field.
+    const otherHost = "rate-limit-test-2.example.com";
+    const retryAt2 = noteRateLimit({ statusCode: 200, headers: {}, body: JSON.stringify({ error: "rate_limited" }) }, otherHost);
+    assert.ok(retryAt2 > Date.now());
+
+    // Once the window passes, the host is free again without any manual reset.
+    await wait(1100);
+    assert.equal(isRateLimited(host), false, "expired rate limit should clear itself");
 });
 
 test("accountSwitcher: switchAccount rejects out-of-range indexes instead of persisting them", () => {

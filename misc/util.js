@@ -1,6 +1,7 @@
 import https from "https";
 import fs from "fs";
 import config from "./config.js";
+import { isRateLimited, noteRateLimit } from "./rateLimit.js";
 
 const tlsCiphers = [
     'TLS_CHACHA20_POLY1305_SHA256',
@@ -52,8 +53,24 @@ const getKeepAliveAgent = (hostname) => {
 export const fetch = (url, options = {}) => {
     if (config.logUrls) console.log("Fetching url " + url.substring(0, 200) + (url.length > 200 ? "..." : ""));
 
+    const hostname = new URL(url).hostname;
+
+    // A host that just 429'd us stays 429'd for the window it told us about —
+    // skip the wasted round trip and hand back the same shape a real 429
+    // response would have, so every caller's existing statusCode/retry-after
+    // handling keeps working unchanged.
+    const limitedUntil = isRateLimited(hostname);
+    if (limitedUntil) {
+        const retryAfterSecs = Math.max(1, Math.ceil((limitedUntil - Date.now()) / 1000));
+        if (config.logUrls) console.log(`Skipping ${hostname}, still rate-limited for ${retryAfterSecs}s`);
+        return Promise.resolve({
+            statusCode: 429,
+            headers: { "retry-after": String(retryAfterSecs) },
+            body: JSON.stringify({ error: "rate_limited" })
+        });
+    }
+
     return new Promise((resolve, reject) => {
-        const hostname = new URL(url).hostname;
         const req = https.request(url, {
             agent: getKeepAliveAgent(hostname),
             method: options.method || "GET",
@@ -75,6 +92,14 @@ export const fetch = (url, options = {}) => {
             resp.on('data', (chunk) => chunks.push(chunk));
             resp.on('end', () => {
                 res.body = Buffer.concat(chunks).toString(options.encoding || "utf8");
+                noteRateLimit(res, hostname);
+                // Cloudflare error 1020 has this exact shape and means Riot's edge is
+                // blocking this IP outright — every other failure mode (bad token,
+                // rate limit, maintenance) looks different. Worth a distinct log line
+                // since otherwise it's indistinguishable from a generic failure.
+                if (res.statusCode === 403 && res.headers["x-frame-options"] === "SAMEORIGIN") {
+                    console.error(`[ !!! ] Error 1020 from ${hostname}: your bot's IP might be blocked by Riot/Cloudflare — try hosting on a different IP to confirm.`);
+                }
                 resolve(res);
             });
             resp.on('error', err => {

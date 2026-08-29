@@ -1,3 +1,4 @@
+import { threadId } from "node:worker_threads";
 import {
     fetch,
     safeJson,
@@ -9,7 +10,7 @@ import {
 } from "../misc/util.js";
 import config from "../misc/config.js";
 import { addUser, getAccountWithPuuid, getUserJson, readUserJson, saveUser } from "./accountSwitcher.js";
-import { getAllUserIds, getUserIdsWithAlertsOrDailyShop } from "../misc/userDatabase.js";
+import { getAllUserIds, getUserIdsWithAlertsOrDailyShop, acquireRefreshLock, releaseRefreshLock } from "../misc/userDatabase.js";
 
 export class User {
     constructor({ id, puuid, auth, alerts = [], username, region, authFailures, lastFetchedData, lastNoticeSeen, lastSawEasterEgg }) {
@@ -164,6 +165,37 @@ const activeRefreshes = new Map();
 /** Test hook: in-flight refresh count. Must be 0 whenever none is running. */
 export const activeRefreshCount = () => activeRefreshes.size;
 
+// activeRefreshes only dedupes refreshes within this process. Riot rotates
+// refresh tokens on every use, so a second shard refreshing the same account
+// at the same time doesn't just waste a request — it gets a real invalid_grant
+// back and looks like the user got logged out. This lock (backed by SQLite,
+// the one store every shard already shares) keeps refreshes for one account
+// serialized across shards too.
+const REFRESH_LOCK_TTL_MS = 15000;
+const REFRESH_LOCK_MAX_WAIT_MS = 17000;
+const REFRESH_LOCK_POLL_MS = 400;
+// ShardingManager runs shards as worker_threads, which share one OS process —
+// process.pid alone is identical across every shard on the same machine.
+// threadId is what's actually unique per shard; pid still separates machines
+// if this ever runs across more than one host.
+const lockOwnerId = `${process.pid}-${threadId}`;
+
+const claimCrossShardRefresh = async (lockKey, id, account) => {
+    const deadline = Date.now() + REFRESH_LOCK_MAX_WAIT_MS;
+    while (true) {
+        if (acquireRefreshLock(lockKey, lockOwnerId, REFRESH_LOCK_TTL_MS)) return { gotLock: true };
+
+        // Someone else holds it — check if they already finished before waiting on them.
+        const freshUser = getUserJson(id, account);
+        if (freshUser?.auth?.rso && tokenExpiry(freshUser.auth.rso) > Date.now()) {
+            return { gotLock: false, alreadyFresh: true };
+        }
+
+        if (Date.now() >= deadline) return { gotLock: false, alreadyFresh: false };
+        await wait(REFRESH_LOCK_POLL_MS);
+    }
+};
+
 export const refreshToken = async (id, account = null) => {
     let user = getUser(id, account);
     if (!user) return { success: false };
@@ -186,6 +218,10 @@ export const refreshToken = async (id, account = null) => {
     }
 
     const refreshPromise = (async () => {
+        const { gotLock, alreadyFresh } = await claimCrossShardRefresh(lockKey, user.id, account);
+        if (alreadyFresh) return { success: true };
+        if (!gotLock) console.warn(`[refreshToken] Timed out waiting on cross-shard lock for ${user.username}, proceeding without it`);
+
         try {
             if (user.auth && user.auth.refresh_token) {
                 if (config.logUrls) console.log(`[refreshToken] User has refresh_token, attempting refresh`);
@@ -242,6 +278,8 @@ export const refreshToken = async (id, account = null) => {
         } catch (e) {
             console.error(`[refreshToken] Unexpected error for ${user.username}:`, e);
             return { success: false, networkError: true };
+        } finally {
+            if (gotLock) releaseRefreshLock(lockKey, lockOwnerId);
         }
     })();
 
