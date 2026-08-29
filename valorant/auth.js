@@ -281,17 +281,19 @@ export const handleBadClaims = async (user) => {
     return { success: false, authFailure: true };
 };
 
-let cachedUserAgent = null;
-
 export const getUserAgent = async () => {
-    if (cachedUserAgent) return cachedUserAgent;
+    // Riot's client build rotates on every patch and is kept fresh in
+    // util.js by a 15min cron + cross-shard broadcast (see bot.js
+    // scheduleTasks). Read that cache each call instead of memoizing our
+    // own copy here — a private cache would freeze at boot and never pick
+    // up later patches, silently sending a stale build to Riot's auth
+    // servers for the rest of the process's uptime.
     let versionData = getRiotVersionData();
     if (!versionData) {
         versionData = await fetchRiotVersionData();
     }
     const version = versionData ? (versionData.riotClientBuild || versionData.riotClientVersion) : "release-10.00-shipping-0-0000000";
-    cachedUserAgent = `RiotClient/${version} rso-auth (Windows;10;;Professional, x64)`;
-    return cachedUserAgent;
+    return `RiotClient/${version} rso-auth (Windows;10;;Professional, x64)`;
 };
 
 export const generateWebAuthUrl = () => {
