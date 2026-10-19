@@ -56,7 +56,15 @@
     "WAIT_FOR_PREVIUS_REQUEST": "We're still working on your previous request, please wait a moment before trying again!",
     "INVALID_WEB_AUTH_URL": "**Invalid URL!** Make sure you copied the entire URL from your browser's address bar after the login page.\nIt should start with `http://localhost/redirect#access_token=...`",
     "WEB_AUTH_FAILED": "**Login failed!** {e}",
-    "CUSTOM_GAME_ESCAPE_REJECTED": "Failed to change game mode. **If you are currently in a Custom Game lobby**, Riot requires you to manually leave the Custom Game within your actual Valorant client first before changing queues!"
+    "CUSTOM_GAME_ESCAPE_REJECTED": "Failed to change game mode. **If you are currently in a Custom Game lobby**, Riot requires you to manually leave the Custom Game within your actual Valorant client first before changing queues!",
+    "LOCAL_CLIENT_UNAVAILABLE": "**I can't reach your Riot Client.**\nFriends and crosshair profiles only exist on the client itself, so the bot has to run on the same machine as the game.",
+    "FRIENDS_FETCH_FAILED": "**Couldn't fetch your friends list.** Try again in a moment.",
+    "CROSSHAIR_INVALID_CODE": "That doesn't look like a valid crosshair code.",
+    "CROSSHAIR_LIMIT": "You've hit the {n} crosshair limit. Delete one first with `/crosshair delete`.",
+    "CROSSHAIR_NOT_FOUND": "No saved crosshair called **{n}**.",
+    "CROSSHAIR_NONE_SAVED": "You have no saved crosshairs. Save one with `/crosshair save`!",
+    "CROSSHAIR_NONE_ON_ACCOUNT": "**No crosshairs saved on your account yet.** Set one up in the game and try again.",
+    "MATCH_RESULT_FAILED": "**Couldn't fetch your match result.** Try again in a moment."
   },
   "info": {
     "SHOP_HEADER": "Daily shop for **{u}** (new shop <t:{t}:R>)",
@@ -174,7 +182,30 @@
     "SELECT_LEVEL_OF_SKIN": "Select level of skin:",
     "SHARDS_LOADING": "The bot is still starting up! Please wait a few seconds and try again. (Shards loading...)",
     "NO_MORE_ACCESSORIES": "You've already got all the swagger! :sunglasses:",
-    "PROFILE_PEAK_RANK": "Peak Rank"
+    "PROFILE_PEAK_RANK": "Peak Rank",
+    "FRIENDS_HEADER": "Valorant Friends",
+    "FRIENDS_COUNT": "{o} online · {f} offline",
+    "FRIENDS_ONLINE": "Online ({n})",
+    "FRIENDS_OFFLINE": "Offline ({n})",
+    "FRIENDS_EMPTY": "Your friends list is empty.",
+    "FRIEND_PLAYING": "playing {q}",
+    "FRIEND_IN_GAME": "in a game",
+    "FRIEND_AGENT_SELECT": "in agent select",
+    "FRIEND_ONLINE": "online",
+    "FRIEND_STOPPED_PLAYING": "stopped playing",
+    "ACTIVITY_HEADER": "Friend activity",
+    "COLLECTION_EQUIP": "Equip",
+    "COLLECTION_EQUIPPED": "Equipped - pick again to unequip",
+    "COLLECTION_EQUIPPED_BADGE": "`[EQUIPPED]`",
+    "COLLECTION_EQUIP_PLACEHOLDER": "Equip a skin...",
+    "CROSSHAIR_HEADER": "Crosshairs saved on your account",
+    "CROSSHAIR_CHOICE": "Pick one to share it in this channel:",
+    "CROSSHAIR_SELECT_PLACEHOLDER": "Select a crosshair to share",
+    "CROSSHAIR_SAVED": "Saved crosshair **{n}**. Share it anytime with `/crosshair share`.",
+    "CROSSHAIR_DELETED": "Deleted **{n}**.",
+    "CROSSHAIR_LIST": "**Your crosshairs:**\n\n{l}",
+    "CROSSHAIR_LINE": "**{n}** `{c}`",
+    "CROSSHAIR_SHARE_TEXT": "**{u}'s {n} crosshair:**\n\n`{c}`\n\nPaste this into Settings → Crosshair → Import in-game."
   },
   "battlepass": {
     "CALCULATIONS_TITLE": "📈 Battlepass Calculation",
@@ -221,7 +252,11 @@
     "othersCanViewColl": "Allow others to use /collection with your username",
     "othersCanViewProfile": "Allow others to use /profile with your username",
     "othersCanUseAccountButtons": "Allow others to press buttons on your /shop",
-    "locale": "Language"
+    "matchFoundPing": "Ping you when a match is found while queuing",
+    "queueAfkReping": "Re-ping if you don't accept a found match",
+    "locale": "Language",
+    "postMatchTracker": "Send your match result after a tracked game ends",
+    "friendActivityFeed": "Post when your friends start playing"
   },
   "modal": {
     "PAGE_TITLE": "Page Navigator",
@@ -245,7 +280,9 @@
     "WIN_RATE": "Win Rate",
     "NET_RR": "Net RR",
     "AVG_ACS": "Avg ACS",
-    "AVG_KD": "Avg K/D"
+    "AVG_KD": "Avg K/D",
+    "LAST_MATCH_TITLE": "Last match — {r}",
+    "PLACEMENT": "Placement"
   },
   "livegame": {
     "EMBED_TITLE": "⚔️ Live Game・{mapName}",
@@ -287,7 +324,13 @@
     "STATE_PREGAME": "🟡 Agent Select",
     "STATE_INGAME": "🔴 In-Game",
     "STATE_NOT_IN_GAME": "⬜ Not in a match",
-    "STATE_QUEUING": "🕒 Queuing"
+    "STATE_QUEUING": "🕒 Queuing",
+    "MATCH_FOUND_TITLE": "Match Found — {q}",
+    "MATCH_FOUND_TITLE_GENERIC": "Match Found",
+    "MATCH_FOUND_DESC": "Get in! Queue time: `{t}`",
+    "MATCH_FOUND_PING": "🎮",
+    "MATCH_FOUND_AFK": "still waiting on your accept...",
+    "MATCH_DODGED": "Match was dodged or cancelled - you're back in the lobby."
   },
   "queues": {
     "COMPETITIVE": "Competitive",

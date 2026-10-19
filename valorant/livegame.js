@@ -508,6 +508,32 @@ const probeState = async (user, path, idField) => {
     return safeJson(resp.body)?.[idField] ?? null;
 };
 
+/**
+ * "Which side of a match is this player on?" with two probes and no enrichment.
+ *
+ * fetchLiveGame runs these same probes and then pays for the map/agent/rank
+ * lookups of everyone in the lobby, which is far too much to repeat every few
+ * seconds while waiting for a match to be found.
+ *
+ * Returns { success, state: "pregame" | "ingame" | "not_in_game", matchId }.
+ */
+export const probeLiveGameState = async (id, account = null) => {
+    const authResult = await authUser(id, account);
+    if (!authResult.success) return authResult;
+
+    const user = getUser(id, account);
+    if (!user) return { success: false };
+
+    const [preGameId, coreGameId] = await Promise.all([
+        probeState(user, "pregame", "MatchID"),
+        probeState(user, "core-game", "MatchID"),
+    ]);
+
+    if (coreGameId) return { success: true, state: "ingame", matchId: coreGameId };
+    if (preGameId) return { success: true, state: "pregame", matchId: preGameId };
+    return { success: true, state: "not_in_game" };
+};
+
 // ──────────────────────────────────────────────
 // Party / Matchmaking fetch
 // ──────────────────────────────────────────────
@@ -518,7 +544,7 @@ const probeState = async (user, path, idField) => {
  * or       { success, state: "not_queuing" }
  * or       { success: false, ... } on auth failure.
  */
-const getPartyData = async (id, account = null, knownPartyId = undefined) => {
+export const getPartyData = async (id, account = null, knownPartyId = undefined) => {
     const authResult = await authUser(id, account);
     if (!authResult.success) return { ...authResult, state: null };
 

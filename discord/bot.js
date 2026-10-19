@@ -65,7 +65,7 @@ import {
 } from "./embed.js";
 import { authUser, getUser, getUserList, getRegion, getUserInfo, generateWebAuthUrl, redeemWebAuthUrl } from "../valorant/auth.js";
 import { getBalance, clearShopMemoryCache } from "../valorant/shop.js";
-import { getSkin, fetchData, searchSkin, searchBundle, getBundle, clearCache, loadSkinsJSON, flushSkinsJSON, areSkinDataLoaded, mergePrices } from "../valorant/cache.js";
+import { getSkin, getWeapon, fetchData, searchSkin, searchBundle, getBundle, clearCache, loadSkinsJSON, flushSkinsJSON, areSkinDataLoaded, mergePrices } from "../valorant/cache.js";
 import {
     addAlert,
     alertExists,
@@ -114,6 +114,10 @@ import {
     clearLiveGameCache
 } from "../valorant/livegame.js";
 import { renderLiveGame, renderLiveGameError, setRoleSelection } from "./livegameEmbed.js";
+import { getFriendsOverview } from "../valorant/party.js";
+import { startQueueWatcher, cancelWatcher, isWatching, stopAllWatchers } from "../valorant/queueWatcher.js";
+import { renderFriends } from "./friendsEmbed.js";
+import { renderMatchResult } from "./matchEmbed.js";
 
 // ─── Pre-game → in-game transition poller ─────────────────────────────────
 // Maps userId → Timeout
@@ -252,14 +256,56 @@ const startLiveGamePoller = (userId, interaction, retriesLeft = Math.ceil(POLLER
             if (data.state === "pregame" || data.state === "queuing") {
                 // Still in agent select or queue — wait another cycle
                 startLiveGamePoller(userId, interaction, retriesLeft - 1, data);
+            } else if (data.state === "ingame") {
+                // state === "ingame" → full embed sent; schedule the post-match
+                // result stage once the game should be over
+                schedulePostMatchTracker(userId, interaction);
             }
-            // state === "ingame" → full embed sent, stop polling
         } catch (e) {
             console.error(`[livegame poller] error for ${userId}:`, e);
         }
     }, config.livegamePollingInterval);
 
     liveGamePollers.set(userId, timer);
+};
+
+const postMatchTimers = new Map();
+
+const schedulePostMatchTracker = (userId, interaction) => {
+    if (postMatchTimers.has(userId)) clearTimeout(postMatchTimers.get(userId));
+    const timer = setTimeout(async () => {
+        postMatchTimers.delete(userId);
+        try {
+            const { getSetting: gs } = await import("../misc/settings.js");
+            if (!gs(userId, "postMatchTracker")) return;
+
+            const { fetchLiveGame: flg } = await import("../valorant/livegame.js");
+            const still = await flg(userId).catch(() => null);
+            if (still && still.success && (still.state === "ingame" || still.state === "pregame")) {
+                schedulePostMatchTracker(userId, interaction);
+                return;
+            }
+
+            const user = getUser(userId);
+            if (!user) return;
+
+            const message = await renderMatchResult(interaction, user, true);
+            if (!message) return;
+
+            await interaction.followUp({ ...message, content: `<@${userId}>` }).catch(() => {});
+        } catch (e) {
+            console.error(`[postmatch] error for ${userId}:`, e.message);
+        }
+    }, 45 * 60 * 1000);
+    postMatchTimers.set(userId, timer);
+};
+
+export const cancelPostMatchTracker = (userId) => {
+    const timer = postMatchTimers.get(userId);
+    if (timer) {
+        clearTimeout(timer);
+        postMatchTimers.delete(userId);
+    }
 };
 import { spawn } from "child_process";
 import * as fs from "fs";
@@ -422,6 +468,11 @@ export const scheduleTasks = () => {
     if (config.updateUserAgent && client.shard.ids[0] === 0) {
         cronTasks.push(cron.schedule(config.updateUserAgent, refreshAndBroadcastRiotVersion));
     }
+
+    // opt-in friend activity feed, polled every 2 minutes (shard 0 only)
+    if (client.shard.ids[0] === 0) {
+        import("../valorant/activityFeed.js").then(({ startActivityFeed }) => startActivityFeed(120000));
+    }
 }
 
 export const destroyTasks = () => {
@@ -429,6 +480,7 @@ export const destroyTasks = () => {
     for (const task of cronTasks)
         task.stop();
     cronTasks.length = 0;
+    import("../valorant/activityFeed.js").then(({ stopActivityFeed }) => stopActivityFeed()).catch(() => {});
     // Flush any pending debounced writes to disk
     flushStats();
     flushSkinsJSON();
@@ -570,6 +622,71 @@ const commands = [
         }]
     },
     {
+        name: "friends",
+        description: "See your Valorant friends list with live status"
+    },
+    {
+        name: "matchresult",
+        description: "See your last match result with KDA, ACS, headshot % and RR"
+    },
+    {
+        name: "crosshair",
+        description: "Share the crosshairs saved on your account, or save codes",
+        options: [
+            {
+                name: "account",
+                description: "Share one of the crosshairs saved on your account",
+                type: ApplicationCommandOptionType.Subcommand
+            },
+            {
+                name: "save",
+                description: "Save a crosshair code under a name",
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: "name",
+                        description: "A name for this crosshair",
+                        required: true
+                    },
+                    {
+                        type: ApplicationCommandOptionType.String,
+                        name: "code",
+                        description: "The crosshair code (from the in-game settings)",
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: "view",
+                description: "View your saved crosshair codes",
+                type: ApplicationCommandOptionType.Subcommand
+            },
+            {
+                name: "share",
+                description: "Share one of your saved crosshairs in this channel",
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [{
+                    type: ApplicationCommandOptionType.String,
+                    name: "name",
+                    description: "Which saved crosshair to share",
+                    required: true
+                }]
+            },
+            {
+                name: "delete",
+                description: "Delete a saved crosshair",
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [{
+                    type: ApplicationCommandOptionType.String,
+                    name: "name",
+                    description: "Which saved crosshair to delete",
+                    required: true
+                }]
+            }
+        ]
+    },
+    {
         name: "livegame",
         description: "See your current Valorant match with player ranks and agents."
     },
@@ -656,6 +773,9 @@ export const stopBot = async (replyFn) => {
     localLog("Stopping the bot...");
     for (const timer of liveGamePollers.values()) clearTimeout(timer);
     liveGamePollers.clear();
+    stopAllWatchers();
+    for (const timer of postMatchTimers.values()) clearTimeout(timer);
+    postMatchTimers.clear();
     if (replyFn) {
         try {
             await replyFn();
@@ -1509,6 +1629,91 @@ client.on("interactionCreate", async (interaction) => {
 
                     break;
                 }
+                case "crosshair": {
+                    const sub = interaction.options.getSubcommand();
+                    const strings = s(interaction);
+
+                    if (sub === "account") {
+                        await defer(interaction, true);
+
+                        const { getAccountCrosshairs } = await import("../valorant/crosshairProfiles.js");
+                        const accountRes = await getAccountCrosshairs();
+
+                        if (!accountRes.success) return await interaction.followUp({
+                            embeds: [basicEmbed(accountRes.localUnavailable
+                                ? strings.error.LOCAL_CLIENT_UNAVAILABLE
+                                : strings.error.GENERIC_ERROR.f({ e: "player-preferences" }))],
+                            flags: [MessageFlags.Ephemeral]
+                        });
+
+                        if (accountRes.profiles.length === 0) return await interaction.followUp({
+                            embeds: [basicEmbed(strings.error.CROSSHAIR_NONE_ON_ACCOUNT)],
+                            flags: [MessageFlags.Ephemeral]
+                        });
+
+                        const row = new ActionRowBuilder().addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId(`xhair_share/${interaction.user.id}`)
+                                .setPlaceholder(strings.info.CROSSHAIR_SELECT_PLACEHOLDER)
+                                .addOptions(accountRes.profiles.slice(0, 25).map(profile => new StringSelectMenuOptionBuilder()
+                                    .setLabel(profile.name.slice(0, 100))
+                                    .setValue(String(profile.index))))
+                        );
+
+                        const list = accountRes.profiles.map(profile => `**${profile.name}**`).join("\n");
+                        return await interaction.followUp({
+                            embeds: [basicEmbed(`**${strings.info.CROSSHAIR_HEADER}**\n\n${list}\n\n${strings.info.CROSSHAIR_CHOICE}`)],
+                            components: [row],
+                            flags: [MessageFlags.Ephemeral]
+                        });
+                    }
+
+                    const { getCrosshairs, saveCrosshair, deleteCrosshair } = await import("../misc/crosshairs.js");
+                    const ephemeral = { flags: [MessageFlags.Ephemeral] };
+
+                    if (sub === "save") {
+                        const name = interaction.options.getString("name").slice(0, 32);
+                        const code = interaction.options.getString("code").trim().slice(0, 50);
+                        if (!/^[\w=+/-]+$/.test(code)) return await interaction.reply({
+                            embeds: [basicEmbed(strings.error.CROSSHAIR_INVALID_CODE)],
+                            ...ephemeral
+                        });
+                        if (!saveCrosshair(interaction.user.id, name, code)) {
+                            return await interaction.reply({
+                                embeds: [basicEmbed(strings.error.CROSSHAIR_LIMIT.f({ n: 10 }))],
+                                ...ephemeral
+                            });
+                        }
+                        await interaction.reply({ embeds: [secondaryEmbed(strings.info.CROSSHAIR_SAVED.f({ n: name }))], ...ephemeral });
+                    } else if (sub === "view") {
+                        const saved = getCrosshairs(interaction.user.id);
+                        const names = Object.keys(saved);
+                        if (names.length === 0) return await interaction.reply({
+                            embeds: [basicEmbed(strings.error.CROSSHAIR_NONE_SAVED)],
+                            ...ephemeral
+                        });
+                        const lines = names.map(name => strings.info.CROSSHAIR_LINE.f({ n: name, c: saved[name].code })).join("\n");
+                        await interaction.reply({ embeds: [basicEmbed(strings.info.CROSSHAIR_LIST.f({ l: lines }))], ...ephemeral });
+                    } else if (sub === "share") {
+                        const name = interaction.options.getString("name");
+                        const saved = getCrosshairs(interaction.user.id);
+                        if (!saved[name]) return await interaction.reply({
+                            embeds: [basicEmbed(strings.error.CROSSHAIR_NOT_FOUND.f({ n: name }))],
+                            ...ephemeral
+                        });
+                        await interaction.reply({
+                            embeds: [basicEmbed(strings.info.CROSSHAIR_SHARE_TEXT.f({ u: interaction.user.username, n: name, c: saved[name].code }))]
+                        });
+                    } else if (sub === "delete") {
+                        const name = interaction.options.getString("name");
+                        if (!deleteCrosshair(interaction.user.id, name)) return await interaction.reply({
+                            embeds: [basicEmbed(strings.error.CROSSHAIR_NOT_FOUND.f({ n: name }))],
+                            ...ephemeral
+                        });
+                        await interaction.reply({ embeds: [secondaryEmbed(strings.info.CROSSHAIR_DELETED.f({ n: name }))], ...ephemeral });
+                    }
+                    break;
+                }
                 case "livegame": {
                     if (!valorantUser) return await interaction.reply({
                         embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED)],
@@ -1530,6 +1735,9 @@ client.on("interactionCreate", async (interaction) => {
                         // If in agent select or queuing, start poller to auto-upgrade embed
                         if (liveGameData.state === "pregame" || liveGameData.state === "queuing") {
                             startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
+                            if (liveGameData.state === "queuing" && getSetting(interaction.user.id, "matchFoundPing") && !isWatching(interaction.user.id)) {
+                                startQueueWatcher(interaction.user.id, interaction, liveGameData.matchId, liveGameData.queueId);
+                            }
                         }
                     }
 
@@ -1586,6 +1794,42 @@ client.on("interactionCreate", async (interaction) => {
 
                     break;
                 }
+                case "friends": {
+                    if (!valorantUser) return await interaction.reply({
+                        embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED)],
+                        flags: [MessageFlags.Ephemeral]
+                    });
+
+                    await defer(interaction);
+
+                    const friendsRes = await getFriendsOverview(interaction.user.id);
+                    if (!friendsRes.success) {
+                        const message = friendsRes.localUnavailable
+                            ? s(interaction).error.LOCAL_CLIENT_UNAVAILABLE
+                            : s(interaction).error.FRIENDS_FETCH_FAILED;
+                        return await interaction.followUp({
+                            embeds: [basicEmbed(message)],
+                            flags: [MessageFlags.Ephemeral]
+                        });
+                    }
+
+                    await interaction.followUp(renderFriends(interaction, friendsRes));
+                    console.log(`Handled /friends for ${interaction.user.tag} — ${friendsRes.friends.length} friends`);
+                    break;
+                }
+                case "matchresult": {
+                    if (!valorantUser) return await interaction.reply({
+                        embeds: [basicEmbed(s(interaction).error.NOT_REGISTERED)],
+                        flags: [MessageFlags.Ephemeral]
+                    });
+
+                    await defer(interaction);
+
+                    const message = await renderMatchResult(interaction, valorantUser);
+                    await interaction.followUp(message);
+
+                    break;
+                }
                 default: {
                     await interaction.reply(s(interaction).info.UNHANDLED_COMMAND);
                     break;
@@ -1602,7 +1846,41 @@ client.on("interactionCreate", async (interaction) => {
             if (interaction.customId.startsWith("livegame/select_role")) selectType = "livegame/select_role";
             if (interaction.customId.startsWith("livegame/select_queue")) selectType = "livegame/select_queue";
             if (interaction.customId.startsWith("cl_select_weapon")) selectType = "cl_select_weapon";
+            if (interaction.customId.startsWith("xhair_share/")) selectType = "xhair_share";
             switch (selectType) {
+                case "xhair_share": {
+                    const [, ownerId] = interaction.customId.split('/');
+                    if (ownerId !== interaction.user.id) return await interaction.reply({
+                        embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
+                        flags: [MessageFlags.Ephemeral]
+                    });
+
+                    await deferInteraction(interaction);
+
+                    const { getAccountCrosshairs } = await import("../valorant/crosshairProfiles.js");
+                    const accountRes = await getAccountCrosshairs();
+                    const profile = accountRes.success
+                        ? accountRes.profiles.find(p => String(p.index) === interaction.values[0])
+                        : null;
+
+                    if (!profile) return await replyOrFollowUp(interaction, {
+                        embeds: [basicEmbed(accountRes.localUnavailable
+                            ? s(interaction).error.LOCAL_CLIENT_UNAVAILABLE
+                            : s(interaction).error.CROSSHAIR_NONE_ON_ACCOUNT)],
+                        flags: [MessageFlags.Ephemeral]
+                    });
+
+                    // Posted as a normal message rather than a reply so the code
+                    // is actually visible to whoever the user wanted to share it with.
+                    await interaction.channel.send({
+                        embeds: [basicEmbed(s(interaction).info.CROSSHAIR_SHARE_TEXT.f({
+                            u: interaction.user.username,
+                            n: profile.name,
+                            c: profile.code
+                        }))]
+                    });
+                    break;
+                }
                 case "cl_select_weapon": {
                     const [, id] = interaction.customId.split('/');
                     const weaponTypeIndex = interaction.values[0];
@@ -2011,6 +2289,44 @@ client.on("interactionCreate", async (interaction) => {
                 if (!skinsResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, id !== interaction.user.id));
 
                 await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, skinsResponse.skins, 0, switchToPage ? "card" : "list"));
+            } else if (interaction.customId.startsWith("clw_equip/")) {
+                const [, weaponTypeIndex, id, pageIndex, viewType] = interaction.customId.split('/');
+                if (id !== interaction.user.id) return await interaction.reply({
+                    embeds: [basicEmbed(s(interaction).error.NOT_UR_MESSAGE_GENERIC)],
+                    flags: [MessageFlags.Ephemeral]
+                });
+
+                const weaponType = Object.values(WeaponTypeUuid)[parseInt(weaponTypeIndex)];
+                const skinUuid = interaction.values[0];
+                const user = valorantUser;
+
+                await deferInteraction(interaction);
+
+                const skinsResponse = await getSkins(user);
+                if (!skinsResponse.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, skinsResponse, s(interaction).error.AUTH_ERROR_COLLECTION, false));
+
+                const loadoutRes = await getLoadout(user);
+                const currentlyEquipped = loadoutRes.success ? loadoutRes.loadout?.Guns?.find(g => g.ID === weaponType)?.SkinID : null;
+
+                const { equipSkinForWeapon } = await import("../valorant/loadoutEditor.js");
+
+                let result;
+                let equipped = skinUuid;
+                if (currentlyEquipped && currentlyEquipped.toLowerCase() === skinUuid.toLowerCase()) {
+                    // Picking the skin that's already on puts the default back
+                    const weapon = await getWeapon(weaponType);
+                    equipped = weapon?.defaultSkinUuid || weaponType;
+                    result = await equipSkinForWeapon(id, null, weaponType, equipped);
+                } else {
+                    result = await equipSkinForWeapon(id, null, weaponType, skinUuid);
+                }
+
+                if (!result.success) return await replyOrFollowUp(interaction, authFailureMessage(interaction, result, s(interaction).error.AUTH_ERROR_COLLECTION, false));
+
+                const freshSkins = await getSkins(user);
+                await updateInteraction(interaction, await collectionOfWeaponEmbed(interaction, id, user, weaponType, freshSkins.skins, parseInt(pageIndex), viewType || "card"));
+
+                console.log(`[collection] ${interaction.user.tag} toggled equip for ${equipped}`);
             } else if (interaction.customId.startsWith("viewbundle")) {
                 const [, id, uuid] = interaction.customId.split('/');
 
@@ -2304,6 +2620,9 @@ client.on("interactionCreate", async (interaction) => {
                 if (liveGameData.success) {
                     if (liveGameData.state === "queuing") {
                         startLiveGamePoller(interaction.user.id, interaction, undefined, liveGameData);
+                        if (getSetting(interaction.user.id, "matchFoundPing") && !isWatching(interaction.user.id)) {
+                            startQueueWatcher(interaction.user.id, interaction, liveGameData.matchId, liveGameData.queueId);
+                        }
                     } else if (liveGameData.state === "not_in_game") {
                         cancelLiveGamePoller(interaction.user.id);
                     }
